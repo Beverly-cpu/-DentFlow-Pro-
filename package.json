@@ -1,0 +1,11 @@
+{
+  "name": "dentflow-pro",
+  "version": "0.1.0-alpha",
+  "private": true,
+  "packageManager": "pnpm@10.15.0",
+  "scripts": {
+    "dev": "pnpm --filter desktop dev",
+    "build": "pnpm --filter desktop build",
+    "lint": "pnpm -r lint"
+  }
+}
