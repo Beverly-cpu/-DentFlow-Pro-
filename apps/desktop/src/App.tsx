@@ -1,58 +1,39 @@
-import "./styles/App.css";
+import {
+  HashRouter,
+  Navigate,
+  Route,
+  Routes,
+} from "react-router-dom";
+
+import MainLayout from "./layouts/MainLayout";
+import Dashboard from "./pages/Dashboard";
+import Patients from "./pages/Patients";
+import Doctors from "./pages/Doctors";
+import Implants from "./pages/Implants";
+import Inventory from "./pages/Inventory";
+import Purchase from "./pages/Purchase";
+import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
 
 function App() {
   return (
-    <div className="layout">
+    <HashRouter>
+      <Routes>
+        <Route element={<MainLayout />}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/patients" element={<Patients />} />
+          <Route path="/doctors" element={<Doctors />} />
+          <Route path="/implants" element={<Implants />} />
+          <Route path="/inventory" element={<Inventory />} />
+          <Route path="/purchase" element={<Purchase />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/settings" element={<Settings />} />
+        </Route>
 
-      <aside className="sidebar">
-        <h2>DentFlow Pro</h2>
-
-        <button>🏠 儀表板</button>
-        <button>👤 病患管理</button>
-        <button>🦷 植體追蹤</button>
-        <button>📦 庫存管理</button>
-        <button>🛒 採購管理</button>
-        <button>📊 報表</button>
-        <button>⚙ 系統設定</button>
-      </aside>
-
-      <main className="content">
-
-        <div className="header">
-          <h1>儀表板</h1>
-
-          <div>
-            Administrator
-          </div>
-        </div>
-
-        <div className="cards">
-
-          <div className="card">
-            <h3>今日手術</h3>
-            <h1>0</h1>
-          </div>
-
-          <div className="card">
-            <h3>低庫存</h3>
-            <h1>0</h1>
-          </div>
-
-          <div className="card">
-            <h3>待OCR</h3>
-            <h1>0</h1>
-          </div>
-
-          <div className="card">
-            <h3>待簽名</h3>
-            <h1>0</h1>
-          </div>
-
-        </div>
-
-      </main>
-
-    </div>
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </HashRouter>
   );
 }
 

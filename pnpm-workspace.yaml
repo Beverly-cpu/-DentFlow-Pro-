@@ -3,4 +3,6 @@ packages:
   - packages/*
 
 onlyBuiltDependencies:
+  - bcrypt
+  - better-sqlite3
   - electron-winstaller

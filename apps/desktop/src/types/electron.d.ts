@@ -1,9 +1,5 @@
 export {};
 
-/* =========================
-   病患
-========================= */
-
 type PatientInput = {
   chartNumber: string;
   name: string;
@@ -18,10 +14,6 @@ type PatientRecord = PatientInput & {
   createdAt: string;
   updatedAt: string;
 };
-
-/* =========================
-   醫師
-========================= */
 
 type DoctorInput = {
   name: string;
@@ -45,50 +37,33 @@ type DoctorRecord = {
   updatedAt: string;
 };
 
-/* =========================
-   植體
-========================= */
-
 type ImplantInput = {
   patientId: number;
   doctorId: number | null;
-
   toothPosition: string;
-
   brand: string;
   model: string;
   diameter: string;
   length: string;
-
   lotNumber: string;
   expiryDate: string;
   implantDate: string;
-
   note: string;
 };
 
 type ImplantRecord = ImplantInput & {
   id: number;
-
   patientName: string;
   patientChartNumber: string;
-
   doctorName: string | null;
-
   createdAt: string;
   updatedAt: string;
 };
-
-/* =========================
-   Electron API
-========================= */
 
 declare global {
   interface Window {
     dentflow: {
       version: string;
-
-      /* 病患 */
 
       patients: {
         list: () => Promise<PatientRecord[]>;
@@ -107,8 +82,6 @@ declare global {
         ) => Promise<boolean>;
       };
 
-      /* 醫師 */
-
       doctors: {
         list: () => Promise<DoctorRecord[]>;
 
@@ -125,8 +98,6 @@ declare global {
           id: number,
         ) => Promise<boolean>;
       };
-
-      /* 植體 */
 
       implants: {
         list: () => Promise<ImplantRecord[]>;
