@@ -61,6 +61,58 @@ type ImplantRecord = ImplantInput & {
 };
 
 declare global {
+  type DentflowRole =
+    | "Doctor"
+    | "Assistant"
+    | "Admin"
+    | "Accountant";
+
+  type DentflowAuthSession = {
+    clinicId: number;
+    clinicName: string;
+    role: DentflowRole;
+  };
+
+  type DentflowInventoryRecord = {
+    id: number;
+    clinicId: number;
+    name: string;
+    category: string;
+    brand: string;
+    model: string;
+    specification: string;
+    refNumber: string;
+    lotNumber: string;
+    expiryDate: string;
+    quantity: number;
+    safetyStock: number;
+    unitCost: number;
+    createdAt: string;
+    updatedAt: string;
+  };
+
+  type DentflowInventoryTransactionRecord = {
+    id: number;
+    clinicId: number;
+    inventoryItemId: number;
+    type: string;
+    quantityChange: number;
+    quantityBefore: number;
+    quantityAfter: number;
+    unitCost: number;
+    totalCost: number;
+    note: string;
+    inventoryName: string;
+    inventoryCategory: string;
+    inventoryBrand: string;
+    inventoryModel: string;
+    inventorySpecification: string;
+    inventoryRefNumber: string;
+    inventoryLotNumber: string;
+    inventoryExpiryDate: string;
+    createdAt: string;
+  };
+
   interface Window {
     dentflow: {
       version: string;
@@ -114,6 +166,23 @@ declare global {
         delete: (
           id: number,
         ) => Promise<boolean>;
+      };
+
+      inventory: {
+        list: (clinicId: number) => Promise<DentflowInventoryRecord[]>;
+        receive: (
+          inventoryItemId: number,
+          clinicId: number,
+          quantity: number,
+          unitCost: number,
+          note: string,
+        ) => Promise<DentflowInventoryRecord>;
+      };
+
+      inventoryTransactions: {
+        list: (
+          clinicId: number,
+        ) => Promise<DentflowInventoryTransactionRecord[]>;
       };
     };
   }
