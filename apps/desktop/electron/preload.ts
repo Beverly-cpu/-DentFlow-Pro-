@@ -1,3 +1,5 @@
+import { contextBridge, ipcRenderer } from "electron";
+
 export {};
 
 /* =========================
@@ -79,6 +81,46 @@ type ImplantRecord = ImplantInput & {
   updatedAt: string;
 };
 
+type InventoryRecord = {
+  id: number;
+  clinicId: number;
+  name: string;
+  category: string;
+  brand: string;
+  model: string;
+  specification: string;
+  refNumber: string;
+  lotNumber: string;
+  expiryDate: string;
+  quantity: number;
+  safetyStock: number;
+  unitCost: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type InventoryTransactionRecord = {
+  id: number;
+  clinicId: number;
+  inventoryItemId: number;
+  type: string;
+  quantityChange: number;
+  quantityBefore: number;
+  quantityAfter: number;
+  unitCost: number;
+  totalCost: number;
+  note: string;
+  inventoryName: string;
+  inventoryCategory: string;
+  inventoryBrand: string;
+  inventoryModel: string;
+  inventorySpecification: string;
+  inventoryRefNumber: string;
+  inventoryLotNumber: string;
+  inventoryExpiryDate: string;
+  createdAt: string;
+};
+
 /* =========================
    Electron API
 ========================= */
@@ -144,6 +186,71 @@ declare global {
           id: number,
         ) => Promise<boolean>;
       };
+
+      inventory: {
+        list: (clinicId: number) => Promise<InventoryRecord[]>;
+        receive: (
+          inventoryItemId: number,
+          clinicId: number,
+          quantity: number,
+          unitCost: number,
+          note: string,
+        ) => Promise<InventoryRecord>;
+      };
+
+      inventoryTransactions: {
+        list: (clinicId: number) => Promise<InventoryTransactionRecord[]>;
+      };
     };
   }
 }
+
+contextBridge.exposeInMainWorld("dentflow", {
+  version: process.versions.electron,
+  patients: {
+    list: () => ipcRenderer.invoke("patients:list"),
+    create: (patient: PatientInput) =>
+      ipcRenderer.invoke("patients:create", patient),
+    update: (id: number, patient: PatientInput) =>
+      ipcRenderer.invoke("patients:update", id, patient),
+    delete: (id: number) => ipcRenderer.invoke("patients:delete", id),
+  },
+  doctors: {
+    list: () => ipcRenderer.invoke("doctors:list"),
+    create: (doctor: DoctorInput) =>
+      ipcRenderer.invoke("doctors:create", doctor),
+    update: (id: number, doctor: DoctorInput) =>
+      ipcRenderer.invoke("doctors:update", id, doctor),
+    delete: (id: number) => ipcRenderer.invoke("doctors:delete", id),
+  },
+  implants: {
+    list: () => ipcRenderer.invoke("implants:list"),
+    create: (implant: ImplantInput) =>
+      ipcRenderer.invoke("implants:create", implant),
+    update: (id: number, implant: ImplantInput) =>
+      ipcRenderer.invoke("implants:update", id, implant),
+    delete: (id: number) => ipcRenderer.invoke("implants:delete", id),
+  },
+  inventory: {
+    list: (clinicId: number) => ipcRenderer.invoke("inventory:list", clinicId),
+    receive: (
+      inventoryItemId: number,
+      clinicId: number,
+      quantity: number,
+      unitCost: number,
+      note: string,
+    ) =>
+      ipcRenderer.invoke(
+        "inventory:receive",
+        inventoryItemId,
+        clinicId,
+        quantity,
+        unitCost,
+        note,
+      ),
+  },
+  inventoryTransactions: {
+    list: (clinicId: number) =>
+      ipcRenderer.invoke("inventoryTransactions:list", clinicId),
+  },
+});
