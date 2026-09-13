@@ -99,6 +99,18 @@ type InventoryRecord = {
   updatedAt: string;
 };
 
+type InventoryInput = {
+  name: string;
+  category: string;
+  brand: string;
+  model: string;
+  specification: string;
+  refNumber: string;
+  lotNumber: string;
+  expiryDate: string;
+  safetyStock: number;
+};
+
 type InventoryTransactionRecord = {
   id: number;
   clinicId: number;
@@ -121,6 +133,14 @@ type InventoryTransactionRecord = {
   createdAt: string;
 };
 
+type AuthSession = {
+  userId: number;
+  userName: string;
+  clinicId: number;
+  clinicName: string;
+  role: "Doctor" | "Assistant" | "Admin" | "Accountant";
+};
+
 /* =========================
    Electron API
 ========================= */
@@ -129,6 +149,18 @@ declare global {
   interface Window {
     dentflow: {
       version: string;
+
+      auth: {
+        status: () => Promise<{ needsSetup: boolean }>;
+        setup: (
+          name: string,
+          account: string,
+          password: string,
+        ) => Promise<AuthSession>;
+        login: (account: string, password: string) => Promise<AuthSession>;
+        current: () => Promise<AuthSession | null>;
+        logout: () => Promise<boolean>;
+      };
 
       /* 病患 */
 
@@ -189,6 +221,9 @@ declare global {
 
       inventory: {
         list: (clinicId: number) => Promise<InventoryRecord[]>;
+        create: (input: InventoryInput) => Promise<InventoryRecord>;
+        update: (id: number, input: InventoryInput) => Promise<InventoryRecord>;
+        delete: (id: number) => Promise<boolean>;
         receive: (
           inventoryItemId: number,
           clinicId: number,
@@ -207,6 +242,15 @@ declare global {
 
 contextBridge.exposeInMainWorld("dentflow", {
   version: process.versions.electron,
+  auth: {
+    status: () => ipcRenderer.invoke("auth:status"),
+    setup: (name: string, account: string, password: string) =>
+      ipcRenderer.invoke("auth:setup", name, account, password),
+    login: (account: string, password: string) =>
+      ipcRenderer.invoke("auth:login", account, password),
+    current: () => ipcRenderer.invoke("auth:current"),
+    logout: () => ipcRenderer.invoke("auth:logout"),
+  },
   patients: {
     list: () => ipcRenderer.invoke("patients:list"),
     create: (patient: PatientInput) =>
@@ -233,6 +277,10 @@ contextBridge.exposeInMainWorld("dentflow", {
   },
   inventory: {
     list: (clinicId: number) => ipcRenderer.invoke("inventory:list", clinicId),
+    create: (input: InventoryInput) => ipcRenderer.invoke("inventory:create", input),
+    update: (id: number, input: InventoryInput) =>
+      ipcRenderer.invoke("inventory:update", id, input),
+    delete: (id: number) => ipcRenderer.invoke("inventory:delete", id),
     receive: (
       inventoryItemId: number,
       clinicId: number,

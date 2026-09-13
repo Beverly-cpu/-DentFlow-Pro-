@@ -89,10 +89,6 @@ export default function Implants() {
 
   const [errorMessage, setErrorMessage] = useState("");
 
-  useEffect(() => {
-    void loadAll();
-  }, []);
-
   async function loadAll() {
     try {
       setIsLoading(true);
@@ -122,6 +118,10 @@ export default function Implants() {
       setIsLoading(false);
     }
   }
+
+  useEffect(() => {
+    queueMicrotask(() => void loadAll());
+  }, []);
 
   const filteredImplants = useMemo(() => {
     const query = keyword.trim().toLowerCase();

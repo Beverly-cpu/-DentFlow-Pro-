@@ -68,6 +68,8 @@ declare global {
     | "Accountant";
 
   type DentflowAuthSession = {
+    userId: number;
+    userName: string;
     clinicId: number;
     clinicName: string;
     role: DentflowRole;
@@ -89,6 +91,18 @@ declare global {
     unitCost: number;
     createdAt: string;
     updatedAt: string;
+  };
+
+  type DentflowInventoryInput = {
+    name: string;
+    category: string;
+    brand: string;
+    model: string;
+    specification: string;
+    refNumber: string;
+    lotNumber: string;
+    expiryDate: string;
+    safetyStock: number;
   };
 
   type DentflowInventoryTransactionRecord = {
@@ -116,6 +130,21 @@ declare global {
   interface Window {
     dentflow: {
       version: string;
+
+      auth: {
+        status: () => Promise<{ needsSetup: boolean }>;
+        setup: (
+          name: string,
+          account: string,
+          password: string,
+        ) => Promise<DentflowAuthSession>;
+        login: (
+          account: string,
+          password: string,
+        ) => Promise<DentflowAuthSession>;
+        current: () => Promise<DentflowAuthSession | null>;
+        logout: () => Promise<boolean>;
+      };
 
       patients: {
         list: () => Promise<PatientRecord[]>;
@@ -170,6 +199,14 @@ declare global {
 
       inventory: {
         list: (clinicId: number) => Promise<DentflowInventoryRecord[]>;
+        create: (
+          input: DentflowInventoryInput,
+        ) => Promise<DentflowInventoryRecord>;
+        update: (
+          id: number,
+          input: DentflowInventoryInput,
+        ) => Promise<DentflowInventoryRecord>;
+        delete: (id: number) => Promise<boolean>;
         receive: (
           inventoryItemId: number,
           clinicId: number,

@@ -119,6 +119,11 @@ export function initializeDatabase(): Database.Database {
       ON inventoryTransactions(clinicId, createdAt DESC);
   `);
 
+  database.exec(`
+    UPDATE doctors SET role = 'Admin' WHERE role = 'Administrator';
+    UPDATE doctors SET role = 'Assistant' WHERE role = 'Warehouse';
+  `);
+
   console.log("DentFlow database:", databasePath);
 
   return database;
