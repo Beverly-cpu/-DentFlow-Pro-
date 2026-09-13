@@ -28,6 +28,12 @@ import {
   type ImplantInput,
 } from "./database/implantRepository";
 
+import {
+  getInventory,
+  getInventoryTransactions,
+  receiveInventory,
+} from "./database/inventoryRepository";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -116,6 +122,29 @@ function registerImplantHandlers() {
   });
 }
 
+function registerInventoryHandlers() {
+  ipcMain.handle("inventory:list", (_event, clinicId: number) => {
+    return getInventory(clinicId);
+  });
+
+  ipcMain.handle(
+    "inventory:receive",
+    (
+      _event,
+      inventoryItemId: number,
+      clinicId: number,
+      quantity: number,
+      unitCost: number,
+      note: string,
+    ) => receiveInventory(inventoryItemId, clinicId, quantity, unitCost, note),
+  );
+
+  ipcMain.handle(
+    "inventoryTransactions:list",
+    (_event, clinicId: number) => getInventoryTransactions(clinicId),
+  );
+}
+
 /* =========================
    建立 Electron 視窗
 ========================= */
@@ -154,6 +183,7 @@ app.whenReady().then(() => {
   registerPatientHandlers();
   registerDoctorHandlers();
   registerImplantHandlers();
+  registerInventoryHandlers();
 
   createWindow();
 
