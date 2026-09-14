@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import {
   useEffect,
   useMemo,
@@ -312,10 +313,11 @@ function buildReceiveNote(
 export default function Purchase() {
   const [
     session,
+    setSession,
   ] =
     useState<
       DentflowAuthSession | null
-    >(getStoredSession);
+    >(null);
 
   const [
     inventory,
@@ -449,26 +451,26 @@ export default function Purchase() {
 
   useEffect(
     () => {
-      queueMicrotask(() => {
-        const activeSession =
-          getStoredSession();
+      const activeSession =
+        getStoredSession();
 
-        if (!activeSession) {
-          setLoading(
-            false,
-          );
+      queueMicrotask(() => setSession(activeSession));
 
-          setError(
-            "找不到登入資訊，請重新登入。",
-          );
-
-          return;
-        }
-
-        void loadData(
-          activeSession,
+      if (!activeSession) {
+        setLoading(
+          false,
         );
-      });
+
+        setError(
+          "找不到登入資訊，請重新登入。",
+        );
+
+        return;
+      }
+
+      void loadData(
+        activeSession,
+      );
     },
     [],
   );

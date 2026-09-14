@@ -1,29 +1,991 @@
-import { contextBridge, ipcRenderer } from "electron";
+import {
+  contextBridge,
+  ipcRenderer,
+} from "electron";
 
-export {};
+/* =========================================================
+   DentFlow API
+========================================================= */
 
-/* =========================
-   病患
-========================= */
+const dentflowApi = {
+  /* =======================================================
+     Auth
+  ======================================================= */
 
-type PatientInput = {
-  chartNumber: string;
-  name: string;
-  birthDate: string;
-  phone: string;
-  doctor: string;
-  note: string;
+  auth: {
+    activeClinics() {
+      return ipcRenderer.invoke(
+        "auth:active-clinics",
+      );
+    },
+
+    clinicsForAccount(
+      account: string,
+    ) {
+      return ipcRenderer.invoke(
+        "auth:clinics-for-account",
+        account,
+      );
+    },
+
+    hasUsers() {
+      return ipcRenderer.invoke(
+        "auth:has-users",
+      );
+    },
+
+    login(
+      input: unknown,
+    ) {
+      return ipcRenderer.invoke(
+        "auth:login",
+        input,
+      );
+    },
+
+    createInitialAdmin(
+      input: unknown,
+    ) {
+      return ipcRenderer.invoke(
+        "auth:create-initial-admin",
+        input,
+      );
+    },
+
+    users() {
+      return ipcRenderer.invoke(
+        "auth:users",
+      );
+    },
+
+    user(
+      userId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "auth:user",
+        userId,
+      );
+    },
+
+    createUser(
+      input: unknown,
+    ) {
+      return ipcRenderer.invoke(
+        "auth:create-user",
+        input,
+      );
+    },
+
+    updateUser(
+      userId: number,
+      input: unknown,
+    ) {
+      return ipcRenderer.invoke(
+        "auth:update-user",
+        userId,
+        input,
+      );
+    },
+
+    changePassword(
+      input: unknown,
+    ) {
+      return ipcRenderer.invoke(
+        "auth:change-password",
+        input,
+      );
+    },
+
+    resetPassword(
+      input: unknown,
+    ) {
+      return ipcRenderer.invoke(
+        "auth:reset-password",
+        input,
+      );
+    },
+
+    setUserClinics(
+      userId: number,
+      clinicIds: number[],
+      primaryClinicId:
+        number | null,
+    ) {
+      return ipcRenderer.invoke(
+        "auth:set-user-clinics",
+        userId,
+        clinicIds,
+        primaryClinicId,
+      );
+    },
+
+    validateClinicAccess(
+      userId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "auth:validate-clinic-access",
+        userId,
+        clinicId,
+      );
+    },
+
+    deleteUser(
+      userId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "auth:delete-user",
+        userId,
+      );
+    },
+
+    /* =====================================================
+       Local Admin Recovery
+    ===================================================== */
+
+    localAdminAccounts() {
+      return ipcRenderer.invoke(
+        "auth:local-admin-accounts",
+      );
+    },
+
+    beginLocalAdminRecovery() {
+      return ipcRenderer.invoke(
+        "auth:begin-local-admin-recovery",
+      );
+    },
+
+    completeLocalAdminRecovery(
+      input: {
+        token: string;
+        account: string;
+        newPassword: string;
+      },
+    ) {
+      return ipcRenderer.invoke(
+        "auth:complete-local-admin-recovery",
+        input,
+      );
+    },
+
+    cancelLocalAdminRecovery() {
+      return ipcRenderer.invoke(
+        "auth:cancel-local-admin-recovery",
+      );
+    },
+  },
+
+
+  /* =======================================================
+     Clinics
+  ======================================================= */
+
+  clinics: {
+    list() {
+      return ipcRenderer.invoke(
+        "clinics:list",
+      );
+    },
+
+    active() {
+      return ipcRenderer.invoke(
+        "clinics:active",
+      );
+    },
+
+    byId(
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "clinics:by-id",
+        clinicId,
+      );
+    },
+
+    withStats() {
+      return ipcRenderer.invoke(
+        "clinics:with-stats",
+      );
+    },
+
+    byIdWithStats(
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "clinics:by-id-with-stats",
+        clinicId,
+      );
+    },
+
+    byUser(
+      userId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "clinics:by-user",
+        userId,
+      );
+    },
+
+    create(
+      adminUserId: number,
+      input: unknown,
+    ) {
+      return ipcRenderer.invoke(
+        "clinics:create",
+        adminUserId,
+        input,
+      );
+    },
+
+    update(
+      clinicId: number,
+      adminUserId: number,
+      input: unknown,
+    ) {
+      return ipcRenderer.invoke(
+        "clinics:update",
+        clinicId,
+        adminUserId,
+        input,
+      );
+    },
+
+    setActive(
+      clinicId: number,
+      adminUserId: number,
+      isActive: boolean,
+    ) {
+      return ipcRenderer.invoke(
+        "clinics:set-active",
+        clinicId,
+        adminUserId,
+        isActive,
+      );
+    },
+
+    addUser(
+      userId: number,
+      clinicId: number,
+      adminUserId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "clinics:add-user",
+        userId,
+        clinicId,
+        adminUserId,
+      );
+    },
+
+    removeUser(
+      userId: number,
+      clinicId: number,
+      adminUserId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "clinics:remove-user",
+        userId,
+        clinicId,
+        adminUserId,
+      );
+    },
+
+    setUserPrimary(
+      userId: number,
+      clinicId: number,
+      adminUserId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "clinics:set-user-primary",
+        userId,
+        clinicId,
+        adminUserId,
+      );
+    },
+  },
+
+  /* =======================================================
+     Patients
+  ======================================================= */
+
+  patients: {
+    list(
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "patients:list",
+        clinicId,
+      );
+    },
+
+    byId(
+      patientId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "patients:by-id",
+        patientId,
+        clinicId,
+      );
+    },
+
+    byDoctor(
+      doctorId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "patients:by-doctor",
+        doctorId,
+        clinicId,
+      );
+    },
+
+    byDoctorAllClinics(
+      doctorId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "patients:by-doctor-all-clinics",
+        doctorId,
+      );
+    },
+
+    byDoctorUserAllClinics(
+      userId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "patients:by-doctor-user-all-clinics",
+        userId,
+      );
+    },
+
+    create(
+      clinicId: number,
+      input: unknown,
+    ) {
+      return ipcRenderer.invoke(
+        "patients:create",
+        clinicId,
+        input,
+      );
+    },
+
+    update(
+      patientId: number,
+      clinicId: number,
+      input: unknown,
+    ) {
+      return ipcRenderer.invoke(
+        "patients:update",
+        patientId,
+        clinicId,
+        input,
+      );
+    },
+
+    delete(
+      patientId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "patients:delete",
+        patientId,
+        clinicId,
+      );
+    },
+  },
+
+  /* =======================================================
+     Doctors
+  ======================================================= */
+
+  doctors: {
+    list(
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "doctors:list",
+        clinicId,
+      );
+    },
+
+    active(
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "doctors:active",
+        clinicId,
+      );
+    },
+
+    byId(
+      doctorId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "doctors:by-id",
+        doctorId,
+        clinicId,
+      );
+    },
+
+    byUserId(
+      userId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "doctors:by-user-id",
+        userId,
+        clinicId,
+      );
+    },
+
+    activeByUserId(
+      userId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "doctors:active-by-user-id",
+        userId,
+        clinicId,
+      );
+    },
+
+    byAccount(
+      account: string,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "doctors:by-account",
+        account,
+        clinicId,
+      );
+    },
+
+    create(
+      clinicId: number,
+      input: unknown,
+    ) {
+      return ipcRenderer.invoke(
+        "doctors:create",
+        clinicId,
+        input,
+      );
+    },
+
+    update(
+      doctorId: number,
+      clinicId: number,
+      input: unknown,
+    ) {
+      return ipcRenderer.invoke(
+        "doctors:update",
+        doctorId,
+        clinicId,
+        input,
+      );
+    },
+
+    delete(
+      doctorId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "doctors:delete",
+        doctorId,
+        clinicId,
+      );
+    },
+
+    /* =====================================================
+       Doctor Clinics
+    ===================================================== */
+
+    clinics(
+      doctorId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "doctors:clinics",
+        doctorId,
+      );
+    },
+
+    setClinics(
+      doctorId: number,
+      clinicIds: number[],
+      primaryClinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "doctors:set-clinics",
+        doctorId,
+        clinicIds,
+        primaryClinicId,
+      );
+    },
+
+    addClinic(
+      doctorId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "doctors:add-clinic",
+        doctorId,
+        clinicId,
+      );
+    },
+
+    removeClinic(
+      doctorId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "doctors:remove-clinic",
+        doctorId,
+        clinicId,
+      );
+    },
+
+    setPrimaryClinic(
+      doctorId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "doctors:set-primary-clinic",
+        doctorId,
+        clinicId,
+      );
+    },
+  },
+
+  /* =======================================================
+     Implants
+  ======================================================= */
+
+  implants: {
+    list(
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "implants:list",
+        clinicId,
+      );
+    },
+
+    byPatient(
+      patientId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "implants:by-patient",
+        patientId,
+        clinicId,
+      );
+    },
+
+    byDoctor(
+      doctorId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "implants:by-doctor",
+        doctorId,
+        clinicId,
+      );
+    },
+
+    create(
+      clinicId: number,
+      input: unknown,
+    ) {
+      return ipcRenderer.invoke(
+        "implants:create",
+        clinicId,
+        input,
+      );
+    },
+
+    update(
+      implantId: number,
+      clinicId: number,
+      input: unknown,
+    ) {
+      return ipcRenderer.invoke(
+        "implants:update",
+        implantId,
+        clinicId,
+        input,
+      );
+    },
+
+    updateStatus(
+      implantId: number,
+      clinicId: number,
+      status: string,
+    ) {
+      return ipcRenderer.invoke(
+        "implants:update-status",
+        implantId,
+        clinicId,
+        status,
+      );
+    },
+
+    recordUsage(
+      implantId: number,
+      clinicId: number,
+      usageInputs: unknown,
+    ) {
+      return ipcRenderer.invoke(
+        "implants:record-usage",
+        implantId,
+        clinicId,
+        usageInputs,
+      );
+    },
+
+    delete(
+      implantId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "implants:delete",
+        implantId,
+        clinicId,
+      );
+    },
+  },
+
+  /* =======================================================
+     Inventory
+  ======================================================= */
+
+  inventory: {
+    list(
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "inventory:list",
+        clinicId,
+      );
+    },
+
+    byId(
+      inventoryItemId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "inventory:by-id",
+        inventoryItemId,
+        clinicId,
+      );
+    },
+
+    create(
+      clinicId: number,
+      input: unknown,
+    ) {
+      return ipcRenderer.invoke(
+        "inventory:create",
+        clinicId,
+        input,
+      );
+    },
+
+    update(
+      inventoryItemId: number,
+      clinicId: number,
+      input: unknown,
+    ) {
+      return ipcRenderer.invoke(
+        "inventory:update",
+        inventoryItemId,
+        clinicId,
+        input,
+      );
+    },
+
+    /*
+     * Legacy compatibility.
+     *
+     * 新版 UI 不應使用此 API
+     * 做正式庫存異動。
+     */
+    updateQuantity(
+      inventoryItemId: number,
+      clinicId: number,
+      quantity: number,
+    ) {
+      return ipcRenderer.invoke(
+        "inventory:update-quantity",
+        inventoryItemId,
+        clinicId,
+        quantity,
+      );
+    },
+
+    /*
+     * 正式入庫。
+     *
+     * quantity = 本次收到數量。
+     * unitCost = 本批次單位成本。
+     */
+    receive(
+      inventoryItemId: number,
+      clinicId: number,
+      quantity: number,
+      unitCost: number,
+      note: string,
+    ) {
+      return ipcRenderer.invoke(
+        "inventory:receive",
+        inventoryItemId,
+        clinicId,
+        quantity,
+        unitCost,
+        note,
+      );
+    },
+
+    /*
+     * 手動庫存校正。
+     *
+     * quantity = 校正後庫存總量。
+     */
+    adjustQuantity(
+      inventoryItemId: number,
+      clinicId: number,
+      quantity: number,
+      note: string,
+    ) {
+      return ipcRenderer.invoke(
+        "inventory:adjust",
+        inventoryItemId,
+        clinicId,
+        quantity,
+        note,
+      );
+    },
+
+    lowStock(
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "inventory:low-stock",
+        clinicId,
+      );
+    },
+
+    delete(
+      inventoryItemId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "inventory:delete",
+        inventoryItemId,
+        clinicId,
+      );
+    },
+  },
+
+  /* =======================================================
+     Inventory Transactions
+  ======================================================= */
+
+  inventoryTransactions: {
+    list(
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "inventory-transactions:list",
+        clinicId,
+      );
+    },
+
+    byItem(
+      inventoryItemId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "inventory-transactions:by-item",
+        inventoryItemId,
+        clinicId,
+      );
+    },
+
+    byImplant(
+      implantId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "inventory-transactions:by-implant",
+        implantId,
+        clinicId,
+      );
+    },
+
+    byImplantTooth(
+      implantToothId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "inventory-transactions:by-implant-tooth",
+        implantToothId,
+        clinicId,
+      );
+    },
+
+    /*
+     * Legacy implantItems.
+     */
+    byImplantItem(
+      implantItemId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "inventory-transactions:by-implant-item",
+        implantItemId,
+        clinicId,
+      );
+    },
+
+    byImplantPlanItem(
+      implantPlanItemId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "inventory-transactions:by-implant-plan-item",
+        implantPlanItemId,
+        clinicId,
+      );
+    },
+
+    byImplantUsageItem(
+      implantUsageItemId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "inventory-transactions:by-implant-usage-item",
+        implantUsageItemId,
+        clinicId,
+      );
+    },
+  },
+
+  /* =======================================================
+     Consumables
+  ======================================================= */
+
+  consumables: {
+    list(
+      clinicId: number,
+      usageType?: string,
+    ) {
+      return ipcRenderer.invoke(
+        "consumables:list",
+        clinicId,
+        usageType,
+      );
+    },
+
+    byId(
+      usageRecordId: number,
+      clinicId: number,
+    ) {
+      return ipcRenderer.invoke(
+        "consumables:by-id",
+        usageRecordId,
+        clinicId,
+      );
+    },
+
+    /*
+     * 建立耗材使用。
+     *
+     * Repository 會立即扣庫存。
+     */
+    create(
+      clinicId: number,
+      input: unknown,
+    ) {
+      return ipcRenderer.invoke(
+        "consumables:create",
+        clinicId,
+        input,
+      );
+    },
+
+    /*
+     * 指定醫師簽名。
+     */
+    sign(
+      usageRecordId: number,
+      clinicId: number,
+      doctorId: number,
+      signatureDataUrl: string,
+    ) {
+      return ipcRenderer.invoke(
+        "consumables:sign",
+        usageRecordId,
+        clinicId,
+        doctorId,
+        signatureDataUrl,
+      );
+    },
+
+    /*
+     * 取消未簽名紀錄。
+     *
+     * 後端會：
+     *
+     * - 驗證 status === 待醫師簽名
+     * - 必須有取消原因
+     * - 將原本扣除庫存全部歸回
+     * - 建立「耗材取消歸回」transaction
+     * - 保留原始紀錄
+     */
+    cancel(
+      usageRecordId: number,
+      clinicId: number,
+      reason: string,
+    ) {
+      return ipcRenderer.invoke(
+        "consumables:cancel",
+        usageRecordId,
+        clinicId,
+        reason,
+      );
+    },
+
+    byDoctor(
+      doctorId: number,
+      clinicId: number,
+      usageType?: string,
+    ) {
+      return ipcRenderer.invoke(
+        "consumables:by-doctor",
+        doctorId,
+        clinicId,
+        usageType,
+      );
+    },
+
+    byPatient(
+      patientId: number,
+      clinicId: number,
+      usageType?: string,
+    ) {
+      return ipcRenderer.invoke(
+        "consumables:by-patient",
+        patientId,
+        clinicId,
+        usageType,
+      );
+    },
+  },
 };
 
-type PatientRecord = PatientInput & {
-  id: number;
-  createdAt: string;
-  updatedAt: string;
-};
+/* =========================================================
+   Expose API
+========================================================= */
 
-/* =========================
-   醫師
-========================= */
 
 type DoctorInput = {
   name: string;
@@ -240,65 +1202,7 @@ declare global {
   }
 }
 
-contextBridge.exposeInMainWorld("dentflow", {
-  version: process.versions.electron,
-  auth: {
-    status: () => ipcRenderer.invoke("auth:status"),
-    setup: (name: string, account: string, password: string) =>
-      ipcRenderer.invoke("auth:setup", name, account, password),
-    login: (account: string, password: string) =>
-      ipcRenderer.invoke("auth:login", account, password),
-    current: () => ipcRenderer.invoke("auth:current"),
-    logout: () => ipcRenderer.invoke("auth:logout"),
-  },
-  patients: {
-    list: () => ipcRenderer.invoke("patients:list"),
-    create: (patient: PatientInput) =>
-      ipcRenderer.invoke("patients:create", patient),
-    update: (id: number, patient: PatientInput) =>
-      ipcRenderer.invoke("patients:update", id, patient),
-    delete: (id: number) => ipcRenderer.invoke("patients:delete", id),
-  },
-  doctors: {
-    list: () => ipcRenderer.invoke("doctors:list"),
-    create: (doctor: DoctorInput) =>
-      ipcRenderer.invoke("doctors:create", doctor),
-    update: (id: number, doctor: DoctorInput) =>
-      ipcRenderer.invoke("doctors:update", id, doctor),
-    delete: (id: number) => ipcRenderer.invoke("doctors:delete", id),
-  },
-  implants: {
-    list: () => ipcRenderer.invoke("implants:list"),
-    create: (implant: ImplantInput) =>
-      ipcRenderer.invoke("implants:create", implant),
-    update: (id: number, implant: ImplantInput) =>
-      ipcRenderer.invoke("implants:update", id, implant),
-    delete: (id: number) => ipcRenderer.invoke("implants:delete", id),
-  },
-  inventory: {
-    list: (clinicId: number) => ipcRenderer.invoke("inventory:list", clinicId),
-    create: (input: InventoryInput) => ipcRenderer.invoke("inventory:create", input),
-    update: (id: number, input: InventoryInput) =>
-      ipcRenderer.invoke("inventory:update", id, input),
-    delete: (id: number) => ipcRenderer.invoke("inventory:delete", id),
-    receive: (
-      inventoryItemId: number,
-      clinicId: number,
-      quantity: number,
-      unitCost: number,
-      note: string,
-    ) =>
-      ipcRenderer.invoke(
-        "inventory:receive",
-        inventoryItemId,
-        clinicId,
-        quantity,
-        unitCost,
-        note,
-      ),
-  },
-  inventoryTransactions: {
-    list: (clinicId: number) =>
-      ipcRenderer.invoke("inventoryTransactions:list", clinicId),
-  },
-});
+contextBridge.exposeInMainWorld(
+  "dentflow",
+  dentflowApi,
+);

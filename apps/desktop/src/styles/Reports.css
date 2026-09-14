@@ -1,0 +1,557 @@
+.reports-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+}
+
+/* =========================================================
+   Header
+========================================================= */
+
+.reports-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.reports-header h1 {
+  margin: 4px 0 6px;
+  font-size: 30px;
+  line-height: 1.2;
+  color: #111827;
+}
+
+.reports-header p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.reports-eyebrow {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+
+.reports-refresh-button {
+  flex: 0 0 auto;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 15px;
+  background: #111827;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+.reports-refresh-button:hover {
+  opacity: 0.88;
+}
+
+.reports-refresh-button:active {
+  transform: translateY(1px);
+}
+
+.reports-refresh-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* =========================================================
+   Error
+========================================================= */
+
+.reports-error {
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+/* =========================================================
+   Summary
+========================================================= */
+
+.reports-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    5,
+    minmax(0, 1fr)
+  );
+  gap: 14px;
+}
+
+.reports-summary-card {
+  display: flex;
+  min-height: 104px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 16px;
+
+  background: #ffffff;
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.04);
+}
+
+.reports-summary-card span {
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.reports-summary-card strong {
+  color: #111827;
+  font-size: 30px;
+  line-height: 1;
+}
+
+/* =========================================================
+   Filter Card
+========================================================= */
+
+.reports-filter-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 18px;
+
+  background: #ffffff;
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.04);
+}
+
+.reports-filter-grid {
+  display: grid;
+  grid-template-columns:
+    minmax(260px, 2fr)
+    repeat(4, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+.reports-filter-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+
+  color: #374151;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.reports-filter-grid input,
+.reports-filter-grid select {
+  width: 100%;
+  box-sizing: border-box;
+
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 12px;
+
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  outline: none;
+}
+
+.reports-filter-grid input:focus,
+.reports-filter-grid select:focus {
+  border-color: #9ca3af;
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.06);
+}
+
+.reports-search-field input {
+  min-width: 0;
+}
+
+.reports-filter-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #eef0f3;
+}
+
+.reports-filter-footer span {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.reports-filter-footer strong {
+  color: #111827;
+}
+
+.reports-filter-footer button {
+  border: none;
+  border-radius: 9px;
+  padding: 8px 12px;
+
+  background: #eef2f7;
+  color: #374151;
+
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+.reports-filter-footer button:hover {
+  opacity: 0.85;
+}
+
+.reports-filter-footer button:active {
+  transform: translateY(1px);
+}
+
+/* =========================================================
+   Report Table Card
+========================================================= */
+
+.reports-table-card {
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.04);
+}
+
+.reports-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.reports-table-wrap::-webkit-scrollbar {
+  height: 9px;
+}
+
+.reports-table-wrap::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.reports-table-wrap::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+/* =========================================================
+   Report Table
+========================================================= */
+
+.reports-table {
+  width: 100%;
+  min-width: 1500px;
+  border-collapse: collapse;
+}
+
+.reports-table th,
+.reports-table td {
+  padding: 12px 13px;
+  border-bottom: 1px solid #eef0f3;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.reports-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+
+  background: #f8fafc;
+  color: #475569;
+
+  font-size: 12px;
+  font-weight: 700;
+
+  white-space: nowrap;
+}
+
+.reports-table td {
+  color: #1f2937;
+  font-size: 13px;
+}
+
+.reports-table tbody tr:hover td {
+  background: #fafafa;
+}
+
+.reports-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.reports-empty {
+  padding: 34px !important;
+  text-align: center !important;
+  color: #6b7280 !important;
+}
+
+/* =========================================================
+   Patient / Tooth
+========================================================= */
+
+.reports-patient-name {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.reports-tooth {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   Specification
+========================================================= */
+
+.reports-specification {
+  display: flex;
+  min-width: 210px;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reports-specification strong {
+  color: #111827;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.reports-specification span {
+  color: #6b7280;
+  font-size: 11px;
+}
+
+/* =========================================================
+   Number Columns
+========================================================= */
+
+.reports-number {
+  text-align: center !important;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   REF / LOT
+========================================================= */
+
+.reports-ref,
+.reports-lot {
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    monospace;
+
+  white-space: nowrap;
+}
+
+.reports-lot {
+  font-weight: 700;
+}
+
+/* =========================================================
+   Status
+========================================================= */
+
+.reports-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-width: 88px;
+
+  border-radius: 999px;
+  padding: 5px 10px;
+
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.reports-status.is-complete {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.reports-status.is-postop {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.reports-status.is-surgery {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.reports-status.is-return {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.reports-status.is-ordered {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.reports-status.is-pending {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+/* =========================================================
+   Individual Columns
+========================================================= */
+
+/* 手術日期 */
+.reports-table td:nth-child(1) {
+  white-space: nowrap;
+}
+
+/* 病歷號 */
+.reports-table td:nth-child(3) {
+  white-space: nowrap;
+}
+
+/* 醫師 */
+.reports-table td:nth-child(4) {
+  white-space: nowrap;
+}
+
+/* 效期 */
+.reports-table td:nth-child(11) {
+  white-space: nowrap;
+}
+
+/* 個案 */
+.reports-table td:nth-child(13) {
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    monospace;
+
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+/* =========================================================
+   Responsive
+========================================================= */
+
+@media (max-width: 1280px) {
+  .reports-summary-grid {
+    grid-template-columns:
+      repeat(
+        3,
+        minmax(0, 1fr)
+      );
+  }
+
+  .reports-filter-grid {
+    grid-template-columns:
+      repeat(
+        3,
+        minmax(0, 1fr)
+      );
+  }
+
+  .reports-search-field {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 900px) {
+  .reports-page {
+    padding: 18px;
+  }
+
+  .reports-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .reports-refresh-button {
+    align-self: flex-start;
+  }
+
+  .reports-summary-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+
+  .reports-filter-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+
+  .reports-search-field {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .reports-page {
+    gap: 16px;
+    padding: 14px;
+  }
+
+  .reports-header h1 {
+    font-size: 25px;
+  }
+
+  .reports-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reports-summary-card {
+    min-height: 90px;
+  }
+
+  .reports-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reports-search-field {
+    grid-column: auto;
+  }
+
+  .reports-filter-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .reports-filter-footer button {
+    width: 100%;
+  }
+}
