@@ -1,30 +1,39 @@
-import { useEffect, useMemo, useState } from "react";
-import type { FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  useOutletContext,
+} from "react-router-dom";
+
+import type {
+  FormEvent,
+} from "react";
+
+import type {
+  DentflowMainLayoutContext,
+} from "../layouts/MainLayout";
+
+import {
+  canAccessModule,
+  canCreate as canCreateModule,
+  canDelete as canDeleteModule,
+  canUpdate as canUpdateModule,
+} from "../utils/permissions";
+
 import "../styles/Patients.css";
 
-type Patient = {
-  id: number;
-  chartNumber: string;
-  name: string;
-  birthDate: string;
-  phone: string;
-  doctor: string;
-  note: string;
-  createdAt: string;
-  updatedAt: string;
-};
+/* =========================================================
+   Local Types
+========================================================= */
 
-type Doctor = {
-  id: number;
-  name: string;
-  account: string;
-  specialty: string;
-  phone: string;
-  role: string;
-  isActive: number;
-  createdAt: string;
-  updatedAt: string;
-};
+type PatientRow =
+  DentflowPatientRecord & {
+    clinicName?: string;
+    clinicCode?: string;
+  };
 
 type PatientForm = {
   chartNumber: string;
@@ -35,62 +44,354 @@ type PatientForm = {
   note: string;
 };
 
-const emptyForm: PatientForm = {
-  chartNumber: "",
-  name: "",
-  birthDate: "",
-  phone: "",
-  doctor: "",
-  note: "",
-};
+/* =========================================================
+   Helpers
+========================================================= */
+
+function createEmptyForm():
+  PatientForm {
+  return {
+    chartNumber: "",
+    name: "",
+    birthDate: "",
+    phone: "",
+    doctor: "",
+    note: "",
+  };
+}
+
+function getErrorMessage(
+  error: unknown,
+) {
+  if (
+    error instanceof Error
+  ) {
+    return error.message;
+  }
+
+  return String(error);
+}
+
+/* =========================================================
+   Main
+========================================================= */
 
 export default function Patients() {
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const {
+    session,
+    clinicScope,
+    isAllClinics,
+  } =
+    useOutletContext<
+      DentflowMainLayoutContext
+    >();
 
-  const [form, setForm] = useState<PatientForm>(emptyForm);
+  const [
+    patients,
+    setPatients,
+  ] =
+    useState<
+      PatientRow[]
+    >([]);
 
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [
+    doctors,
+    setDoctors,
+  ] =
+    useState<
+      DentflowDoctorRecord[]
+    >([]);
 
-  const [keyword, setKeyword] = useState("");
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(true);
 
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [
+    saving,
+    setSaving,
+  ] =
+    useState(false);
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [
+    error,
+    setError,
+  ] =
+    useState("");
 
-  const [isSaving, setIsSaving] = useState(false);
+  const [
+    success,
+    setSuccess,
+  ] =
+    useState("");
 
-  const [errorMessage, setErrorMessage] = useState("");
+  const [
+    search,
+    setSearch,
+  ] =
+    useState("");
 
+<<<<<<< Updated upstream
   async function loadPatients() {
+=======
+  const [
+    formOpen,
+    setFormOpen,
+  ] =
+    useState(false);
+
+  const [
+    editingPatientId,
+    setEditingPatientId,
+  ] =
+    useState<
+      number | null
+    >(null);
+
+  const [
+    form,
+    setForm,
+  ] =
+    useState<PatientForm>(
+      createEmptyForm(),
+    );
+
+  /* =======================================================
+     Permissions / Scope
+  ======================================================= */
+
+  const role =
+    session.role;
+
+  const isDoctor =
+    role === "Doctor";
+
+  const canView =
+    canAccessModule(
+      role,
+      "patients",
+    );
+
+  const activeClinicId =
+    clinicScope.mode ===
+    "clinic"
+      ? clinicScope.clinicId
+      : session.clinicId;
+
+  /*
+   * 「我的全部院所」只提供跨院所瀏覽。
+   * 新增 / 編輯 / 刪除一律要求先切回單一院所。
+   */
+  const isReadOnlyScope =
+    isDoctor &&
+    isAllClinics;
+
+  const canCreate =
+    !isReadOnlyScope &&
+    canCreateModule(
+      role,
+      "patients",
+    );
+
+  const canEdit =
+    !isReadOnlyScope &&
+    canUpdateModule(
+      role,
+      "patients",
+    );
+
+  const canDelete =
+    !isReadOnlyScope &&
+    canDeleteModule(
+      role,
+      "patients",
+    );
+
+  /* =======================================================
+     Load
+  ======================================================= */
+
+  useEffect(
+    () => {
+      void loadData();
+    },
+    [
+      session.userId,
+      session.clinicId,
+      session.role,
+      clinicScope.mode,
+      clinicScope.mode ===
+        "clinic"
+        ? clinicScope.clinicId
+        : 0,
+    ],
+  );
+
+  async function loadData() {
+>>>>>>> Stashed changes
     try {
-      setIsLoading(true);
-      setErrorMessage("");
+      setLoading(true);
+      setError("");
+      setSuccess("");
 
-      const records = await window.dentflow.patients.list();
+      if (
+        isDoctor &&
+        isAllClinics
+      ) {
+        const records =
+          await window.dentflow.patients.byDoctorUserAllClinics(
+            session.userId,
+          );
 
-      setPatients(records);
-    } catch (error) {
-      console.error("讀取病患資料失敗：", error);
+        setPatients(
+          records,
+        );
 
-      setErrorMessage(
-        "無法讀取病患資料，請重新啟動程式後再試。",
+        setDoctors(
+          [],
+        );
+
+        return;
+      }
+
+      const [
+        patientRecords,
+        doctorRecords,
+      ] =
+        await Promise.all([
+          window.dentflow.patients.list(
+            activeClinicId,
+          ),
+
+          window.dentflow.doctors.active(
+            activeClinicId,
+          ),
+        ]);
+
+      setPatients(
+        patientRecords.map(
+          (patient) => ({
+            ...patient,
+
+            clinicName:
+              session.clinicName,
+
+            clinicCode:
+              session.clinicCode,
+          }),
+        ),
+      );
+
+      setDoctors(
+        doctorRecords,
+      );
+    } catch (
+      loadError
+    ) {
+      setPatients([]);
+      setDoctors([]);
+
+      setError(
+        getErrorMessage(
+          loadError,
+        ),
       );
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   }
 
-  async function loadDoctors() {
-    try {
-      const records = await window.dentflow.doctors.list();
+  async function refresh() {
+    await loadData();
+  }
 
-      const activeDoctors = records.filter(
-        (doctor) =>
-          doctor.isActive === 1 &&
-          doctor.role === "Doctor",
+  /* =======================================================
+     Search
+  ======================================================= */
+
+  const filteredPatients =
+    useMemo(
+      () => {
+        const keyword =
+          search
+            .trim()
+            .toLowerCase();
+
+        if (!keyword) {
+          return patients;
+        }
+
+        return patients.filter(
+          (patient) => {
+            const haystack =
+              [
+                patient.chartNumber,
+                patient.name,
+                patient.birthDate,
+                patient.phone,
+                patient.doctor,
+                patient.note,
+                patient.clinicName,
+                patient.clinicCode,
+              ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+
+            return haystack.includes(
+              keyword,
+            );
+          },
+        );
+      },
+      [
+        patients,
+        search,
+      ],
+    );
+
+  /* =======================================================
+     Form
+  ======================================================= */
+
+  function openCreate() {
+    if (!canCreate) {
+      return;
+    }
+
+    setEditingPatientId(
+      null,
+    );
+
+    setForm(
+      createEmptyForm(),
+    );
+
+    setError("");
+    setSuccess("");
+    setFormOpen(
+      true,
+    );
+  }
+
+  function openEdit(
+    patient:
+      PatientRow,
+  ) {
+    if (!canEdit) {
+      return;
+    }
+
+    if (
+      patient.clinicId !==
+      activeClinicId
+    ) {
+      setError(
+        "請先切換到此病患所屬院所，再進行編輯。",
       );
 
+<<<<<<< Updated upstream
       setDoctors(activeDoctors);
     } catch (error) {
       console.error("讀取醫師清單失敗：", error);
@@ -109,505 +410,765 @@ export default function Patients() {
 
     if (!query) {
       return patients;
+=======
+      return;
+>>>>>>> Stashed changes
     }
 
-    return patients.filter((patient) =>
-      [
-        patient.chartNumber,
-        patient.name,
-        patient.phone,
-        patient.doctor,
-      ].some((value) =>
-        value.toLowerCase().includes(query),
-      ),
+    setEditingPatientId(
+      patient.id,
     );
-  }, [keyword, patients]);
 
-  function updateForm(
-    field: keyof PatientForm,
-    value: string,
-  ) {
-    setForm((previous) => ({
-      ...previous,
-      [field]: value,
-    }));
+    setForm({
+      chartNumber:
+        patient.chartNumber,
+
+      name:
+        patient.name,
+
+      birthDate:
+        patient.birthDate,
+
+      phone:
+        patient.phone,
+
+      doctor:
+        patient.doctor,
+
+      note:
+        patient.note,
+    });
+
+    setError("");
+    setSuccess("");
+    setFormOpen(
+      true,
+    );
   }
 
-  function resetForm() {
-    setForm(emptyForm);
+  function closeForm() {
+    if (saving) {
+      return;
+    }
 
-    setEditingId(null);
+    setFormOpen(
+      false,
+    );
 
-    setIsFormOpen(false);
+    setEditingPatientId(
+      null,
+    );
 
-    setErrorMessage("");
-  }
-
-  function openCreateForm() {
-    setForm(emptyForm);
-
-    setEditingId(null);
-
-    setErrorMessage("");
-
-    setIsFormOpen(true);
+    setForm(
+      createEmptyForm(),
+    );
   }
 
   async function handleSubmit(
-    event: FormEvent<HTMLFormElement>,
+    event:
+      FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
 
-    const normalizedForm: PatientForm = {
-      chartNumber: form.chartNumber.trim(),
-      name: form.name.trim(),
-      birthDate: form.birthDate,
-      phone: form.phone.trim(),
-      doctor: form.doctor.trim(),
-      note: form.note.trim(),
+    if (
+      editingPatientId === null
+        ? !canCreate
+        : !canEdit
+    ) {
+      return;
+    }
+
+    const chartNumber =
+      form.chartNumber.trim();
+
+    const name =
+      form.name.trim();
+
+    if (!chartNumber) {
+      setError(
+        "請輸入病歷號。",
+      );
+
+      return;
+    }
+
+    if (!name) {
+      setError(
+        "請輸入病患姓名。",
+      );
+
+      return;
+    }
+
+    const input = {
+      chartNumber,
+      name,
+
+      birthDate:
+        form.birthDate,
+
+      phone:
+        form.phone.trim(),
+
+      doctor:
+        form.doctor.trim(),
+
+      note:
+        form.note.trim(),
     };
 
-    if (
-      !normalizedForm.chartNumber ||
-      !normalizedForm.name
-    ) {
-      window.alert(
-        "病歷號與病患姓名為必填欄位。",
-      );
-
-      return;
-    }
-
-    const duplicateChartNumber = patients.some(
-      (patient) =>
-        patient.chartNumber
-          .trim()
-          .toLowerCase() ===
-          normalizedForm.chartNumber.toLowerCase() &&
-        patient.id !== editingId,
-    );
-
-    if (duplicateChartNumber) {
-      window.alert(
-        "此病歷號已經存在。",
-      );
-
-      return;
-    }
-
     try {
-      setIsSaving(true);
-
-      setErrorMessage("");
-
-      if (editingId !== null) {
-        const updatedPatient =
-          await window.dentflow.patients.update(
-            editingId,
-            normalizedForm,
-          );
-
-        setPatients((previous) =>
-          previous.map((patient) =>
-            patient.id === editingId
-              ? updatedPatient
-              : patient,
-          ),
-        );
-      } else {
-        const newPatient =
-          await window.dentflow.patients.create(
-            normalizedForm,
-          );
-
-        setPatients((previous) => [
-          newPatient,
-          ...previous,
-        ]);
-      }
-
-      resetForm();
-    } catch (error) {
-      console.error(
-        "儲存病患資料失敗：",
-        error,
-      );
-
-      const message =
-        error instanceof Error
-          ? error.message
-          : String(error);
+      setSaving(true);
+      setError("");
+      setSuccess("");
 
       if (
-        message.includes("UNIQUE") ||
-        message.includes("chartNumber")
+        editingPatientId ===
+        null
       ) {
-        setErrorMessage(
-          "此病歷號已存在，請使用其他病歷號。",
+        await window.dentflow.patients.create(
+          activeClinicId,
+          input,
+        );
+
+        setSuccess(
+          "病患資料已新增。",
         );
       } else {
-        setErrorMessage(
-          "病患資料儲存失敗，請稍後再試。",
+        await window.dentflow.patients.update(
+          editingPatientId,
+          activeClinicId,
+          input,
+        );
+
+        setSuccess(
+          "病患資料已更新。",
         );
       }
+
+      setFormOpen(
+        false,
+      );
+
+      setEditingPatientId(
+        null,
+      );
+
+      setForm(
+        createEmptyForm(),
+      );
+
+      await loadData();
+    } catch (
+      saveError
+    ) {
+      setError(
+        getErrorMessage(
+          saveError,
+        ),
+      );
     } finally {
-      setIsSaving(false);
+      setSaving(false);
     }
   }
 
-  function handleEdit(patient: Patient) {
-    setEditingId(patient.id);
+  /* =======================================================
+     Delete
+  ======================================================= */
 
-    setForm({
-      chartNumber: patient.chartNumber,
-      name: patient.name,
-      birthDate: patient.birthDate,
-      phone: patient.phone,
-      doctor: patient.doctor,
-      note: patient.note,
-    });
+  async function handleDelete(
+    patient:
+      PatientRow,
+  ) {
+    if (!canDelete) {
+      return;
+    }
 
-    setErrorMessage("");
+    if (
+      patient.clinicId !==
+      activeClinicId
+    ) {
+      setError(
+        "請先切換到此病患所屬院所，再進行刪除。",
+      );
 
-    setIsFormOpen(true);
-  }
+      return;
+    }
 
-  async function handleDelete(patient: Patient) {
-    const confirmed = window.confirm(
-      `確定要刪除病患「${patient.name}」嗎？`,
-    );
+    const confirmed =
+      window.confirm(
+        `確定要刪除病患「${patient.name}」嗎？\n\n若病患已有植體或其他使用紀錄，系統可能會拒絕刪除。`,
+      );
 
     if (!confirmed) {
       return;
     }
 
     try {
-      setErrorMessage("");
+      setSaving(true);
+      setError("");
+      setSuccess("");
 
-      await window.dentflow.patients.delete(
-        patient.id,
+      const deleted =
+        await window.dentflow.patients.delete(
+          patient.id,
+          activeClinicId,
+        );
+
+      if (!deleted) {
+        throw new Error(
+          "病患刪除失敗。",
+        );
+      }
+
+      setSuccess(
+        "病患資料已刪除。",
       );
 
-      setPatients((previous) =>
-        previous.filter(
-          (item) => item.id !== patient.id,
+      await loadData();
+    } catch (
+      deleteError
+    ) {
+      setError(
+        getErrorMessage(
+          deleteError,
         ),
       );
-
-      if (editingId === patient.id) {
-        resetForm();
-      }
-    } catch (error) {
-      console.error(
-        "刪除病患失敗：",
-        error,
-      );
-
-      setErrorMessage(
-        "刪除病患失敗，請稍後再試。",
-      );
+    } finally {
+      setSaving(false);
     }
   }
 
+  /* =======================================================
+     Permission States
+  ======================================================= */
+
+  if (!canView) {
+    return (
+      <div className="patients-page">
+        <div className="patients-error">
+          此帳號沒有病患管理權限。
+        </div>
+      </div>
+    );
+  }
+
+  /* =======================================================
+     UI
+  ======================================================= */
+
   return (
-    <section className="patients-page">
+    <div className="patients-page">
       <header className="patients-header">
         <div>
-          <p className="patients-eyebrow">
+          <div className="patients-eyebrow">
             PATIENT MANAGEMENT
-          </p>
+          </div>
 
-          <h1>病患管理</h1>
+          <h1>
+            病患管理
+          </h1>
 
           <p>
-            管理病患基本資料與後續植體使用紀錄。
+            {isReadOnlyScope
+              ? "我的全部院所｜跨院所瀏覽模式"
+              : `${session.clinicName}｜病患基本資料與主治醫師管理`}
           </p>
         </div>
 
-        <button
-          className="primary-button"
-          type="button"
-          onClick={openCreateForm}
-        >
-          ＋ 新增病患
-        </button>
+        <div className="patients-header-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={
+              loading
+            }
+            onClick={() =>
+              void refresh()
+            }
+          >
+            {loading
+              ? "更新中..."
+              : "重新整理"}
+          </button>
+
+          {canCreate && (
+            <button
+              type="button"
+              className="primary-button"
+              onClick={
+                openCreate
+              }
+            >
+              ＋ 新增病患
+            </button>
+          )}
+        </div>
       </header>
 
-      {errorMessage && (
-        <div
-          className="patients-error"
-          role="alert"
-        >
-          {errorMessage}
+      {isReadOnlyScope && (
+        <div className="patients-scope-notice">
+          <strong>
+            我的全部院所
+          </strong>
+
+          <span>
+            目前為跨院所唯讀模式。若要新增、編輯或刪除病患，請先從上方院所切換器切換到目標院所。
+          </span>
         </div>
       )}
 
-      <div className="patients-toolbar">
-        <input
-          type="search"
-          value={keyword}
-          onChange={(event) =>
-            setKeyword(event.target.value)
-          }
-          placeholder="搜尋姓名、病歷號、電話或醫師"
-          aria-label="搜尋病患"
-        />
+      {error && (
+        <div className="patients-error">
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="patients-success">
+          {success}
+        </div>
+      )}
+
+      <section className="patients-toolbar">
+        <div className="patients-search-wrap">
+          <span className="patients-search-icon">
+            ⌕
+          </span>
+
+          <input
+            value={search}
+            onChange={
+              (event) =>
+                setSearch(
+                  event.target.value,
+                )
+            }
+            placeholder={
+              isReadOnlyScope
+                ? "搜尋病歷號、姓名、電話、醫師、院所..."
+                : "搜尋病歷號、姓名、電話、醫師..."
+            }
+          />
+        </div>
 
         <span>
-          共 {filteredPatients.length} 位病患
+          共{" "}
+          <strong>
+            {filteredPatients.length}
+          </strong>{" "}
+          位病患
         </span>
-      </div>
+      </section>
 
-      {isFormOpen && (
-        <form
-          className="patient-form"
-          onSubmit={handleSubmit}
-        >
+      {formOpen &&
+        (editingPatientId === null
+          ? canCreate
+          : canEdit) && (
+        <section className="patient-form">
           <div className="form-heading">
             <div>
               <h2>
-                {editingId !== null
-                  ? "編輯病患"
-                  : "新增病患"}
+                {editingPatientId ===
+                null
+                  ? "新增病患"
+                  : "編輯病患"}
               </h2>
 
               <p>
-                病歷號與姓名為必填欄位。
+                病歷號、姓名與主治醫師會顯示於後續病例及追溯紀錄。
               </p>
             </div>
 
             <button
-              className="text-button"
               type="button"
-              onClick={resetForm}
-              disabled={isSaving}
+              className="text-button"
+              disabled={saving}
+              onClick={
+                closeForm
+              }
             >
               關閉
             </button>
           </div>
 
-          <div className="form-grid">
-            <label>
-              病歷號 *
+          <form
+            onSubmit={
+              handleSubmit
+            }
+          >
+            <div className="form-grid">
+              <label>
+                <span>
+                  病歷號 *
+                </span>
 
-              <input
-                required
-                value={form.chartNumber}
-                onChange={(event) =>
-                  updateForm(
-                    "chartNumber",
-                    event.target.value,
-                  )
-                }
-                placeholder="例如：P20260001"
-              />
-            </label>
+                <input
+                  value={
+                    form.chartNumber
+                  }
+                  onChange={
+                    (event) =>
+                      setForm(
+                        (
+                          current,
+                        ) => ({
+                          ...current,
 
-            <label>
-              姓名 *
+                          chartNumber:
+                            event
+                              .target
+                              .value,
+                        }),
+                      )
+                  }
+                  placeholder="例如：P000001"
+                  autoFocus
+                />
+              </label>
 
-              <input
-                required
-                value={form.name}
-                onChange={(event) =>
-                  updateForm(
-                    "name",
-                    event.target.value,
-                  )
-                }
-                placeholder="病患姓名"
-              />
-            </label>
+              <label>
+                <span>
+                  病患姓名 *
+                </span>
 
-            <label>
-              出生日期
+                <input
+                  value={
+                    form.name
+                  }
+                  onChange={
+                    (event) =>
+                      setForm(
+                        (
+                          current,
+                        ) => ({
+                          ...current,
 
-              <input
-                type="date"
-                value={form.birthDate}
-                onChange={(event) =>
-                  updateForm(
-                    "birthDate",
-                    event.target.value,
-                  )
-                }
-              />
-            </label>
+                          name:
+                            event
+                              .target
+                              .value,
+                        }),
+                      )
+                  }
+                  placeholder="請輸入姓名"
+                />
+              </label>
 
-            <label>
-              聯絡電話
+              <label>
+                <span>
+                  出生日期
+                </span>
 
-              <input
-                value={form.phone}
-                onChange={(event) =>
-                  updateForm(
-                    "phone",
-                    event.target.value,
-                  )
-                }
-                placeholder="09xx-xxx-xxx"
-              />
-            </label>
+                <input
+                  type="date"
+                  value={
+                    form.birthDate
+                  }
+                  onChange={
+                    (event) =>
+                      setForm(
+                        (
+                          current,
+                        ) => ({
+                          ...current,
 
-            <label>
-              主治醫師
+                          birthDate:
+                            event
+                              .target
+                              .value,
+                        }),
+                      )
+                  }
+                />
+              </label>
 
-              <select
-                value={form.doctor}
-                onChange={(event) =>
-                  updateForm(
-                    "doctor",
-                    event.target.value,
-                  )
+              <label>
+                <span>
+                  聯絡電話
+                </span>
+
+                <input
+                  value={
+                    form.phone
+                  }
+                  onChange={
+                    (event) =>
+                      setForm(
+                        (
+                          current,
+                        ) => ({
+                          ...current,
+
+                          phone:
+                            event
+                              .target
+                              .value,
+                        }),
+                      )
+                  }
+                  placeholder="選填"
+                />
+              </label>
+
+              <label>
+                <span>
+                  主治醫師
+                </span>
+
+                <select
+                  value={
+                    form.doctor
+                  }
+                  onChange={
+                    (event) =>
+                      setForm(
+                        (
+                          current,
+                        ) => ({
+                          ...current,
+
+                          doctor:
+                            event
+                              .target
+                              .value,
+                        }),
+                      )
+                  }
+                >
+                  <option value="">
+                    未指定
+                  </option>
+
+                  {doctors.map(
+                    (doctor) => (
+                      <option
+                        key={
+                          doctor.id
+                        }
+                        value={
+                          doctor.name
+                        }
+                      >
+                        {doctor.name}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </label>
+
+              <label className="full-width">
+                <span>
+                  備註
+                </span>
+
+                <textarea
+                  rows={4}
+                  value={
+                    form.note
+                  }
+                  onChange={
+                    (event) =>
+                      setForm(
+                        (
+                          current,
+                        ) => ({
+                          ...current,
+
+                          note:
+                            event
+                              .target
+                              .value,
+                        }),
+                      )
+                  }
+                  placeholder="選填"
+                />
+              </label>
+            </div>
+
+            <div className="form-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={saving}
+                onClick={
+                  closeForm
                 }
               >
-                <option value="">
-                  請選擇主治醫師
-                </option>
+                取消
+              </button>
 
-                {doctors.map((doctor) => (
-                  <option
-                    key={doctor.id}
-                    value={doctor.name}
-                  >
-                    {doctor.name}
-                    {doctor.specialty
-                      ? `｜${doctor.specialty}`
-                      : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="full-width">
-              備註
-
-                  <textarea
-                rows={3}
-                value={form.note}
-                onChange={(event) =>
-                  updateForm(
-                    "note",
-                    event.target.value,
-                  )
-                }
-                placeholder="過敏史、注意事項或其他備註"
-              />
-            </label>
-          </div>
-
-          <div className="form-actions">
-            <button
-              className="secondary-button"
-              type="button"
-              onClick={resetForm}
-              disabled={isSaving}
-            >
-              取消
-            </button>
-
-            <button
-              className="primary-button"
-              type="submit"
-              disabled={isSaving}
-            >
-              {isSaving
-                ? "儲存中…"
-                : editingId !== null
-                  ? "儲存修改"
-                  : "建立病患"}
-            </button>
-          </div>
-        </form>
+              <button
+                type="submit"
+                className="primary-button"
+                disabled={saving}
+              >
+                {saving
+                  ? "儲存中..."
+                  : editingPatientId ===
+                      null
+                    ? "建立病患"
+                    : "儲存修改"}
+              </button>
+            </div>
+          </form>
+        </section>
       )}
 
-      <div className="patients-table-card">
-        <table className="patients-table">
-          <thead>
-            <tr>
-              <th>病歷號</th>
-              <th>姓名</th>
-              <th>出生日期</th>
-              <th>電話</th>
-              <th>主治醫師</th>
-              <th>操作</th>
-            </tr>
-          </thead>
+      <section className="patients-table-card">
+        {loading ? (
+          <div className="patients-loading">
+            病患資料讀取中...
+          </div>
+        ) : filteredPatients.length ===
+          0 ? (
+          <div className="patients-empty-state">
+            尚無符合條件的病患資料。
+          </div>
+        ) : (
+          <div className="patients-table-scroll">
+            <table className="patients-table">
+              <thead>
+                <tr>
+                  {isReadOnlyScope && (
+                    <th>
+                      院所
+                    </th>
+                  )}
 
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td
-                  className="empty-state"
-                  colSpan={6}
-                >
-                  讀取病患資料中…
-                </td>
-              </tr>
-            ) : filteredPatients.length === 0 ? (
-              <tr>
-                <td
-                  className="empty-state"
-                  colSpan={6}
-                >
-                  尚無病患資料
-                </td>
-              </tr>
-            ) : (
-              filteredPatients.map(
-                (patient) => (
-                  <tr key={patient.id}>
-                    <td>
-                      {patient.chartNumber}
-                    </td>
+                  <th>
+                    病歷號
+                  </th>
 
-                    <td className="patient-name">
-                      {patient.name}
-                    </td>
+                  <th>
+                    姓名
+                  </th>
 
-                    <td>
-                      {patient.birthDate || "—"}
-                    </td>
+                  <th>
+                    出生日期
+                  </th>
 
-                    <td>
-                      {patient.phone || "—"}
-                    </td>
+                  <th>
+                    電話
+                  </th>
 
-                    <td>
-                      {patient.doctor || "—"}
-                    </td>
+                  <th>
+                    主治醫師
+                  </th>
 
-                    <td>
-                      <div className="table-actions">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleEdit(patient)
+                  <th>
+                    備註
+                  </th>
+
+                  {!isReadOnlyScope && (
+                    <th>
+                      操作
+                    </th>
+                  )}
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredPatients.map(
+                  (patient) => (
+                    <tr
+                      key={`${patient.clinicId}-${patient.id}`}
+                    >
+                      {isReadOnlyScope && (
+                        <td>
+                          <div className="patient-clinic">
+                            <strong>
+                              {patient.clinicName ||
+                                "—"}
+                            </strong>
+
+                            {patient.clinicCode && (
+                              <span>
+                                {patient.clinicCode}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      )}
+
+                      <td>
+                        <span className="patient-chart-number">
+                          {
+                            patient.chartNumber
                           }
-                        >
-                          編輯
-                        </button>
+                        </span>
+                      </td>
 
-                        <button
-                          className="danger-action"
-                          type="button"
-                          onClick={() => {
-                            void handleDelete(
-                              patient,
-                            );
-                          }}
-                        >
-                          刪除
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ),
-              )
-            )}
-          </tbody>
-        </table>
-      </div>
-    </section>
+                      <td>
+                        <strong className="patient-name">
+                          {patient.name}
+                        </strong>
+                      </td>
+
+                      <td>
+                        {patient.birthDate ||
+                          "—"}
+                      </td>
+
+                      <td>
+                        {patient.phone ||
+                          "—"}
+                      </td>
+
+                      <td>
+                        {patient.doctor ||
+                          "—"}
+                      </td>
+
+                      <td className="patient-note-cell">
+                        {patient.note ||
+                          "—"}
+                      </td>
+
+                      {!isReadOnlyScope && (
+                        <td>
+                          <div className="table-actions">
+                            {canEdit && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openEdit(
+                                    patient,
+                                  )
+                                }
+                              >
+                                編輯
+                              </button>
+                            )}
+
+                            {canDelete && (
+                              <button
+                                type="button"
+                                className="danger-action"
+                                disabled={
+                                  saving
+                                }
+                                onClick={() =>
+                                  void handleDelete(
+                                    patient,
+                                  )
+                                }
+                              >
+                                刪除
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ),
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </div>
   );
 }

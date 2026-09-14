@@ -1,0 +1,1813 @@
+/* =========================================================
+   Settings Page
+========================================================= */
+
+.settings-page {
+  display: flex;
+  flex-direction: column;
+
+  gap: 22px;
+
+  min-height: 100%;
+
+  padding:
+    26px
+    28px
+    40px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #f6f9f6 0%,
+      #f3f7f3 100%
+    );
+
+  color: #1d3d2a;
+}
+
+/* =========================================================
+   Page Header
+========================================================= */
+
+.settings-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  padding:
+    4px
+    2px;
+}
+
+.settings-page-eyebrow {
+  margin-bottom: 6px;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  letter-spacing:
+    0.14em;
+
+  color: #719078;
+}
+
+.settings-page-header h1 {
+  margin:
+    0
+    0
+    8px;
+
+  font-size: 30px;
+  font-weight: 700;
+
+  color: #214b32;
+}
+
+.settings-page-header p {
+  margin: 0;
+
+  font-size: 14px;
+  line-height: 1.7;
+
+  color: #748078;
+}
+
+/* =========================================================
+   Buttons
+========================================================= */
+
+.settings-primary-button,
+.settings-secondary-button,
+.settings-refresh-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  min-height: 40px;
+
+  padding:
+    0
+    16px;
+
+  border-radius: 12px;
+
+  font: inherit;
+
+  font-size: 13px;
+  font-weight: 650;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.settings-primary-button {
+  border: 1px solid #347049;
+
+  background:
+    linear-gradient(
+      135deg,
+      #2f6942,
+      #427d54
+    );
+
+  color: #ffffff;
+
+  box-shadow:
+    0 10px 20px
+      rgba(44, 101, 62, 0.16);
+}
+
+.settings-primary-button:hover:not(:disabled) {
+  transform:
+    translateY(-1px);
+
+  box-shadow:
+    0 13px 24px
+      rgba(44, 101, 62, 0.21);
+}
+
+.settings-secondary-button,
+.settings-refresh-button {
+  border: 1px solid #d6e2d8;
+
+  background: #ffffff;
+
+  color: #3f624a;
+}
+
+.settings-secondary-button:hover:not(:disabled),
+.settings-refresh-button:hover:not(:disabled) {
+  border-color: #bcd1c0;
+
+  background: #f5faf6;
+}
+
+.settings-primary-button:disabled,
+.settings-secondary-button:disabled,
+.settings-refresh-button:disabled {
+  cursor: not-allowed;
+
+  opacity: 0.55;
+
+  box-shadow: none;
+
+  transform: none;
+}
+
+/* =========================================================
+   Message
+========================================================= */
+
+.settings-message {
+  display: flex;
+  align-items: flex-start;
+
+  gap: 10px;
+
+  padding:
+    12px
+    14px;
+
+  border-radius: 13px;
+
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.settings-message > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex: 0 0 auto;
+
+  width: 21px;
+  height: 21px;
+
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.settings-message-error {
+  border: 1px solid #efcccc;
+
+  background: #fff3f3;
+
+  color: #ad4141;
+}
+
+.settings-message-error > span {
+  background: #d95b5b;
+
+  color: #ffffff;
+}
+
+.settings-message-success {
+  border: 1px solid #cfe4d2;
+
+  background: #f0f8f1;
+
+  color: #387449;
+}
+
+.settings-message-success > span {
+  background: #5d9a69;
+
+  color: #ffffff;
+}
+
+/* =========================================================
+   Summary Grid
+========================================================= */
+
+.settings-summary-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+
+  gap: 14px;
+}
+
+.settings-summary-card {
+  display: flex;
+  align-items: center;
+
+  gap: 13px;
+
+  min-height: 94px;
+
+  padding:
+    18px
+    18px;
+
+  border: 1px solid #dde7df;
+
+  border-radius: 17px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 8px 20px
+      rgba(37, 74, 47, 0.045);
+}
+
+.settings-summary-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex: 0 0 auto;
+
+  width: 44px;
+  height: 44px;
+
+  border-radius: 14px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #e8f2e6,
+      #dcebd9
+    );
+
+  color: #3d7650;
+
+  font-size: 20px;
+}
+
+.settings-summary-card > div:last-child {
+  display: flex;
+  flex-direction: column;
+
+  gap: 4px;
+}
+
+.settings-summary-card span {
+  font-size: 12px;
+
+  color: #809087;
+}
+
+.settings-summary-card strong {
+  font-size: 24px;
+  font-weight: 720;
+
+  color: #254d34;
+}
+
+/* =========================================================
+   Section
+========================================================= */
+
+.settings-section {
+  overflow: hidden;
+
+  border: 1px solid #dce6de;
+
+  border-radius: 18px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 10px 24px
+      rgba(33, 73, 45, 0.05);
+}
+
+.settings-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  padding:
+    20px
+    20px
+    18px;
+
+  border-bottom: 1px solid #edf1ee;
+}
+
+.settings-section-header h2 {
+  margin:
+    0
+    0
+    5px;
+
+  font-size: 18px;
+  font-weight: 680;
+
+  color: #244b33;
+}
+
+.settings-section-header p {
+  margin: 0;
+
+  font-size: 12px;
+
+  color: #839087;
+}
+
+/* =========================================================
+   Filter Bar
+========================================================= */
+
+.settings-filter-bar {
+  display: grid;
+  grid-template-columns:
+    minmax(260px, 1fr)
+    150px
+    140px;
+
+  gap: 12px;
+
+  padding:
+    15px
+    20px;
+
+  border-bottom: 1px solid #edf1ee;
+
+  background: #fbfcfb;
+}
+
+.settings-search {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+
+  min-height: 42px;
+
+  border: 1px solid #d7e2d9;
+
+  border-radius: 12px;
+
+  background: #ffffff;
+}
+
+.settings-search > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex: 0 0 auto;
+
+  width: 42px;
+
+  color: #789080;
+}
+
+.settings-search input {
+  width: 100%;
+
+  height: 40px;
+
+  padding:
+    0
+    12px
+    0
+    0;
+
+  border: none;
+
+  outline: none;
+
+  background: transparent;
+
+  color: #25402f;
+
+  font: inherit;
+  font-size: 13px;
+}
+
+.settings-search input::placeholder {
+  color: #a2ada5;
+}
+
+.settings-filter-bar select {
+  min-height: 42px;
+
+  padding:
+    0
+    12px;
+
+  border: 1px solid #d7e2d9;
+
+  border-radius: 12px;
+
+  outline: none;
+
+  background: #ffffff;
+
+  color: #3b5945;
+
+  font: inherit;
+  font-size: 13px;
+}
+
+/* =========================================================
+   Table
+========================================================= */
+
+.settings-table-wrap {
+  width: 100%;
+
+  overflow-x: auto;
+}
+
+.settings-table {
+  width: 100%;
+
+  min-width: 1120px;
+
+  border-collapse: collapse;
+
+  table-layout: auto;
+}
+
+.settings-table thead {
+  background: #f7f9f7;
+}
+
+.settings-table th {
+  padding:
+    12px
+    14px;
+
+  border-bottom: 1px solid #e7ece8;
+
+  color: #6f7f74;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  letter-spacing:
+    0.03em;
+
+  text-align: left;
+
+  white-space: nowrap;
+}
+
+.settings-table td {
+  padding:
+    14px
+    14px;
+
+  border-bottom: 1px solid #edf1ee;
+
+  vertical-align: middle;
+
+  color: #385042;
+
+  font-size: 12px;
+}
+
+.settings-table tbody tr {
+  transition:
+    background 0.16s ease;
+}
+
+.settings-table tbody tr:hover {
+  background: #fafcfa;
+}
+
+.settings-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* =========================================================
+   Empty
+========================================================= */
+
+.settings-empty-cell {
+  padding:
+    42px
+    20px !important;
+
+  text-align: center;
+
+  color: #94a098 !important;
+}
+
+/* =========================================================
+   User Cell
+========================================================= */
+
+.settings-user-cell {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  min-width: 160px;
+}
+
+.settings-user-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex: 0 0 auto;
+
+  width: 38px;
+  height: 38px;
+
+  border-radius: 12px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #e6f0e3,
+      #d9ead6
+    );
+
+  color: #376d49;
+
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.settings-user-cell > div:last-child {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+
+  gap: 2px;
+}
+
+.settings-user-cell strong {
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+
+  color: #274a34;
+
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.settings-user-cell span {
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+
+  color: #929d96;
+
+  font-size: 10px;
+}
+
+/* =========================================================
+   Role Badge
+========================================================= */
+
+.settings-role-badge {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 6px;
+
+  padding:
+    6px
+    9px;
+
+  border-radius: 999px;
+
+  font-size: 11px;
+  font-weight: 620;
+
+  white-space: nowrap;
+}
+
+.settings-role-doctor {
+  background: #eef6ff;
+
+  color: #47739b;
+}
+
+.settings-role-assistant {
+  background: #f0f8f2;
+
+  color: #4c7c5b;
+}
+
+.settings-role-admin {
+  background: #f3eefb;
+
+  color: #735a99;
+}
+
+.settings-role-accountant {
+  background: #fff7e9;
+
+  color: #9a7540;
+}
+
+/* =========================================================
+   Clinic Tags
+========================================================= */
+
+.settings-clinic-tags {
+  display: flex;
+  flex-wrap: wrap;
+
+  gap: 5px;
+
+  min-width: 150px;
+}
+
+.settings-clinic-tag {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 24px;
+
+  padding:
+    0
+    8px;
+
+  border: 1px solid #dce6de;
+
+  border-radius: 999px;
+
+  background: #f8faf8;
+
+  color: #5c7363;
+
+  font-size: 10px;
+
+  white-space: nowrap;
+}
+
+.settings-clinic-tag-primary {
+  border-color: #c8ddcc;
+
+  background: #edf6ee;
+
+  color: #3f7650;
+}
+
+.settings-muted {
+  color: #9aa49d;
+
+  font-size: 11px;
+}
+
+/* =========================================================
+   Contact
+========================================================= */
+
+.settings-contact-cell {
+  display: flex;
+  flex-direction: column;
+
+  gap: 3px;
+
+  min-width: 130px;
+}
+
+.settings-contact-cell span {
+  color: #465d4d;
+
+  font-size: 11px;
+}
+
+.settings-contact-cell small {
+  color: #929d96;
+
+  font-size: 10px;
+}
+
+/* =========================================================
+   Last Login
+========================================================= */
+
+.settings-last-login {
+  color: #65766b;
+
+  font-size: 11px;
+
+  white-space: nowrap;
+}
+
+/* =========================================================
+   Status
+========================================================= */
+
+.settings-status {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 25px;
+
+  padding:
+    0
+    9px;
+
+  border-radius: 999px;
+
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.settings-status-active {
+  background: #eaf5ec;
+
+  color: #438054;
+}
+
+.settings-status-inactive {
+  background: #f2f2f2;
+
+  color: #8e9690;
+}
+
+/* =========================================================
+   Actions
+========================================================= */
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+
+  gap: 6px;
+
+  min-width: 220px;
+}
+
+.settings-actions button {
+  min-height: 29px;
+
+  padding:
+    0
+    9px;
+
+  border: 1px solid #dce5de;
+
+  border-radius: 9px;
+
+  background: #ffffff;
+
+  color: #4d6755;
+
+  font: inherit;
+  font-size: 10px;
+
+  cursor: pointer;
+
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.settings-actions button:hover {
+  border-color: #c7d8ca;
+
+  background: #f4f9f5;
+
+  color: #346b45;
+}
+
+.settings-actions
+.settings-danger-action {
+  border-color: #efd5d5;
+
+  color: #b25b5b;
+}
+
+.settings-actions
+.settings-danger-action:hover {
+  border-color: #e8c2c2;
+
+  background: #fff4f4;
+
+  color: #9f4646;
+}
+
+/* =========================================================
+   Modal Layer
+========================================================= */
+
+.settings-modal-layer {
+  position: fixed;
+
+  inset: 0;
+
+  z-index: 300;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 24px;
+}
+
+.settings-modal-backdrop {
+  position: absolute;
+
+  inset: 0;
+
+  border: none;
+
+  background:
+    rgba(18, 40, 27, 0.42);
+
+  backdrop-filter:
+    blur(4px);
+
+  cursor: default;
+}
+
+/* =========================================================
+   Modal
+========================================================= */
+
+.settings-modal {
+  position: relative;
+  z-index: 1;
+
+  width: min(760px, 100%);
+
+  max-height: calc(100vh - 48px);
+
+  overflow-y: auto;
+
+  border: 1px solid #dbe5dc;
+
+  border-radius: 20px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 28px 70px
+      rgba(26, 61, 37, 0.25);
+}
+
+.settings-password-modal {
+  width: min(470px, 100%);
+}
+
+/* =========================================================
+   Modal Header
+========================================================= */
+
+.settings-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 16px;
+
+  padding:
+    20px
+    22px
+    18px;
+
+  border-bottom: 1px solid #edf1ee;
+}
+
+.settings-modal-header > div > span {
+  display: block;
+
+  margin-bottom: 5px;
+
+  font-size: 10px;
+  font-weight: 700;
+
+  letter-spacing:
+    0.12em;
+
+  color: #7e9785;
+}
+
+.settings-modal-header h2 {
+  margin: 0;
+
+  color: #244b33;
+
+  font-size: 20px;
+  font-weight: 680;
+}
+
+.settings-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex: 0 0 auto;
+
+  width: 34px;
+  height: 34px;
+
+  border: none;
+
+  border-radius: 10px;
+
+  background: #f4f7f4;
+
+  color: #66776c;
+
+  font-size: 22px;
+
+  cursor: pointer;
+}
+
+.settings-modal-close:hover:not(:disabled) {
+  background: #edf3ee;
+
+  color: #355b42;
+}
+
+.settings-modal-close:disabled {
+  cursor: not-allowed;
+
+  opacity: 0.5;
+}
+
+/* =========================================================
+   Form
+========================================================= */
+
+.settings-user-form {
+  display: flex;
+  flex-direction: column;
+
+  gap: 22px;
+
+  padding:
+    22px;
+}
+
+.settings-form-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 16px;
+}
+
+/* =========================================================
+   Field
+========================================================= */
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+
+  gap: 7px;
+}
+
+.settings-field label {
+  color: #496251;
+
+  font-size: 12px;
+  font-weight: 620;
+}
+
+.settings-field input,
+.settings-field select {
+  width: 100%;
+
+  min-height: 42px;
+
+  padding:
+    0
+    12px;
+
+  border: 1px solid #d7e2d9;
+
+  border-radius: 11px;
+
+  outline: none;
+
+  background: #fbfcfb;
+
+  color: #294434;
+
+  font: inherit;
+  font-size: 13px;
+
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+.settings-field input:focus,
+.settings-field select:focus {
+  border-color: #76a181;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 0 0 4px
+      rgba(96, 148, 108, 0.1);
+}
+
+.settings-field input:disabled,
+.settings-field select:disabled {
+  cursor: not-allowed;
+
+  opacity: 0.6;
+
+  background: #f1f3f1;
+}
+
+.settings-field small {
+  color: #909a93;
+
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   Form Section
+========================================================= */
+
+.settings-form-section {
+  padding:
+    16px;
+
+  border: 1px solid #e0e8e1;
+
+  border-radius: 15px;
+
+  background: #fafcfa;
+}
+
+.settings-form-section-heading {
+  display: flex;
+  justify-content: space-between;
+
+  gap: 12px;
+
+  margin-bottom: 13px;
+}
+
+.settings-form-section-heading h3 {
+  margin:
+    0
+    0
+    4px;
+
+  color: #31543d;
+
+  font-size: 14px;
+}
+
+.settings-form-section-heading p {
+  margin: 0;
+
+  color: #8b978f;
+
+  font-size: 10px;
+}
+
+/* =========================================================
+   Clinic Selector
+========================================================= */
+
+.settings-clinic-selector {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 10px;
+}
+
+.settings-clinic-select-card {
+  display: flex;
+  flex-direction: column;
+
+  gap: 10px;
+
+  min-height: 82px;
+
+  padding:
+    11px
+    12px;
+
+  border: 1px solid #dce5de;
+
+  border-radius: 12px;
+
+  background: #ffffff;
+
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease;
+}
+
+.settings-clinic-select-card-active {
+  border-color: #bcd5c1;
+
+  background: #f1f8f2;
+}
+
+.settings-clinic-select-card > label:first-child {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  cursor: pointer;
+}
+
+.settings-clinic-select-card
+input[type="checkbox"],
+.settings-clinic-select-card
+input[type="radio"] {
+  accent-color: #4e885e;
+}
+
+.settings-clinic-select-info {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+
+  gap: 2px;
+
+  flex: 1;
+}
+
+.settings-clinic-select-info strong {
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+
+  color: #365742;
+
+  font-size: 12px;
+}
+
+.settings-clinic-select-info small {
+  color: #929e96;
+
+  font-size: 10px;
+}
+
+.settings-primary-clinic-radio {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 6px;
+
+  width: fit-content;
+
+  padding-left: 24px;
+
+  color: #5c775f;
+
+  font-size: 10px;
+
+  cursor: pointer;
+}
+
+/* =========================================================
+   Active Toggle
+========================================================= */
+
+.settings-active-toggle {
+  display: flex;
+  align-items: flex-start;
+
+  gap: 11px;
+
+  padding:
+    13px
+    14px;
+
+  border: 1px solid #dfe8e0;
+
+  border-radius: 13px;
+
+  background: #f8fbf8;
+
+  cursor: pointer;
+}
+
+.settings-active-toggle input {
+  margin-top: 3px;
+
+  accent-color: #4e885e;
+}
+
+.settings-active-toggle > span {
+  display: flex;
+  flex-direction: column;
+
+  gap: 3px;
+}
+
+.settings-active-toggle strong {
+  color: #3b5d45;
+
+  font-size: 12px;
+}
+
+.settings-active-toggle small {
+  color: #87938b;
+
+  font-size: 10px;
+}
+
+/* =========================================================
+   Modal Actions
+========================================================= */
+
+.settings-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+
+  gap: 10px;
+
+  padding-top: 2px;
+}
+
+/* =========================================================
+   Reset Password
+========================================================= */
+
+.settings-reset-user {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+
+  gap: 5px;
+
+  padding:
+    11px
+    12px;
+
+  border: 1px solid #dfe7e0;
+
+  border-radius: 11px;
+
+  background: #f7faf7;
+
+  color: #718078;
+
+  font-size: 11px;
+}
+
+.settings-reset-user strong {
+  color: #34573f;
+}
+
+/* =========================================================
+   Loading
+========================================================= */
+
+.settings-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 320px;
+
+  color: #738178;
+
+  font-size: 14px;
+}
+
+/* =========================================================
+   Focus
+========================================================= */
+
+.settings-primary-button:focus-visible,
+.settings-secondary-button:focus-visible,
+.settings-refresh-button:focus-visible,
+.settings-actions button:focus-visible,
+.settings-modal-close:focus-visible,
+.settings-field input:focus-visible,
+.settings-field select:focus-visible {
+  outline:
+    2px solid #6f9e79;
+
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   Responsive
+========================================================= */
+
+@media (
+  max-width: 1100px
+) {
+  .settings-summary-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-filter-bar {
+    grid-template-columns:
+      1fr
+      140px
+      130px;
+  }
+}
+
+@media (
+  max-width: 800px
+) {
+  .settings-page {
+    padding:
+      20px
+      18px
+      32px;
+  }
+
+  .settings-page-header {
+    flex-direction: column;
+
+    align-items: stretch;
+  }
+
+  .settings-page-header
+  .settings-primary-button {
+    align-self: flex-start;
+  }
+
+  .settings-filter-bar {
+    grid-template-columns:
+      1fr;
+  }
+
+  .settings-form-grid,
+  .settings-clinic-selector {
+    grid-template-columns:
+      1fr;
+  }
+}
+
+@media (
+  max-width: 560px
+) {
+  .settings-page {
+    padding:
+      16px
+      12px
+      86px;
+  }
+
+  .settings-summary-grid {
+    grid-template-columns:
+      1fr;
+  }
+
+  .settings-summary-card {
+    min-height: 82px;
+  }
+
+  .settings-section-header {
+    flex-direction: column;
+
+    align-items: flex-start;
+  }
+
+  .settings-modal-layer {
+    align-items: flex-end;
+
+    padding: 0;
+  }
+
+  .settings-modal {
+    width: 100%;
+
+    max-height: 92vh;
+
+    border-radius:
+      20px
+      20px
+      0
+      0;
+  }
+
+  .settings-user-form {
+    padding:
+      18px
+      16px
+      24px;
+  }
+
+  .settings-modal-header {
+    padding:
+      18px
+      16px;
+  }
+
+  .settings-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .settings-modal-actions
+  button {
+    width: 100%;
+  }
+}
+
+/* =========================================================
+   Reduced Motion
+========================================================= */
+
+@media (
+  prefers-reduced-motion:
+    reduce
+) {
+  .settings-primary-button,
+  .settings-secondary-button,
+  .settings-refresh-button,
+  .settings-actions button,
+  .settings-clinic-select-card {
+    transition: none;
+  }
+}
+
+/* =========================================================
+   Header Actions
+========================================================= */
+
+.settings-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+
+  gap: 10px;
+}
+
+/* =========================================================
+   Clinic Management
+========================================================= */
+
+.settings-clinic-management-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap: 14px;
+
+  padding: 20px;
+}
+
+.settings-empty-card {
+  grid-column: 1 / -1;
+
+  padding:
+    38px
+    20px;
+
+  border: 1px dashed #d4e1d6;
+
+  border-radius: 15px;
+
+  background: #fafcfa;
+
+  color: #8a988f;
+
+  font-size: 12px;
+
+  text-align: center;
+}
+
+.settings-clinic-management-card {
+  display: flex;
+  flex-direction: column;
+
+  gap: 16px;
+
+  min-width: 0;
+
+  padding:
+    17px;
+
+  border: 1px solid #dce7de;
+
+  border-radius: 16px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #ffffff 0%,
+      #fbfdfb 100%
+    );
+
+  box-shadow:
+    0 8px 20px
+      rgba(35, 73, 46, 0.045);
+
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.settings-clinic-management-card:hover {
+  transform:
+    translateY(-1px);
+
+  border-color: #c8daca;
+
+  box-shadow:
+    0 12px 25px
+      rgba(35, 73, 46, 0.07);
+}
+
+.settings-clinic-management-card-inactive {
+  background: #f8f9f8;
+
+  opacity: 0.78;
+}
+
+.settings-clinic-management-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+}
+
+.settings-clinic-management-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 39px;
+  height: 39px;
+
+  border-radius: 12px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #e8f2e6,
+      #dcebd9
+    );
+
+  color: #447854;
+
+  font-size: 18px;
+}
+
+.settings-clinic-management-card-inactive
+.settings-clinic-management-icon {
+  background: #ecefec;
+
+  color: #87928a;
+}
+
+.settings-clinic-management-copy {
+  display: flex;
+  flex-direction: column;
+
+  gap: 4px;
+
+  min-width: 0;
+}
+
+.settings-clinic-management-copy strong {
+  overflow: hidden;
+
+  color: #294d36;
+
+  font-size: 14px;
+  font-weight: 680;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-clinic-management-copy span {
+  color: #829087;
+
+  font-size: 10px;
+  font-weight: 650;
+
+  letter-spacing: 0.08em;
+}
+
+.settings-clinic-management-stats {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 8px;
+}
+
+.settings-clinic-management-stats > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 8px;
+
+  min-width: 0;
+
+  padding:
+    10px
+    11px;
+
+  border: 1px solid #e3eae4;
+
+  border-radius: 11px;
+
+  background: #f8faf8;
+}
+
+.settings-clinic-management-stats span {
+  color: #829087;
+
+  font-size: 10px;
+}
+
+.settings-clinic-management-stats strong {
+  color: #3c6748;
+
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.settings-clinic-management-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  gap: 7px;
+
+  padding-top: 2px;
+}
+
+.settings-clinic-management-actions button {
+  min-height: 31px;
+
+  padding:
+    0
+    11px;
+
+  border: 1px solid #dce5de;
+
+  border-radius: 9px;
+
+  background: #ffffff;
+
+  color: #4d6755;
+
+  font: inherit;
+  font-size: 10px;
+  font-weight: 620;
+
+  cursor: pointer;
+
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.settings-clinic-management-actions button:hover {
+  border-color: #c7d8ca;
+
+  background: #f4f9f5;
+
+  color: #346b45;
+}
+
+.settings-clinic-management-actions
+.settings-danger-action {
+  border-color: #efd5d5;
+
+  color: #b25b5b;
+}
+
+.settings-clinic-management-actions
+.settings-danger-action:hover {
+  border-color: #e8c2c2;
+
+  background: #fff4f4;
+
+  color: #9f4646;
+}
+
+.settings-clinic-management-actions
+button:focus-visible {
+  outline:
+    2px solid #6f9e79;
+
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   Clinic Management Responsive
+========================================================= */
+
+@media (
+  max-width: 1100px
+) {
+  .settings-clinic-management-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (
+  max-width: 800px
+) {
+  .settings-header-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (
+  max-width: 620px
+) {
+  .settings-clinic-management-grid {
+    grid-template-columns:
+      1fr;
+
+    padding:
+      16px;
+  }
+
+  .settings-header-actions {
+    width: 100%;
+  }
+
+  .settings-header-actions
+  .settings-primary-button,
+  .settings-header-actions
+  .settings-secondary-button {
+    flex: 1;
+  }
+}
+
+@media (
+  prefers-reduced-motion:
+    reduce
+) {
+  .settings-clinic-management-card,
+  .settings-clinic-management-actions
+  button {
+    transition: none;
+  }
+}
