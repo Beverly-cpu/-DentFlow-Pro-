@@ -1,99 +1,368 @@
-import { NavLink } from "react-router-dom";
-import "../styles/sidebar.css";
+import {
+  NavLink,
+} from "react-router-dom";
+
 import {
   canAccessModule,
-  type DentflowModule,
 } from "../utils/permissions";
 
-const menuItems: Array<{
-  path: string;
-  icon: string;
-  label: string;
-  module: DentflowModule;
-}> = [
-  {
-    path: "/dashboard",
-    icon: "⌂",
-    label: "儀表板",
-    module: "dashboard",
-  },
-  {
-    path: "/patients",
-    icon: "♙",
-    label: "病患管理",
-    module: "patients",
-  },
-   {
-    path: "/doctors",
-    icon: "👨‍⚕️",
-    label: "醫生管理",
-    module: "doctors",
-  },
-  {
-    path: "/implants",
-    icon: "◉",
-    label: "植體追蹤",
-    module: "implants",
-  },
-  {
-    path: "/inventory",
-    icon: "□",
-    label: "庫存管理",
-    module: "inventory",
-  },
-  {
-    path: "/purchase",
-    icon: "▣",
-    label: "採購管理",
-    module: "purchase",
-  },
-  {
-    path: "/reports",
-    icon: "▥",
-    label: "報表",
-    module: "reports",
-  },
-  {
-    path: "/settings",
-    icon: "⚙",
-    label: "系統設定",
-    module: "settings",
-  },
-];
+import type {
+  DentflowModule,
+} from "../utils/permissions";
+
+import "../styles/sidebar.css";
+
+/* =========================================================
+   Types
+========================================================= */
 
 type SidebarProps = {
-  session: DentflowAuthSession;
-  onLogout: () => Promise<void>;
+  session:
+    DentflowAuthSession | null;
 };
 
-export default function Sidebar({ session, onLogout }: SidebarProps) {
+type SidebarItem = {
+  label: string;
+  path: string;
+  icon: string;
+  module: DentflowModule;
+};
+
+/* =========================================================
+   Navigation
+========================================================= */
+
+const sidebarItems:
+  SidebarItem[] = [
+    {
+      label:
+        "儀表板",
+
+      path:
+        "/",
+
+      icon:
+        "▦",
+
+      module:
+        "dashboard",
+    },
+
+    {
+      label:
+        "病患管理",
+
+      path:
+        "/patients",
+
+      icon:
+        "●",
+
+      module:
+        "patients",
+    },
+
+    {
+      label:
+        "醫師管理",
+
+      path:
+        "/doctors",
+
+      icon:
+        "✚",
+
+      module:
+        "doctors",
+    },
+
+    {
+      label:
+        "植體追溯",
+
+      path:
+        "/implants",
+
+      icon:
+        "🦷",
+
+      module:
+        "implants",
+    },
+
+    {
+      label:
+        "耗材追溯",
+
+      path:
+        "/consumables",
+
+      icon:
+        "✦",
+
+      module:
+        "consumables",
+    },
+
+    {
+      label:
+        "庫存管理",
+
+      path:
+        "/inventory",
+
+      icon:
+        "▣",
+
+      module:
+        "inventory",
+    },
+
+    {
+      label:
+        "採購入庫",
+
+      path:
+        "/purchase",
+
+      icon:
+        "↓",
+
+      module:
+        "purchase",
+    },
+
+    {
+      label:
+        "報表",
+
+      path:
+        "/reports",
+
+      icon:
+        "▤",
+
+      module:
+        "reports",
+    },
+
+    {
+      label:
+        "系統設定",
+
+      path:
+        "/settings",
+
+      icon:
+        "⚙",
+
+      module:
+        "settings",
+    },
+  ];
+
+/* =========================================================
+   Helpers
+========================================================= */
+
+function getRoleLabel(
+  session:
+    DentflowAuthSession,
+) {
+  if (
+    session.roleLabel
+  ) {
+    return session.roleLabel;
+  }
+
+  switch (
+    session.role
+  ) {
+    case "Doctor":
+      return "醫師";
+
+    case "Assistant":
+      return "助理";
+
+    case "Admin":
+      return "管理者";
+
+    case "Accountant":
+      return "會計";
+
+    default:
+      return session.role;
+  }
+}
+
+function getAvatarLetter(
+  name: string,
+) {
+  const trimmed =
+    name.trim();
+
+  if (!trimmed) {
+    return "C";
+  }
+
+  return trimmed
+    .charAt(0)
+    .toUpperCase();
+}
+
+/* =========================================================
+   Brand
+========================================================= */
+
+function SidebarBrand() {
   return (
-    <aside className="sidebar">
-      <div className="sidebar-brand">
-        <h2>DentFlow Pro</h2>
-        <p>診所醫材管理系統</p>
+    <div className="sidebar-header">
+      <div className="sidebar-logo">
+        C
       </div>
 
+      <div className="sidebar-brand">
+        <div className="sidebar-brand-title">
+          捷晞美學牙醫
+        </div>
+
+        <div className="sidebar-brand-subtitle">
+          C&amp;C DENTAL
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   Component
+========================================================= */
+
+export default function Sidebar({
+  session,
+}: SidebarProps) {
+  if (!session) {
+    return (
+      <aside className="sidebar">
+        <SidebarBrand />
+      </aside>
+    );
+  }
+
+  const visibleItems =
+    sidebarItems.filter(
+      (item) =>
+        canAccessModule(
+          session.role,
+          item.module,
+        ),
+    );
+
+  return (
+    <aside className="sidebar">
+      {/* ===================================================
+          Brand
+      =================================================== */}
+
+      <SidebarBrand />
+
+      {/* ===================================================
+          Current Clinic
+      =================================================== */}
+
+      <div className="sidebar-clinic">
+        <div className="sidebar-clinic-label">
+          目前院所
+        </div>
+
+        <div className="sidebar-clinic-name">
+          {session.clinicName}
+        </div>
+
+        <div className="sidebar-clinic-code">
+          {session.clinicCode ||
+            "MAIN"}
+        </div>
+      </div>
+
+      {/* ===================================================
+          Navigation
+      =================================================== */}
+
       <nav className="sidebar-nav">
-        {menuItems
-          .filter((item) => canAccessModule(session.role, item.module))
-          .map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) =>
-              `sidebar-link${isActive ? " active" : ""}`
-            }
-          >
-            <span className="sidebar-icon">{item.icon}</span>
-            <span>{item.label}</span>
-          </NavLink>
-          ))}
+        {visibleItems.map(
+          (item) => (
+            <NavLink
+              key={
+                item.path
+              }
+              to={
+                item.path
+              }
+              end={
+                item.path ===
+                "/"
+              }
+              className={({
+                isActive,
+              }) =>
+                [
+                  "sidebar-nav-item",
+
+                  isActive
+                    ? "active"
+                    : "",
+                ]
+                  .filter(
+                    Boolean,
+                  )
+                  .join(" ")
+              }
+            >
+              <span
+                className="sidebar-nav-icon"
+                aria-hidden="true"
+              >
+                {
+                  item.icon
+                }
+              </span>
+
+              <span className="sidebar-nav-label">
+                {
+                  item.label
+                }
+              </span>
+            </NavLink>
+          ),
+        )}
       </nav>
 
-      <button className="sidebar-logout" type="button" onClick={() => void onLogout()}>
-        登出
-      </button>
+      {/* ===================================================
+          Footer User
+      =================================================== */}
+
+      <div className="sidebar-footer">
+        <div className="sidebar-user">
+          <div className="sidebar-user-avatar">
+            {getAvatarLetter(
+              session.name,
+            )}
+          </div>
+
+          <div className="sidebar-user-info">
+            <div className="sidebar-user-name">
+              {session.name}
+            </div>
+
+            <div className="sidebar-user-role">
+              {getRoleLabel(
+                session,
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
     </aside>
   );
 }
