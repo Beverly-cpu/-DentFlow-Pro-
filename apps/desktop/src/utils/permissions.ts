@@ -16,6 +16,10 @@ export type DentflowModule =
 
 type Permission = "access" | "create" | "update";
 
+export function isDentflowRole(value: string): value is DentflowRole {
+  return ["Doctor", "Assistant", "Admin", "Accountant"].includes(value);
+}
+
 const permissions: Record<
   DentflowRole,
   Record<DentflowModule, readonly Permission[]>

@@ -18,6 +18,18 @@ export type InventoryRecord = {
   updatedAt: string;
 };
 
+export type InventoryInput = {
+  name: string;
+  category: string;
+  brand: string;
+  model: string;
+  specification: string;
+  refNumber: string;
+  lotNumber: string;
+  expiryDate: string;
+  safetyStock: number;
+};
+
 export type InventoryTransactionRecord = {
   id: number;
   clinicId: number;
@@ -48,6 +60,103 @@ export function getInventory(clinicId: number): InventoryRecord[] {
        ORDER BY name COLLATE NOCASE, id`,
     )
     .all(clinicId) as InventoryRecord[];
+}
+
+function validateInput(input: InventoryInput) {
+  if (!input.name.trim() || !input.category.trim()) {
+    throw new Error("品項名稱與分類為必填。");
+  }
+
+  if (!Number.isInteger(input.safetyStock) || input.safetyStock < 0) {
+    throw new Error("安全庫存必須是大於或等於 0 的整數。");
+  }
+}
+
+export function createInventoryItem(
+  clinicId: number,
+  input: InventoryInput,
+): InventoryRecord {
+  validateInput(input);
+  const database = getDatabase();
+  const result = database
+    .prepare(
+      `INSERT INTO inventoryItems (
+        clinicId, name, category, brand, model, specification,
+        refNumber, lotNumber, expiryDate, safetyStock
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      clinicId,
+      input.name.trim(),
+      input.category.trim(),
+      input.brand.trim(),
+      input.model.trim(),
+      input.specification.trim(),
+      input.refNumber.trim(),
+      input.lotNumber.trim(),
+      input.expiryDate.trim(),
+      input.safetyStock,
+    );
+
+  return database
+    .prepare("SELECT * FROM inventoryItems WHERE id = ?")
+    .get(result.lastInsertRowid) as InventoryRecord;
+}
+
+export function updateInventoryItem(
+  id: number,
+  clinicId: number,
+  input: InventoryInput,
+): InventoryRecord {
+  validateInput(input);
+  const database = getDatabase();
+  const result = database
+    .prepare(
+      `UPDATE inventoryItems SET
+        name = ?, category = ?, brand = ?, model = ?, specification = ?,
+        refNumber = ?, lotNumber = ?, expiryDate = ?, safetyStock = ?,
+        updatedAt = CURRENT_TIMESTAMP
+       WHERE id = ? AND clinicId = ?`,
+    )
+    .run(
+      input.name.trim(),
+      input.category.trim(),
+      input.brand.trim(),
+      input.model.trim(),
+      input.specification.trim(),
+      input.refNumber.trim(),
+      input.lotNumber.trim(),
+      input.expiryDate.trim(),
+      input.safetyStock,
+      id,
+      clinicId,
+    );
+
+  if (result.changes === 0) {
+    throw new Error("找不到指定的庫存品項。");
+  }
+
+  return database
+    .prepare("SELECT * FROM inventoryItems WHERE id = ?")
+    .get(id) as InventoryRecord;
+}
+
+export function deleteInventoryItem(id: number, clinicId: number) {
+  const database = getDatabase();
+  const transactionCount = database
+    .prepare(
+      `SELECT COUNT(*) AS count FROM inventoryTransactions
+       WHERE inventoryItemId = ? AND clinicId = ?`,
+    )
+    .get(id, clinicId) as { count: number };
+
+  if (transactionCount.count > 0) {
+    throw new Error("已有異動紀錄的品項不可刪除，請保留以確保稽核資料完整。");
+  }
+
+  return database
+    .prepare("DELETE FROM inventoryItems WHERE id = ? AND clinicId = ?")
+    .run(id, clinicId).changes > 0;
 }
 
 export function getInventoryTransactions(

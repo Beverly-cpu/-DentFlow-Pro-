@@ -5,6 +5,8 @@
   padding: 24px 18px;
   background: linear-gradient(180deg, #315d3d 0%, #234b31 100%);
   color: white;
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebar-brand {
@@ -55,4 +57,18 @@
 .sidebar-icon {
   width: 22px;
   text-align: center;
+}
+
+.sidebar-logout {
+  min-height: 42px;
+  margin-top: auto;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+}
+
+.sidebar-logout:hover {
+  background: rgba(255, 255, 255, 0.1);
 }

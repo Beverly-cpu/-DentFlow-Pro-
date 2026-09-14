@@ -62,11 +62,6 @@ export default function Patients() {
 
   const [errorMessage, setErrorMessage] = useState("");
 
-  useEffect(() => {
-    void loadPatients();
-    void loadDoctors();
-  }, []);
-
   async function loadPatients() {
     try {
       setIsLoading(true);
@@ -101,6 +96,13 @@ export default function Patients() {
       console.error("讀取醫師清單失敗：", error);
     }
   }
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      void loadPatients();
+      void loadDoctors();
+    });
+  }, []);
 
   const filteredPatients = useMemo(() => {
     const query = keyword.trim().toLowerCase();

@@ -1,6 +1,6 @@
 import "../styles/header.css";
 
-export default function Header() {
+export default function Header({ session }: { session: DentflowAuthSession }) {
   return (
     <header className="top-header">
       <div>
@@ -9,11 +9,11 @@ export default function Header() {
       </div>
 
       <div className="header-user">
-        <div className="header-avatar">A</div>
+        <div className="header-avatar">{session.userName.slice(0, 1).toUpperCase()}</div>
 
         <div>
-          <strong>Administrator</strong>
-          <span>系統管理員</span>
+          <strong>{session.userName}</strong>
+          <span>{session.role}</span>
         </div>
       </div>
     </header>

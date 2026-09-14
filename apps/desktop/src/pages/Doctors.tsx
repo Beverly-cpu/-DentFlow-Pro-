@@ -44,10 +44,6 @@ export default function Doctors() {
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  useEffect(() => {
-    void loadDoctors();
-  }, []);
-
   async function loadDoctors() {
     try {
       setIsLoading(true);
@@ -63,6 +59,10 @@ export default function Doctors() {
       setIsLoading(false);
     }
   }
+
+  useEffect(() => {
+    queueMicrotask(() => void loadDoctors());
+  }, []);
 
   const filteredDoctors = useMemo(() => {
     const query = keyword.trim().toLowerCase();
@@ -379,7 +379,7 @@ export default function Doctors() {
                   醫師
                 </option>
 
-                <option value="Administrator">
+                <option value="Admin">
                   管理員
                 </option>
 
@@ -387,8 +387,8 @@ export default function Doctors() {
                   助理
                 </option>
 
-                <option value="Warehouse">
-                  庫存管理
+                <option value="Accountant">
+                  會計
                 </option>
               </select>
             </label>

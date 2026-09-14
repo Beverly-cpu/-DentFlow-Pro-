@@ -312,11 +312,10 @@ function buildReceiveNote(
 export default function Purchase() {
   const [
     session,
-    setSession,
   ] =
     useState<
       DentflowAuthSession | null
-    >(null);
+    >(getStoredSession);
 
   const [
     inventory,
@@ -450,28 +449,26 @@ export default function Purchase() {
 
   useEffect(
     () => {
-      const activeSession =
-        getStoredSession();
+      queueMicrotask(() => {
+        const activeSession =
+          getStoredSession();
 
-      setSession(
-        activeSession,
-      );
+        if (!activeSession) {
+          setLoading(
+            false,
+          );
 
-      if (!activeSession) {
-        setLoading(
-          false,
+          setError(
+            "找不到登入資訊，請重新登入。",
+          );
+
+          return;
+        }
+
+        void loadData(
+          activeSession,
         );
-
-        setError(
-          "找不到登入資訊，請重新登入。",
-        );
-
-        return;
-      }
-
-      void loadData(
-        activeSession,
-      );
+      });
     },
     [],
   );
