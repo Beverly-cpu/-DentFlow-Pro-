@@ -117,7 +117,6 @@ const ROLE_PERMISSIONS:
       "implants",
       "consumables",
       "inventory",
-      "purchase",
     ],
 
     permissions: [
@@ -151,10 +150,6 @@ const ROLE_PERMISSIONS:
       "inventory:update",
       "inventory:adjustInventory",
 
-      /* Purchase */
-      "purchase:view",
-      "purchase:create",
-      "purchase:update",
     ],
   },
 
