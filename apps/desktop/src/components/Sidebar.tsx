@@ -190,6 +190,9 @@ function getRoleLabel(
     case "Accountant":
       return "會計";
 
+    case "Procurement":
+      return "採購";
+
     default:
       return session.role;
   }

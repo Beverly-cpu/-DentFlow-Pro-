@@ -164,7 +164,8 @@ export function initializeDatabase():
           'Doctor',
           'Assistant',
           'Admin',
-          'Accountant'
+          'Accountant',
+          'Procurement'
         )
       ),
 
@@ -867,6 +868,43 @@ export function initializeDatabase():
     UPDATE doctors SET role = 'Admin' WHERE role = 'Administrator';
     UPDATE doctors SET role = 'Assistant' WHERE role = 'Warehouse';
   `);
+
+  const usersSchema = db.prepare(`
+    SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'
+  `).get() as { sql: string } | undefined;
+
+  if (usersSchema && !usersSchema.sql.includes("'Procurement'")) {
+    db.pragma("foreign_keys = OFF");
+    try {
+      db.exec(`
+        BEGIN;
+        CREATE TABLE users_role_upgrade (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          account TEXT NOT NULL UNIQUE,
+          passwordHash TEXT NOT NULL,
+          role TEXT NOT NULL CHECK (role IN ('Doctor','Assistant','Admin','Accountant','Procurement')),
+          phone TEXT NOT NULL DEFAULT '',
+          email TEXT NOT NULL DEFAULT '',
+          isActive INTEGER NOT NULL DEFAULT 1 CHECK (isActive IN (0,1)),
+          lastLoginAt TEXT,
+          createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO users_role_upgrade
+          (id,name,account,passwordHash,role,phone,email,isActive,lastLoginAt,createdAt,updatedAt)
+        SELECT id,name,account,passwordHash,role,phone,email,isActive,lastLoginAt,createdAt,updatedAt FROM users;
+        DROP TABLE users;
+        ALTER TABLE users_role_upgrade RENAME TO users;
+        COMMIT;
+      `);
+    } catch (error) {
+      if (db.inTransaction) db.exec("ROLLBACK;");
+      throw error;
+    } finally {
+      db.pragma("foreign_keys = ON");
+    }
+  }
 
   /* =======================================================
      clinics / users 基礎 Migration

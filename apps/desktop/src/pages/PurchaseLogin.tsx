@@ -42,8 +42,8 @@ export default function PurchaseLogin({ onLogin }: Props) {
         password,
         clinicId: Number(clinicId),
       });
-      if (session.role !== "Accountant" && session.role !== "Admin") {
-        throw new Error("此入口僅供採購／會計與管理者登入。");
+      if (session.role !== "Procurement" && session.role !== "Admin") {
+        throw new Error("此入口僅供採購與管理者登入。");
       }
       onLogin(session);
       navigate("/purchase", { replace: true });

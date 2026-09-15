@@ -296,6 +296,10 @@ export default function Dashboard() {
     role ===
     "Accountant";
 
+  const isProcurement =
+    role ===
+    "Procurement";
+
   const canViewImplants =
     isDoctor ||
     isAssistant ||
@@ -310,12 +314,12 @@ export default function Dashboard() {
     isDoctor ||
     isAssistant ||
     isAdmin ||
-    isAccountant;
+    isProcurement;
 
   const canViewPurchase =
-    isAssistant ||
     isAdmin ||
-    isAccountant;
+    isAccountant ||
+    isProcurement;
 
   const canViewReports =
     isDoctor ||

@@ -104,6 +104,9 @@ function getRoleLabel(
 
     case "Accountant":
       return "會計";
+
+    case "Procurement":
+      return "採購";
   }
 }
 
@@ -189,6 +192,9 @@ function getRoleIcon(
 
     case "Accountant":
       return "▤";
+
+    case "Procurement":
+      return "↓";
   }
 }
 
@@ -1675,7 +1681,7 @@ export default function Settings() {
             </h2>
 
             <p>
-              管理醫師、助理、管理者與會計的登入權限與院所範圍。
+              管理醫師、助理、管理者、會計與採購的登入權限與院所範圍。
             </p>
           </div>
 
@@ -1742,6 +1748,10 @@ export default function Settings() {
 
             <option value="Accountant">
               會計
+            </option>
+
+            <option value="Procurement">
+              採購
             </option>
           </select>
 
@@ -2090,6 +2100,10 @@ export default function Settings() {
 
                     <option value="Accountant">
                       會計
+                    </option>
+
+                    <option value="Procurement">
+                      採購
                     </option>
                   </select>
                 </div>

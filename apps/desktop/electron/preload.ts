@@ -1118,7 +1118,7 @@ type AuthSession = {
   userName: string;
   clinicId: number;
   clinicName: string;
-  role: "Doctor" | "Assistant" | "Admin" | "Accountant";
+  role: "Doctor" | "Assistant" | "Admin" | "Accountant" | "Procurement";
 };
 
 /* =========================
