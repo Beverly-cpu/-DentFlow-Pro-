@@ -243,7 +243,6 @@ const ROLE_PERMISSIONS:
   Accountant: {
     modules: [
       "dashboard",
-      "inventory",
       "purchase",
       "reports",
     ],
@@ -252,12 +251,6 @@ const ROLE_PERMISSIONS:
       /* Dashboard */
       "dashboard:view",
 
-      /* Other supply catalog and stock */
-      "inventory:view",
-      "inventory:create",
-      "inventory:update",
-      "inventory:adjustInventory",
-
       /* Purchase */
       "purchase:view",
       "purchase:create",
@@ -265,6 +258,25 @@ const ROLE_PERMISSIONS:
 
       /* Reports */
       "reports:view",
+    ],
+  },
+
+  Procurement: {
+    modules: [
+      "dashboard",
+      "inventory",
+      "purchase",
+    ],
+
+    permissions: [
+      "dashboard:view",
+      "inventory:view",
+      "inventory:create",
+      "inventory:update",
+      "inventory:adjustInventory",
+      "purchase:view",
+      "purchase:create",
+      "purchase:update",
     ],
   },
 };
@@ -326,6 +338,9 @@ export const ROLE_LABELS:
 
   Accountant:
     "會計",
+
+  Procurement:
+    "採購",
 };
 
 /* =========================================================
@@ -348,6 +363,9 @@ export const ROLE_ICONS:
 
   Accountant:
     "▤",
+
+  Procurement:
+    "↓",
 };
 
 /* =========================================================

@@ -6,7 +6,8 @@ type DentflowUserRole =
   | "Doctor"
   | "Assistant"
   | "Admin"
-  | "Accountant";
+  | "Accountant"
+  | "Procurement";
 
 type DentflowClinicRecord = {
   id: number;
