@@ -1586,15 +1586,11 @@ function registerIpcHandlers() {
   registerAuthHandlers();
 
   registerClinicHandlers();
-
-  registerAuthHandlers();
   registerPatientHandlers();
 
   registerDoctorHandlers();
 
   registerImplantHandlers();
-  registerInventoryHandlers();
-
   registerInventoryHandlers();
 
   registerInventoryTransactionHandlers();
