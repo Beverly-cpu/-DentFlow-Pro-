@@ -867,6 +867,15 @@ export function initializeDatabase():
   database.exec(`
     UPDATE doctors SET role = 'Admin' WHERE role = 'Administrator';
     UPDATE doctors SET role = 'Assistant' WHERE role = 'Warehouse';
+
+    CREATE TABLE IF NOT EXISTS inventoryCategories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      clinicId INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (clinicId) REFERENCES clinics(id) ON DELETE CASCADE,
+      UNIQUE (clinicId, name)
+    );
   `);
 
   const usersSchema = db.prepare(`

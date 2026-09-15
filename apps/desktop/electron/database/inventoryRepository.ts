@@ -49,6 +49,59 @@ export type InventoryRecord =
     updatedAt: string;
   };
 
+export type InventoryCategoryRecord = {
+  id: number;
+  clinicId: number;
+  name: string;
+  createdAt: string;
+};
+
+export function getInventoryCategories(
+  clinicId: number,
+): InventoryCategoryRecord[] {
+  assertValidClinicId(clinicId);
+  return getDatabase().prepare(`
+    SELECT id, clinicId, name, createdAt
+    FROM inventoryCategories
+    WHERE clinicId = ?
+    ORDER BY name COLLATE NOCASE ASC
+  `).all(clinicId) as InventoryCategoryRecord[];
+}
+
+export function createInventoryCategory(
+  clinicId: number,
+  name: string,
+  actorUserId: number,
+): InventoryCategoryRecord {
+  assertValidClinicId(clinicId);
+  const actor = getDatabase().prepare(`
+    SELECT users.id FROM users
+    INNER JOIN userClinics ON userClinics.userId = users.id
+    WHERE users.id = ? AND users.isActive = 1
+      AND users.role IN ('Admin', 'Procurement')
+      AND userClinics.clinicId = ?
+    LIMIT 1
+  `).get(actorUserId, clinicId);
+  if (!actor) throw new Error("只有管理者或採購可以新增分類。");
+  const normalized = String(name ?? "").trim();
+  if (!normalized) throw new Error("請輸入分類名稱。");
+  if (normalized.length > 40) throw new Error("分類名稱不可超過 40 個字元。");
+  const database = getDatabase();
+  try {
+    const result = database.prepare(`
+      INSERT INTO inventoryCategories (clinicId, name) VALUES (?, ?)
+    `).run(clinicId, normalized);
+    return database.prepare(`
+      SELECT id, clinicId, name, createdAt FROM inventoryCategories WHERE id = ?
+    `).get(Number(result.lastInsertRowid)) as InventoryCategoryRecord;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("UNIQUE")) {
+      throw new Error("此分類已存在。", { cause: error });
+    }
+    throw error;
+  }
+}
+
 /* =========================================================
    Helpers
 ========================================================= */

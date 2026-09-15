@@ -79,10 +79,12 @@ import {
 
 import {
   adjustInventoryQuantity,
+  createInventoryCategory,
   createInventoryItem,
   deleteInventoryItem,
   getInventoryItemById,
   getInventoryItems,
+  getInventoryCategories,
   getLowStockItems,
   receiveInventory,
   updateInventoryItem,
@@ -992,6 +994,17 @@ function registerImplantHandlers() {
 }
 
 function registerInventoryHandlers() {
+  ipcMain.handle(
+    "inventory:categories",
+    (_event, clinicId: number) => getInventoryCategories(clinicId),
+  );
+
+  ipcMain.handle(
+    "inventory:create-category",
+    (_event, clinicId: number, name: string, actorUserId: number) =>
+      createInventoryCategory(clinicId, name, actorUserId),
+  );
+
   ipcMain.handle(
     "inventory:list",
     (
