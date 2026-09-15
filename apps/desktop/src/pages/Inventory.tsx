@@ -26,7 +26,7 @@ import {
 const SESSION_STORAGE_KEY =
   "dentflow-auth-session";
 
-const INVENTORY_CATEGORIES = [
+const DEFAULT_INVENTORY_CATEGORIES = [
   "植體",
   "套件",
   "連針帶線",
@@ -38,8 +38,7 @@ const INVENTORY_CATEGORIES = [
   "其他耗材",
 ] as const;
 
-type InventoryCategory =
-  (typeof INVENTORY_CATEGORIES)[number];
+type InventoryCategory = string;
 
 const TRANSACTION_TYPES:
   Array<
@@ -343,6 +342,8 @@ export default function Inventory() {
       DentflowInventoryRecord[]
     >([]);
 
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
+
   const [
     transactions,
     setTransactions,
@@ -505,6 +506,18 @@ export default function Inventory() {
       role,
     );
 
+  const canManageCategories =
+    role === "Admin" || role === "Procurement";
+
+  const allCategories = useMemo(
+    () => [...new Set([
+      ...DEFAULT_INVENTORY_CATEGORIES,
+      ...customCategories,
+      ...inventory.map((item) => item.category).filter(Boolean),
+    ])],
+    [customCategories, inventory],
+  );
+
   /*
    * 正式進貨請統一由「採購入庫」頁面處理，
    * 以確保單位成本與移動加權平均成本完整記錄。
@@ -549,6 +562,7 @@ export default function Inventory() {
       const [
         inventoryRecords,
         transactionRecords,
+        categoryRecords,
       ] =
         await Promise.all([
           window.dentflow.inventory.list(
@@ -556,6 +570,10 @@ export default function Inventory() {
           ),
 
           window.dentflow.inventoryTransactions.list(
+            activeSession.clinicId,
+          ),
+
+          window.dentflow.inventory.categories(
             activeSession.clinicId,
           ),
         ]);
@@ -567,6 +585,8 @@ export default function Inventory() {
       setTransactions(
         transactionRecords,
       );
+
+      setCustomCategories(categoryRecords.map((item) => item.name));
     } catch (
       loadError
     ) {
@@ -591,6 +611,22 @@ export default function Inventory() {
     await loadData(
       session,
     );
+  }
+
+  async function addCategory() {
+    if (!session || !canManageCategories) return;
+    const name = window.prompt("請輸入新分類名稱：")?.trim();
+    if (!name) return;
+    try {
+      setError("");
+      const created = await window.dentflow.inventory.createCategory(session.clinicId, name, session.userId);
+      setCustomCategories((current) => [...new Set([...current, created.name])]);
+      setCategoryFilter(created.name);
+      setForm((current) => ({ ...current, category: created.name }));
+      setSuccess(`已新增分類「${created.name}」，可由下方快速分類格使用。`);
+    } catch (categoryError) {
+      setError(getErrorMessage(categoryError));
+    }
   }
 
   /* =======================================================
@@ -1498,6 +1534,42 @@ export default function Inventory() {
         />
       </div>
 
+      <div style={{...styles.filterCard, marginBottom: 16}}>
+        <div style={{display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 12}}>
+          <div>
+            <strong style={{color: "#315b43"}}>快速分類</strong>
+            <div style={{fontSize: 11, color: "#77857d", marginTop: 4}}>點選分類立即篩選；新增後會自動產生快速格。</div>
+          </div>
+          {canManageCategories && (
+            <button type="button" style={styles.secondaryButton} onClick={() => void addCategory()}>
+              ＋ 新增分類
+            </button>
+          )}
+        </div>
+        <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10}}>
+          {allCategories.map((category) => {
+            const count = inventory.filter((item) => item.category === category).length;
+            const active = categoryFilter === category;
+            return (
+              <button
+                key={category}
+                type="button"
+                onClick={() => setCategoryFilter(active ? "全部" : category)}
+                style={{
+                  padding: "13px 12px", borderRadius: 12,
+                  border: active ? "1px solid #4f8061" : "1px solid #d8e5dc",
+                  background: active ? "#e4f1e7" : "#fff", color: "#355d45",
+                  display: "flex", justifyContent: "space-between", gap: 8,
+                  cursor: "pointer", fontWeight: 800,
+                }}
+              >
+                <span>{category}</span><span>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* ===================================================
           Information
       =================================================== */}
@@ -1559,7 +1631,7 @@ export default function Inventory() {
                 全部
               </option>
 
-              {INVENTORY_CATEGORIES.map(
+              {allCategories.map(
                 (category) => (
                   <option
                     key={category}
@@ -1934,7 +2006,7 @@ export default function Inventory() {
                         )
                     }
                   >
-                    {INVENTORY_CATEGORIES.map(
+                    {allCategories.map(
                       (category) => (
                         <option
                           key={category}

@@ -676,6 +676,14 @@ const dentflowApi = {
   ======================================================= */
 
   inventory: {
+    categories(clinicId: number) {
+      return ipcRenderer.invoke("inventory:categories", clinicId);
+    },
+
+    createCategory(clinicId: number, name: string, actorUserId: number) {
+      return ipcRenderer.invoke("inventory:create-category", clinicId, name, actorUserId);
+    },
+
     list(
       clinicId: number,
     ) {

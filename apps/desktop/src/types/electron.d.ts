@@ -1126,6 +1126,26 @@ type DentflowApi = {
   ======================================================= */
 
   inventory: {
+    categories: (
+      clinicId: number,
+    ) => Promise<Array<{
+      id: number;
+      clinicId: number;
+      name: string;
+      createdAt: string;
+    }>>;
+
+    createCategory: (
+      clinicId: number,
+      name: string,
+      actorUserId: number,
+    ) => Promise<{
+      id: number;
+      clinicId: number;
+      name: string;
+      createdAt: string;
+    }>;
+
     list: (
       clinicId: number,
     ) =>
