@@ -534,9 +534,16 @@ type DentflowImplantRecord = {
   orderedAt: string | null;
   pickedAt: string | null;
   surgeryCompletedAt: string | null;
+  returnedAt: string | null;
   closedAt: string | null;
   cancelledAt: string | null;
   cancelReason: string;
+  orderedByUserId: number | null;
+  pickedByUserId: number | null;
+  surgeryCompletedByUserId: number | null;
+  returnedByUserId: number | null;
+  closedByUserId: number | null;
+  cancelledByUserId: number | null;
   reservations: Array<{
     id: number;
     implantPlanItemId: number;
@@ -1081,6 +1088,7 @@ type DentflowApi = {
       implantId: number,
       clinicId: number,
       status: DentflowImplantStatus,
+      actorUserId: number,
     ) =>
       Promise<DentflowImplantRecord>;
 
@@ -1088,6 +1096,7 @@ type DentflowApi = {
       implantId: number,
       clinicId: number,
       usageInputs: DentflowImplantUsageInput[],
+      actorUserId: number,
     ) =>
       Promise<DentflowImplantRecord>;
 
@@ -1095,11 +1104,13 @@ type DentflowApi = {
       implantId: number,
       clinicId: number,
       reason: string,
+      actorUserId: number,
     ) => Promise<DentflowImplantRecord>;
 
     close: (
       implantId: number,
       clinicId: number,
+      actorUserId: number,
     ) => Promise<DentflowImplantRecord>;
 
     delete: (

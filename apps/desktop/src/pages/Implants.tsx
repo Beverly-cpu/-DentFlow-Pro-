@@ -1620,6 +1620,7 @@ export default function Implants() {
         implant.id,
         activeClinicId,
         next,
+        session.userId,
       );
 
       await loadAll();
@@ -1643,7 +1644,7 @@ export default function Implants() {
     if (!reason) return;
     try {
       setActiveId(implant.id);
-      await window.dentflow.implants.cancel(implant.id, activeClinicId, reason);
+      await window.dentflow.implants.cancel(implant.id, activeClinicId, reason, session.userId);
       await loadAll();
     } catch (error) {
       setErrorMessage(getErrorMessage(error, "取消個案失敗。"));
@@ -1656,7 +1657,7 @@ export default function Implants() {
     if (!requireCurrentClinic(implant) || !window.confirm("確認此個案資料完整並正式結案？")) return;
     try {
       setActiveId(implant.id);
-      await window.dentflow.implants.close(implant.id, activeClinicId);
+      await window.dentflow.implants.close(implant.id, activeClinicId, session.userId);
       await loadAll();
     } catch (error) {
       setErrorMessage(getErrorMessage(error, "結案失敗。"));
@@ -2005,6 +2006,7 @@ export default function Implants() {
         activeClinicId,
         inputs as unknown as
           DentflowImplantUsageInput[],
+        session.userId,
       );
 
       setUsageDrafts(
@@ -3163,7 +3165,7 @@ export default function Implants() {
                       )}
 
                       <div style={{marginTop: 10, color: "#728078", fontSize: 12, lineHeight: 1.8}}>
-                        叫貨：{formatTimestamp(implant.orderedAt)} ｜ 取出：{formatTimestamp(implant.pickedAt)} ｜ 手術完成：{formatTimestamp(implant.surgeryCompletedAt)} ｜ 結案：{formatTimestamp(implant.closedAt)}
+                        叫貨：{formatTimestamp(implant.orderedAt)}（#{implant.orderedByUserId ?? "—"}） ｜ 取出：{formatTimestamp(implant.pickedAt)}（#{implant.pickedByUserId ?? "—"}） ｜ 手術完成：{formatTimestamp(implant.surgeryCompletedAt)}（#{implant.surgeryCompletedByUserId ?? "—"}） ｜ 歸回：{formatTimestamp(implant.returnedAt)}（#{implant.returnedByUserId ?? "—"}） ｜ 結案：{formatTimestamp(implant.closedAt)}（#{implant.closedByUserId ?? "—"}）
                       </div>
 
                       {implant.reservations.length > 0 && (
@@ -3174,7 +3176,7 @@ export default function Implants() {
 
                       {implant.status === "已取消" && (
                         <div style={{marginTop: 6, color: "#985163", fontSize: 12}}>
-                          取消：{formatTimestamp(implant.cancelledAt)} ｜ 原因：{implant.cancelReason}
+                          取消：{formatTimestamp(implant.cancelledAt)}（#{implant.cancelledByUserId ?? "—"}） ｜ 原因：{implant.cancelReason}
                         </div>
                       )}
                     </div>

@@ -243,6 +243,7 @@ const ROLE_PERMISSIONS:
   Accountant: {
     modules: [
       "dashboard",
+      "inventory",
       "purchase",
       "reports",
     ],
@@ -250,6 +251,12 @@ const ROLE_PERMISSIONS:
     permissions: [
       /* Dashboard */
       "dashboard:view",
+
+      /* Other supply catalog and stock */
+      "inventory:view",
+      "inventory:create",
+      "inventory:update",
+      "inventory:adjustInventory",
 
       /* Purchase */
       "purchase:view",

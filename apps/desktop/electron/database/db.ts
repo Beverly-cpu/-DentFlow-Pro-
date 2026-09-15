@@ -1017,9 +1017,16 @@ export function initializeDatabase():
     ["orderedAt", "ALTER TABLE implants ADD COLUMN orderedAt TEXT;"],
     ["pickedAt", "ALTER TABLE implants ADD COLUMN pickedAt TEXT;"],
     ["surgeryCompletedAt", "ALTER TABLE implants ADD COLUMN surgeryCompletedAt TEXT;"],
+    ["returnedAt", "ALTER TABLE implants ADD COLUMN returnedAt TEXT;"],
     ["closedAt", "ALTER TABLE implants ADD COLUMN closedAt TEXT;"],
     ["cancelledAt", "ALTER TABLE implants ADD COLUMN cancelledAt TEXT;"],
     ["cancelReason", "ALTER TABLE implants ADD COLUMN cancelReason TEXT NOT NULL DEFAULT '';"],
+    ["orderedByUserId", "ALTER TABLE implants ADD COLUMN orderedByUserId INTEGER REFERENCES users(id);"],
+    ["pickedByUserId", "ALTER TABLE implants ADD COLUMN pickedByUserId INTEGER REFERENCES users(id);"],
+    ["surgeryCompletedByUserId", "ALTER TABLE implants ADD COLUMN surgeryCompletedByUserId INTEGER REFERENCES users(id);"],
+    ["returnedByUserId", "ALTER TABLE implants ADD COLUMN returnedByUserId INTEGER REFERENCES users(id);"],
+    ["closedByUserId", "ALTER TABLE implants ADD COLUMN closedByUserId INTEGER REFERENCES users(id);"],
+    ["cancelledByUserId", "ALTER TABLE implants ADD COLUMN cancelledByUserId INTEGER REFERENCES users(id);"],
   ] as const) {
     ensureColumn(db, "implants", columnName, sql);
   }

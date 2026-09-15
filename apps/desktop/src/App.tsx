@@ -24,6 +24,7 @@ import type {
 } from "./utils/permissions";
 
 import Login from "./pages/Login";
+import PurchaseLogin from "./pages/PurchaseLogin";
 import Dashboard from "./pages/Dashboard";
 import Patients from "./pages/Patients";
 import Doctors from "./pages/Doctors";
@@ -508,6 +509,10 @@ export default function App() {
   ) {
     return (
       <Routes>
+        <Route
+          path="purchase-login"
+          element={<PurchaseLogin onLogin={handleLogin} />}
+        />
         <Route
           path="*"
           element={

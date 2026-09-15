@@ -9,6 +9,8 @@ import type {
   FormEvent,
 } from "react";
 
+import { useNavigate } from "react-router-dom";
+
 import "../styles/Login.css";
 
 import birdMascot from "../assets/jiexi-bird.png";
@@ -96,6 +98,7 @@ function saveSession(
 export default function Login({
   onLogin,
 }: LoginProps) {
+  const navigate = useNavigate();
   const [
     view,
     setView,
@@ -1317,6 +1320,15 @@ export default function Login({
                     }
                   >
                     忘記管理者密碼？
+                  </button>
+
+                  <button
+                    type="button"
+                    className="login-link-button"
+                    disabled={isSubmitting}
+                    onClick={() => navigate("/purchase-login")}
+                  >
+                    採購／叫貨人員登入
                   </button>
                 </form>
 
