@@ -625,12 +625,14 @@ const dentflowApi = {
       implantId: number,
       clinicId: number,
       status: string,
+      actorUserId: number,
     ) {
       return ipcRenderer.invoke(
         "implants:update-status",
         implantId,
         clinicId,
         status,
+        actorUserId,
       );
     },
 
@@ -638,21 +640,23 @@ const dentflowApi = {
       implantId: number,
       clinicId: number,
       usageInputs: unknown,
+      actorUserId: number,
     ) {
       return ipcRenderer.invoke(
         "implants:record-usage",
         implantId,
         clinicId,
         usageInputs,
+        actorUserId,
       );
     },
 
-    cancel(implantId: number, clinicId: number, reason: string) {
-      return ipcRenderer.invoke("implants:cancel", implantId, clinicId, reason);
+    cancel(implantId: number, clinicId: number, reason: string, actorUserId: number) {
+      return ipcRenderer.invoke("implants:cancel", implantId, clinicId, reason, actorUserId);
     },
 
-    close(implantId: number, clinicId: number) {
-      return ipcRenderer.invoke("implants:close", implantId, clinicId);
+    close(implantId: number, clinicId: number, actorUserId: number) {
+      return ipcRenderer.invoke("implants:close", implantId, clinicId, actorUserId);
     },
 
     delete(

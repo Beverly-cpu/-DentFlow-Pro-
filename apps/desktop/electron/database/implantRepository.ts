@@ -252,9 +252,16 @@ export type ImplantRecord = {
   orderedAt: string | null;
   pickedAt: string | null;
   surgeryCompletedAt: string | null;
+  returnedAt: string | null;
   closedAt: string | null;
   cancelledAt: string | null;
   cancelReason: string;
+  orderedByUserId: number | null;
+  pickedByUserId: number | null;
+  surgeryCompletedByUserId: number | null;
+  returnedByUserId: number | null;
+  closedByUserId: number | null;
+  cancelledByUserId: number | null;
   reservations: ImplantReservationRecord[];
 
   teeth:
@@ -300,9 +307,16 @@ type ImplantBaseRow = {
   orderedAt: string | null;
   pickedAt: string | null;
   surgeryCompletedAt: string | null;
+  returnedAt: string | null;
   closedAt: string | null;
   cancelledAt: string | null;
   cancelReason: string;
+  orderedByUserId: number | null;
+  pickedByUserId: number | null;
+  surgeryCompletedByUserId: number | null;
+  returnedByUserId: number | null;
+  closedByUserId: number | null;
+  cancelledByUserId: number | null;
 
   createdAt: string;
 
@@ -442,9 +456,16 @@ const implantBaseSelect = `
     implants.orderedAt,
     implants.pickedAt,
     implants.surgeryCompletedAt,
+    implants.returnedAt,
     implants.closedAt,
     implants.cancelledAt,
     implants.cancelReason,
+    implants.orderedByUserId,
+    implants.pickedByUserId,
+    implants.surgeryCompletedByUserId,
+    implants.returnedByUserId,
+    implants.closedByUserId,
+    implants.cancelledByUserId,
 
     implants.createdAt,
 
@@ -534,6 +555,21 @@ function ensureActiveClinic(
   }
 
   return clinic;
+}
+
+function ensureWorkflowActor(
+  userId: number,
+  clinicId: number,
+) {
+  validatePositiveInteger(userId, "操作者 ID");
+  const actor = getDatabase().prepare(`
+    SELECT users.id
+    FROM users
+    INNER JOIN userClinics ON userClinics.userId = users.id
+    WHERE users.id = ? AND users.isActive = 1 AND userClinics.clinicId = ?
+    LIMIT 1
+  `).get(userId, clinicId);
+  if (!actor) throw new Error("操作者不存在、已停用或不屬於目前院所");
 }
 
 /* =========================================================
@@ -1748,6 +1784,7 @@ export function updateImplantStatus(
   id: number,
   clinicId: number,
   status: ImplantStatus,
+  actorUserId: number,
 ):
   ImplantRecord {
   validatePositiveInteger(
@@ -1758,6 +1795,7 @@ export function updateImplantStatus(
   ensureActiveClinic(
     clinicId,
   );
+  ensureWorkflowActor(actorUserId, clinicId);
 
   validateStatus(
     status,
@@ -1794,9 +1832,9 @@ export function updateImplantStatus(
 
       database.prepare(`
         UPDATE implants SET status = '醫師已叫貨',
-          orderedAt = CURRENT_TIMESTAMP, updatedAt = CURRENT_TIMESTAMP
+          orderedAt = CURRENT_TIMESTAMP, orderedByUserId = ?, updatedAt = CURRENT_TIMESTAMP
         WHERE id = ? AND clinicId = ?
-      `).run(id, clinicId);
+      `).run(actorUserId, id, clinicId);
     })();
     return getImplantById(id, clinicId);
   }
@@ -1810,6 +1848,7 @@ export function updateImplantStatus(
     return confirmImplantWithdrawal(
       id,
       clinicId,
+      actorUserId,
     );
   }
 
@@ -1852,7 +1891,7 @@ export function updateImplantStatus(
     "已完成"
   ) {
     if (status === "已結案") {
-      return closeImplantCase(id, clinicId);
+      return closeImplantCase(id, clinicId, actorUserId);
     }
     throw new Error("此植體個案已完成，僅能執行結案");
   }
@@ -1928,6 +1967,7 @@ function setSimpleStatus(
 export function confirmImplantWithdrawal(
   implantId: number,
   clinicId: number,
+  actorUserId: number,
 ):
   ImplantRecord {
   validatePositiveInteger(
@@ -1938,6 +1978,7 @@ export function confirmImplantWithdrawal(
   ensureActiveClinic(
     clinicId,
   );
+  ensureWorkflowActor(actorUserId, clinicId);
 
   const current =
     getImplantById(
@@ -1985,6 +2026,8 @@ export function confirmImplantWithdrawal(
       UPDATE implantReservations
       SET pickedQuantity = reservedQuantity,
           pickedAt = CURRENT_TIMESTAMP,
+
+          pickedByUserId = ?,
           updatedAt = CURRENT_TIMESTAMP
       WHERE implantId = ?
     `).run(implantId);
@@ -2012,7 +2055,7 @@ export function confirmImplantWithdrawal(
 
           AND status =
             '醫師已叫貨'
-      `).run(implantId, clinicId);
+      `).run(actorUserId, implantId, clinicId);
 
     if (result.changes !== 1) {
       throw new Error("個案狀態已被其他操作修改，請重新整理");
@@ -2041,6 +2084,7 @@ export function recordImplantUsage(
   clinicId: number,
   inputs:
     ImplantUsageInput[],
+  actorUserId: number,
 ):
   ImplantRecord {
   validatePositiveInteger(
@@ -2051,6 +2095,7 @@ export function recordImplantUsage(
   ensureActiveClinic(
     clinicId,
   );
+  ensureWorkflowActor(actorUserId, clinicId);
 
   if (
     !Array.isArray(
@@ -2669,6 +2714,20 @@ export function recordImplantUsage(
 
                 surgeryCompletedAt = CURRENT_TIMESTAMP,
 
+                surgeryCompletedByUserId = ?,
+
+                returnedAt = CASE
+                  WHEN EXISTS (
+                    SELECT 1 FROM implantReservations
+                    WHERE implantId = ? AND returnedQuantity > 0
+                  ) THEN CURRENT_TIMESTAMP ELSE returnedAt END,
+
+                returnedByUserId = CASE
+                  WHEN EXISTS (
+                    SELECT 1 FROM implantReservations
+                    WHERE implantId = ? AND returnedQuantity > 0
+                  ) THEN ? ELSE returnedByUserId END,
+
                 inventoryDeducted =
                   CASE
                     WHEN EXISTS (
@@ -2708,6 +2767,10 @@ export function recordImplantUsage(
                   '待術後紀錄'
             `)
             .run(
+              actorUserId,
+              implantId,
+              implantId,
+              actorUserId,
               implantId,
               clinicId,
             );
@@ -3442,7 +3505,9 @@ export function cancelImplantCase(
   implantId: number,
   clinicId: number,
   reason: string,
+  actorUserId: number,
 ): ImplantRecord {
+  ensureWorkflowActor(actorUserId, clinicId);
   const current = getImplantById(implantId, clinicId);
   const normalizedReason = String(reason ?? "").trim();
   if (!normalizedReason) throw new Error("取消個案必須填寫原因");
@@ -3461,9 +3526,18 @@ export function cancelImplantCase(
     `).run(implantId);
     const result = database.prepare(`
       UPDATE implants SET status = '已取消', cancelledAt = CURRENT_TIMESTAMP,
+        cancelledByUserId = ?,
+        returnedAt = CASE WHEN EXISTS (
+          SELECT 1 FROM implantReservations
+          WHERE implantId = ? AND pickedQuantity > 0
+        ) THEN CURRENT_TIMESTAMP ELSE returnedAt END,
+        returnedByUserId = CASE WHEN EXISTS (
+          SELECT 1 FROM implantReservations
+          WHERE implantId = ? AND pickedQuantity > 0
+        ) THEN ? ELSE returnedByUserId END,
         cancelReason = ?, updatedAt = CURRENT_TIMESTAMP
       WHERE id = ? AND clinicId = ?
-    `).run(normalizedReason, implantId, clinicId);
+    `).run(actorUserId, implantId, implantId, actorUserId, normalizedReason, implantId, clinicId);
     if (result.changes !== 1) throw new Error("取消植體個案失敗");
   })();
   return getImplantById(implantId, clinicId);
@@ -3472,12 +3546,15 @@ export function cancelImplantCase(
 export function closeImplantCase(
   implantId: number,
   clinicId: number,
+  actorUserId: number,
 ): ImplantRecord {
+  ensureWorkflowActor(actorUserId, clinicId);
   const result = getDatabase().prepare(`
     UPDATE implants SET status = '已結案', closedAt = CURRENT_TIMESTAMP,
+      closedByUserId = ?,
       updatedAt = CURRENT_TIMESTAMP
     WHERE id = ? AND clinicId = ? AND status = '已完成'
-  `).run(implantId, clinicId);
+  `).run(actorUserId, implantId, clinicId);
   if (result.changes !== 1) throw new Error("只有已完成手術的個案可以結案");
   return getImplantById(implantId, clinicId);
 }

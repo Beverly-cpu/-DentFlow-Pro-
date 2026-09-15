@@ -962,26 +962,26 @@ function registerImplantHandlers() {
 
   ipcMain.handle(
     "implants:update-status",
-    (_event, implantId: number, clinicId: number, status) =>
-      updateImplantStatus(implantId, clinicId, status),
+    (_event, implantId: number, clinicId: number, status, actorUserId: number) =>
+      updateImplantStatus(implantId, clinicId, status, actorUserId),
   );
 
   ipcMain.handle(
     "implants:record-usage",
-    (_event, implantId: number, clinicId: number, usageInputs) =>
-      recordImplantUsage(implantId, clinicId, usageInputs),
+    (_event, implantId: number, clinicId: number, usageInputs, actorUserId: number) =>
+      recordImplantUsage(implantId, clinicId, usageInputs, actorUserId),
   );
 
   ipcMain.handle(
     "implants:cancel",
-    (_event, implantId: number, clinicId: number, reason: string) =>
-      cancelImplantCase(implantId, clinicId, reason),
+    (_event, implantId: number, clinicId: number, reason: string, actorUserId: number) =>
+      cancelImplantCase(implantId, clinicId, reason, actorUserId),
   );
 
   ipcMain.handle(
     "implants:close",
-    (_event, implantId: number, clinicId: number) =>
-      closeImplantCase(implantId, clinicId),
+    (_event, implantId: number, clinicId: number, actorUserId: number) =>
+      closeImplantCase(implantId, clinicId, actorUserId),
   );
 
   ipcMain.handle(
