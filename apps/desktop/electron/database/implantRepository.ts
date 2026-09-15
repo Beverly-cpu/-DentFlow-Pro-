@@ -12,7 +12,21 @@ export type ImplantStatus =
   | "已取出待手術"
   | "待術後紀錄"
   | "待歸回品項"
-  | "已完成";
+  | "已完成"
+  | "已結案"
+  | "已取消";
+
+export type ImplantReservationRecord = {
+  id: number;
+  implantPlanItemId: number;
+  reservedQuantity: number;
+  pickedQuantity: number;
+  usedQuantity: number;
+  returnedQuantity: number;
+  reservedAt: string | null;
+  pickedAt: string | null;
+  returnedAt: string | null;
+};
 
 /* =========================================================
    Plan Input
@@ -235,6 +249,14 @@ export type ImplantRecord = {
   doctorName:
     string | null;
 
+  orderedAt: string | null;
+  pickedAt: string | null;
+  surgeryCompletedAt: string | null;
+  closedAt: string | null;
+  cancelledAt: string | null;
+  cancelReason: string;
+  reservations: ImplantReservationRecord[];
+
   teeth:
     ImplantToothRecord[];
 
@@ -274,6 +296,13 @@ type ImplantBaseRow = {
 
   doctorName:
     string | null;
+
+  orderedAt: string | null;
+  pickedAt: string | null;
+  surgeryCompletedAt: string | null;
+  closedAt: string | null;
+  cancelledAt: string | null;
+  cancelReason: string;
 
   createdAt: string;
 
@@ -409,6 +438,13 @@ const implantBaseSelect = `
     implants.note,
 
     implants.status,
+
+    implants.orderedAt,
+    implants.pickedAt,
+    implants.surgeryCompletedAt,
+    implants.closedAt,
+    implants.cancelledAt,
+    implants.cancelReason,
 
     implants.createdAt,
 
@@ -1022,11 +1058,27 @@ function buildImplantRecord(
   return {
     ...row,
 
+    reservations: getImplantReservations(row.id),
+
     teeth:
       getImplantTeeth(
         row.id,
       ),
   };
+}
+
+function getImplantReservations(
+  implantId: number,
+): ImplantReservationRecord[] {
+  return getDatabase()
+    .prepare(`
+      SELECT id, implantPlanItemId, reservedQuantity, pickedQuantity,
+             usedQuantity, returnedQuantity, reservedAt, pickedAt, returnedAt
+      FROM implantReservations
+      WHERE implantId = ?
+      ORDER BY id ASC
+    `)
+    .all(implantId) as ImplantReservationRecord[];
 }
 
 /* =========================================================
@@ -1664,6 +1716,19 @@ export function updateImplant(
           id,
           input.teeth,
         );
+
+        if (current.status === "醫師已叫貨") {
+          database.prepare(`
+            INSERT INTO implantReservations (
+              implantId, implantPlanItemId, reservedQuantity, reservedAt
+            )
+            SELECT ?, id, plannedQuantity, CURRENT_TIMESTAMP
+            FROM implantPlanItems
+            WHERE implantToothId IN (
+              SELECT id FROM implantTeeth WHERE implantId = ?
+            )
+          `).run(id, id);
+        }
       },
     );
 
@@ -1710,11 +1775,30 @@ export function updateImplantStatus(
     status ===
       "醫師已叫貨"
   ) {
-    return setSimpleStatus(
-      id,
-      clinicId,
-      status,
-    );
+    const database = getDatabase();
+    database.transaction(() => {
+      database.prepare(`
+        INSERT INTO implantReservations (
+          implantId, implantPlanItemId, reservedQuantity, reservedAt
+        )
+        SELECT ?, id, plannedQuantity, CURRENT_TIMESTAMP
+        FROM implantPlanItems
+        WHERE implantToothId IN (
+          SELECT id FROM implantTeeth WHERE implantId = ?
+        )
+        ON CONFLICT(implantPlanItemId) DO UPDATE SET
+          reservedQuantity = excluded.reservedQuantity,
+          reservedAt = CURRENT_TIMESTAMP,
+          updatedAt = CURRENT_TIMESTAMP
+      `).run(id, id);
+
+      database.prepare(`
+        UPDATE implants SET status = '醫師已叫貨',
+          orderedAt = CURRENT_TIMESTAMP, updatedAt = CURRENT_TIMESTAMP
+        WHERE id = ? AND clinicId = ?
+      `).run(id, clinicId);
+    })();
+    return getImplantById(id, clinicId);
   }
 
   if (
@@ -1767,9 +1851,14 @@ export function updateImplantStatus(
     current.status ===
     "已完成"
   ) {
-    throw new Error(
-      "此植體個案已完成",
-    );
+    if (status === "已結案") {
+      return closeImplantCase(id, clinicId);
+    }
+    throw new Error("此植體個案已完成，僅能執行結案");
+  }
+
+  if (current.status === "已結案" || current.status === "已取消") {
+    throw new Error("此植體個案已結束，無法再變更狀態");
   }
 
   throw new Error(
@@ -1891,9 +1980,16 @@ export function confirmImplantWithdrawal(
   const database =
     getDatabase();
 
-  const result =
-    database
-      .prepare(`
+  const transaction = database.transaction(() => {
+    database.prepare(`
+      UPDATE implantReservations
+      SET pickedQuantity = reservedQuantity,
+          pickedAt = CURRENT_TIMESTAMP,
+          updatedAt = CURRENT_TIMESTAMP
+      WHERE implantId = ?
+    `).run(implantId);
+
+    const result = database.prepare(`
         UPDATE implants
 
         SET
@@ -1903,6 +1999,8 @@ export function confirmImplantWithdrawal(
           inventoryDeducted = 0,
 
           inventoryReturned = 0,
+
+          pickedAt = CURRENT_TIMESTAMP,
 
           updatedAt =
             CURRENT_TIMESTAMP
@@ -1914,20 +2012,14 @@ export function confirmImplantWithdrawal(
 
           AND status =
             '醫師已叫貨'
-      `)
-      .run(
-        implantId,
-        clinicId,
-      );
+      `).run(implantId, clinicId);
 
-  if (
-    result.changes !==
-    1
-  ) {
-    throw new Error(
-      "個案狀態已被其他操作修改，請重新整理",
-    );
-  }
+    if (result.changes !== 1) {
+      throw new Error("個案狀態已被其他操作修改，請重新整理");
+    }
+  });
+
+  transaction();
 
   return getImplantById(
     implantId,
@@ -2547,6 +2639,25 @@ export function recordImplantUsage(
          * 未使用的預計數量不是特定 LOT，
          * 因此不需要歸回庫存。
          */
+        database.prepare(`
+          UPDATE implantReservations
+          SET usedQuantity = COALESCE((
+                SELECT SUM(quantity) FROM implantUsageItems
+                WHERE implantPlanItemId = implantReservations.implantPlanItemId
+              ), 0),
+              returnedQuantity = MAX(
+                pickedQuantity - COALESCE((
+                  SELECT SUM(quantity) FROM implantUsageItems
+                  WHERE implantPlanItemId = implantReservations.implantPlanItemId
+                ), 0), 0),
+              returnedAt = CASE WHEN pickedQuantity > COALESCE((
+                SELECT SUM(quantity) FROM implantUsageItems
+                WHERE implantPlanItemId = implantReservations.implantPlanItemId
+              ), 0) THEN CURRENT_TIMESTAMP ELSE returnedAt END,
+              updatedAt = CURRENT_TIMESTAMP
+          WHERE implantId = ?
+        `).run(implantId);
+
         const completeResult =
           database
             .prepare(`
@@ -2555,6 +2666,8 @@ export function recordImplantUsage(
               SET
                 status =
                   '已完成',
+
+                surgeryCompletedAt = CURRENT_TIMESTAMP,
 
                 inventoryDeducted =
                   CASE
@@ -3325,6 +3438,50 @@ function completeLegacyImplantCase(
   );
 }
 
+export function cancelImplantCase(
+  implantId: number,
+  clinicId: number,
+  reason: string,
+): ImplantRecord {
+  const current = getImplantById(implantId, clinicId);
+  const normalizedReason = String(reason ?? "").trim();
+  if (!normalizedReason) throw new Error("取消個案必須填寫原因");
+  if (["待術後紀錄", "待歸回品項", "已完成", "已結案", "已取消"].includes(current.status)) {
+    throw new Error("此流程階段不可取消個案");
+  }
+
+  const database = getDatabase();
+  database.transaction(() => {
+    database.prepare(`
+      UPDATE implantReservations
+      SET returnedQuantity = pickedQuantity,
+          returnedAt = CASE WHEN pickedQuantity > 0 THEN CURRENT_TIMESTAMP ELSE returnedAt END,
+          updatedAt = CURRENT_TIMESTAMP
+      WHERE implantId = ?
+    `).run(implantId);
+    const result = database.prepare(`
+      UPDATE implants SET status = '已取消', cancelledAt = CURRENT_TIMESTAMP,
+        cancelReason = ?, updatedAt = CURRENT_TIMESTAMP
+      WHERE id = ? AND clinicId = ?
+    `).run(normalizedReason, implantId, clinicId);
+    if (result.changes !== 1) throw new Error("取消植體個案失敗");
+  })();
+  return getImplantById(implantId, clinicId);
+}
+
+export function closeImplantCase(
+  implantId: number,
+  clinicId: number,
+): ImplantRecord {
+  const result = getDatabase().prepare(`
+    UPDATE implants SET status = '已結案', closedAt = CURRENT_TIMESTAMP,
+      updatedAt = CURRENT_TIMESTAMP
+    WHERE id = ? AND clinicId = ? AND status = '已完成'
+  `).run(implantId, clinicId);
+  if (result.changes !== 1) throw new Error("只有已完成手術的個案可以結案");
+  return getImplantById(implantId, clinicId);
+}
+
 /* =========================================================
    Delete Implant
 
@@ -3603,6 +3760,8 @@ function validateStatus(
       "待術後紀錄",
       "待歸回品項",
       "已完成",
+      "已結案",
+      "已取消",
     ];
 
   if (

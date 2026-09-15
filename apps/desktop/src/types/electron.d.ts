@@ -428,7 +428,9 @@ type DentflowImplantStatus =
   | "已取出待手術"
   | "待術後紀錄"
   | "待歸回品項"
-  | "已完成";
+  | "已完成"
+  | "已結案"
+  | "已取消";
 
 type DentflowImplantUsageItemRecord = {
   id: number;
@@ -528,6 +530,24 @@ type DentflowImplantRecord = {
   note: string;
 
   status: DentflowImplantStatus;
+
+  orderedAt: string | null;
+  pickedAt: string | null;
+  surgeryCompletedAt: string | null;
+  closedAt: string | null;
+  cancelledAt: string | null;
+  cancelReason: string;
+  reservations: Array<{
+    id: number;
+    implantPlanItemId: number;
+    reservedQuantity: number;
+    pickedQuantity: number;
+    usedQuantity: number;
+    returnedQuantity: number;
+    reservedAt: string | null;
+    pickedAt: string | null;
+    returnedAt: string | null;
+  }>;
 
   inventoryDeducted: number;
 
@@ -697,6 +717,13 @@ type DentflowConsumableUsageRecord = {
 ========================================================= */
 
 type DentflowApi = {
+  system: {
+    backupDatabase: () => Promise<{
+      cancelled: boolean;
+      filePath?: string;
+    }>;
+  };
+
   /* =======================================================
      Auth
   ======================================================= */
@@ -1063,6 +1090,17 @@ type DentflowApi = {
       usageInputs: DentflowImplantUsageInput[],
     ) =>
       Promise<DentflowImplantRecord>;
+
+    cancel: (
+      implantId: number,
+      clinicId: number,
+      reason: string,
+    ) => Promise<DentflowImplantRecord>;
+
+    close: (
+      implantId: number,
+      clinicId: number,
+    ) => Promise<DentflowImplantRecord>;
 
     delete: (
       implantId: number,

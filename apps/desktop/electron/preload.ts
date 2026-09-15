@@ -8,6 +8,12 @@ import {
 ========================================================= */
 
 const dentflowApi = {
+  system: {
+    backupDatabase() {
+      return ipcRenderer.invoke("system:backup-database");
+    },
+  },
+
   /* =======================================================
      Auth
   ======================================================= */
@@ -639,6 +645,14 @@ const dentflowApi = {
         clinicId,
         usageInputs,
       );
+    },
+
+    cancel(implantId: number, clinicId: number, reason: string) {
+      return ipcRenderer.invoke("implants:cancel", implantId, clinicId, reason);
+    },
+
+    close(implantId: number, clinicId: number) {
+      return ipcRenderer.invoke("implants:close", implantId, clinicId);
     },
 
     delete(
