@@ -128,6 +128,19 @@ function createKey() {
     .slice(2)}`;
 }
 
+function isOrderDueSoon(implant: Implant) {
+  if (implant.status !== "待醫師叫貨" || !implant.implantDate) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(`${implant.implantDate}T00:00:00`);
+  const days = Math.ceil((target.getTime() - today.getTime()) / 86_400_000);
+  return days <= 7;
+}
+
+function formatTimestamp(value: string | null) {
+  return value ? new Date(value).toLocaleString("zh-TW") : "—";
+}
+
 function emptyPlanItem():
   PlanItemForm {
   return {
@@ -1624,6 +1637,34 @@ export default function Implants() {
     }
   }
 
+  async function handleCancelCase(implant: Implant) {
+    if (!requireCurrentClinic(implant)) return;
+    const reason = window.prompt("請輸入取消原因：")?.trim();
+    if (!reason) return;
+    try {
+      setActiveId(implant.id);
+      await window.dentflow.implants.cancel(implant.id, activeClinicId, reason);
+      await loadAll();
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, "取消個案失敗。"));
+    } finally {
+      setActiveId(null);
+    }
+  }
+
+  async function handleCloseCase(implant: Implant) {
+    if (!requireCurrentClinic(implant) || !window.confirm("確認此個案資料完整並正式結案？")) return;
+    try {
+      setActiveId(implant.id);
+      await window.dentflow.implants.close(implant.id, activeClinicId);
+      await loadAll();
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, "結案失敗。"));
+    } finally {
+      setActiveId(null);
+    }
+  }
+
   /* =======================================================
      Usage Draft
   ======================================================= */
@@ -3027,6 +3068,12 @@ export default function Implants() {
                             implant.status
                           }
                         </span>
+
+                        {isOrderDueSoon(implant) && (
+                          <span style={{...statusBadgeStyle("待歸回品項"), fontWeight: 800}}>
+                            手術日前 7 天內尚未叫貨
+                          </span>
+                        )}
                       </div>
 
                       <div
@@ -3114,6 +3161,22 @@ export default function Implants() {
                           }
                         </div>
                       )}
+
+                      <div style={{marginTop: 10, color: "#728078", fontSize: 12, lineHeight: 1.8}}>
+                        叫貨：{formatTimestamp(implant.orderedAt)} ｜ 取出：{formatTimestamp(implant.pickedAt)} ｜ 手術完成：{formatTimestamp(implant.surgeryCompletedAt)} ｜ 結案：{formatTimestamp(implant.closedAt)}
+                      </div>
+
+                      {implant.reservations.length > 0 && (
+                        <div style={{marginTop: 6, color: "#526b58", fontSize: 12}}>
+                          備貨 {implant.reservations.reduce((sum, item) => sum + item.reservedQuantity, 0)} ｜ 已取出 {implant.reservations.reduce((sum, item) => sum + item.pickedQuantity, 0)} ｜ 已使用 {implant.reservations.reduce((sum, item) => sum + item.usedQuantity, 0)} ｜ 已歸回 {implant.reservations.reduce((sum, item) => sum + item.returnedQuantity, 0)}
+                        </div>
+                      )}
+
+                      {implant.status === "已取消" && (
+                        <div style={{marginTop: 6, color: "#985163", fontSize: 12}}>
+                          取消：{formatTimestamp(implant.cancelledAt)} ｜ 原因：{implant.cancelReason}
+                        </div>
+                      )}
                     </div>
 
                     {/* ===================================
@@ -3137,6 +3200,8 @@ export default function Implants() {
                           "待術後紀錄",
                           "待歸回品項",
                           "已完成",
+                          "已結案",
+                          "已取消",
                         ].includes(
                           implant.status,
                         ) && (
@@ -3164,6 +3229,8 @@ export default function Implants() {
                           "待術後紀錄",
                           "待歸回品項",
                           "已完成",
+                          "已結案",
+                          "已取消",
                         ].includes(
                           implant.status,
                         ) && (
@@ -3199,6 +3266,18 @@ export default function Implants() {
                             刪除
                           </button>
                         )}
+
+                      {canUpdate && currentClinic && implant.status === "已完成" && (
+                        <button type="button" disabled={busy} onClick={() => void handleCloseCase(implant)}>
+                          正式結案
+                        </button>
+                      )}
+
+                      {canUpdate && currentClinic && ["待醫師叫貨", "醫師已叫貨", "已取出待手術"].includes(implant.status) && (
+                        <button type="button" className="danger-action" disabled={busy} onClick={() => void handleCancelCase(implant)}>
+                          取消個案
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -3866,6 +3945,16 @@ function statusBadgeStyle(
 
       color =
         "#347047";
+      break;
+
+    case "已結案":
+      background = "#e2f0e6";
+      color = "#245d36";
+      break;
+
+    case "已取消":
+      background = "#fff0f2";
+      color = "#985163";
       break;
   }
 

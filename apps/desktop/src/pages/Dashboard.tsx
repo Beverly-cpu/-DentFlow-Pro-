@@ -767,6 +767,18 @@ export default function Dashboard() {
       ],
     );
 
+  const urgentPendingOrderCount =
+    useMemo(
+      () => implants.filter((item) => {
+        if (item.record.status !== "待醫師叫貨" || !item.record.implantDate) return false;
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        const target = new Date(`${item.record.implantDate}T00:00:00`);
+        return Math.ceil((target.getTime() - start.getTime()) / 86_400_000) <= 7;
+      }).length,
+      [implants],
+    );
+
   const orderedCount =
     useMemo(
       () =>
@@ -1122,7 +1134,9 @@ export default function Dashboard() {
               "待醫師叫貨",
 
             description:
-              "尚有植體病例等待醫師完成術前叫貨。",
+              urgentPendingOrderCount > 0
+                ? `其中 ${urgentPendingOrderCount} 件已進入手術日前 7 天，請優先處理。`
+                : "尚有植體病例等待醫師完成術前叫貨。",
 
             count:
               pendingOrderCount,
@@ -1131,7 +1145,7 @@ export default function Dashboard() {
               "/implants",
 
             level:
-              "warning",
+              urgentPendingOrderCount > 0 ? "danger" : "warning",
           });
         }
 
@@ -2215,11 +2229,14 @@ function ImplantStatusBadge({
   }
 
   if (
-    status ===
-    "已完成"
+    status === "已完成" || status === "已結案"
   ) {
     kind =
       "success";
+  }
+
+  if (status === "已取消") {
+    kind = "neutral";
   }
 
   return (

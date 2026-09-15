@@ -1013,6 +1013,44 @@ export function initializeDatabase():
     `,
   );
 
+  for (const [columnName, sql] of [
+    ["orderedAt", "ALTER TABLE implants ADD COLUMN orderedAt TEXT;"],
+    ["pickedAt", "ALTER TABLE implants ADD COLUMN pickedAt TEXT;"],
+    ["surgeryCompletedAt", "ALTER TABLE implants ADD COLUMN surgeryCompletedAt TEXT;"],
+    ["closedAt", "ALTER TABLE implants ADD COLUMN closedAt TEXT;"],
+    ["cancelledAt", "ALTER TABLE implants ADD COLUMN cancelledAt TEXT;"],
+    ["cancelReason", "ALTER TABLE implants ADD COLUMN cancelReason TEXT NOT NULL DEFAULT '';"],
+  ] as const) {
+    ensureColumn(db, "implants", columnName, sql);
+  }
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS implantReservations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      implantId INTEGER NOT NULL,
+      implantPlanItemId INTEGER NOT NULL,
+      reservedQuantity INTEGER NOT NULL DEFAULT 0,
+      pickedQuantity INTEGER NOT NULL DEFAULT 0,
+      usedQuantity INTEGER NOT NULL DEFAULT 0,
+      returnedQuantity INTEGER NOT NULL DEFAULT 0,
+      reservedAt TEXT,
+      pickedAt TEXT,
+      returnedAt TEXT,
+      createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (implantId) REFERENCES implants(id) ON DELETE CASCADE,
+      FOREIGN KEY (implantPlanItemId) REFERENCES implantPlanItems(id) ON DELETE CASCADE,
+      UNIQUE (implantPlanItemId),
+      CHECK (reservedQuantity >= 0),
+      CHECK (pickedQuantity >= 0),
+      CHECK (usedQuantity >= 0),
+      CHECK (returnedQuantity >= 0)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_implantReservations_implantId
+      ON implantReservations(implantId);
+  `);
+
   ensureColumn(
     db,
     "implants",

@@ -1368,6 +1368,19 @@ export default function Settings() {
      Loading
   ======================================================= */
 
+  async function handleBackupDatabase() {
+    try {
+      setError("");
+      setSuccess("");
+      const result = await window.dentflow.system.backupDatabase();
+      if (!result.cancelled) {
+        setSuccess(`資料庫備份完成：${result.filePath ?? "已儲存"}`);
+      }
+    } catch (backupError) {
+      setError(getErrorMessage(backupError));
+    }
+  }
+
   if (loading) {
     return (
       <div className="settings-page">
@@ -1400,6 +1413,14 @@ export default function Settings() {
         </div>
 
         <div className="settings-header-actions">
+          <button
+            className="settings-secondary-button"
+            type="button"
+            onClick={() => void handleBackupDatabase()}
+          >
+            備份資料庫
+          </button>
+
           <button
             className="settings-secondary-button"
             type="button"

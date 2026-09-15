@@ -16,6 +16,7 @@ import {
 } from "node:url";
 
 import {
+  getDatabase,
   initializeDatabase,
 } from "./database/db";
 
@@ -60,6 +61,8 @@ import {
 ========================================================= */
 
 import {
+  cancelImplantCase,
+  closeImplantCase,
   createImplant,
   deleteImplant,
   getImplants,
@@ -970,6 +973,18 @@ function registerImplantHandlers() {
   );
 
   ipcMain.handle(
+    "implants:cancel",
+    (_event, implantId: number, clinicId: number, reason: string) =>
+      cancelImplantCase(implantId, clinicId, reason),
+  );
+
+  ipcMain.handle(
+    "implants:close",
+    (_event, implantId: number, clinicId: number) =>
+      closeImplantCase(implantId, clinicId),
+  );
+
+  ipcMain.handle(
     "implants:delete",
     (_event, implantId: number, clinicId: number) =>
       deleteImplant(implantId, clinicId),
@@ -1583,6 +1598,18 @@ function registerClinicHandlers() {
 ========================================================= */
 
 function registerIpcHandlers() {
+  ipcMain.handle("system:backup-database", async () => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const result = await dialog.showSaveDialog({
+      title: "備份 DentFlow 資料庫",
+      defaultPath: path.join(app.getPath("documents"), `dentflow-backup-${timestamp}.db`),
+      filters: [{ name: "SQLite database", extensions: ["db"] }],
+    });
+    if (result.canceled || !result.filePath) return { cancelled: true };
+    await getDatabase().backup(result.filePath);
+    return { cancelled: false, filePath: result.filePath };
+  });
+
   registerAuthHandlers();
 
   registerClinicHandlers();
