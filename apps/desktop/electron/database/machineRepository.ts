@@ -65,6 +65,14 @@ export function createMachine(input: MachineInput, actorUserId: number) {
 export function setMachineActive(id:number,isActive:boolean,actorUserId:number){
   actor(actorUserId,["Admin"]); getDatabase().prepare(`UPDATE machines SET isActive=?,status=CASE WHEN ?=1 THEN '在院可用' ELSE '停用' END,updatedAt=CURRENT_TIMESTAMP WHERE id=?`).run(isActive?1:0,isActive?1:0,id); return true;
 }
+export function updateMachine(id:number,input:{name:string;type:string;serialNumber:string},actorUserId:number){
+  actor(actorUserId,["Admin"]);
+  const name=String(input.name??"").trim(),type=String(input.type??"").trim();
+  if(!name||!type) throw new Error("請輸入機台名稱與類型");
+  const result=getDatabase().prepare(`UPDATE machines SET name=?,type=?,serialNumber=?,updatedAt=CURRENT_TIMESTAMP WHERE id=?`).run(name,type,String(input.serialNumber??"").trim(),id);
+  if(result.changes!==1) throw new Error("找不到指定機台");
+  return getDatabase().prepare(`${selectMachine} WHERE m.id=?`).get(id);
+}
 export function createMachineReservation(input:ReservationInput,actorUserId:number){
   const currentActor=actor(actorUserId,["Admin","Assistant"]);
   if(!input.scheduledStartAt||!input.scheduledEndAt||new Date(input.scheduledStartAt)>=new Date(input.scheduledEndAt)) throw new Error("預約開始與結束時間不正確");
