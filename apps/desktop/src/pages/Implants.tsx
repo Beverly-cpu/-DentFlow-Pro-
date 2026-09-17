@@ -991,7 +991,7 @@ export default function Implants() {
     const query = patientSearch.trim().toLowerCase();
     if (!query) return patients;
     return patients.filter((patient) =>
-      [patient.chartNumber, patient.name, patient.phone]
+      [patient.chartNumber, patient.name]
         .join(" ")
         .toLowerCase()
         .includes(query),
@@ -2565,7 +2565,7 @@ export default function Implants() {
                 type="search"
                 value={patientSearch}
                 onChange={(event) => setPatientSearch(event.target.value)}
-                placeholder="搜尋病歷號、姓名或電話"
+                placeholder="搜尋病歷號或姓名"
                 style={{...fieldStyle, marginBottom: 8}}
               />
 
