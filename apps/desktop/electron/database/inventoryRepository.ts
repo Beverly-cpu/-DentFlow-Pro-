@@ -163,10 +163,10 @@ function assertProcurementActor(clinicId: number, actorUserId: number) {
     SELECT users.id FROM users
     INNER JOIN userClinics ON userClinics.userId = users.id
     WHERE users.id = ? AND users.isActive = 1
-      AND users.role = 'Procurement' AND userClinics.clinicId = ?
+      AND users.role IN ('Admin', 'Procurement') AND userClinics.clinicId = ?
     LIMIT 1
   `).get(actorUserId, clinicId);
-  if (!actor) throw new Error("只有採購可執行入庫、出庫或盤點調整。");
+  if (!actor) throw new Error("只有管理者或採購可執行入庫、出庫或盤點調整。");
 }
 
 function assertValidQuantity(
