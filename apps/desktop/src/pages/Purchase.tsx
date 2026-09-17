@@ -23,6 +23,12 @@ import {
 const SESSION_STORAGE_KEY =
   "dentflow-auth-session";
 
+const MEDICAL_CONSUMABLE_CATEGORIES = new Set(["連針帶線", "牙周藥膏", "膠原蛋白", "再生膜", "冷光藥劑", "骨粉"]);
+
+function isGeneralConsumable(category: string) {
+  return category !== "植體" && category !== "套件" && !MEDICAL_CONSUMABLE_CATEGORIES.has(category);
+}
+
 type ReceiveForm = {
   inventoryItemId: string;
   quantity: string;
@@ -320,7 +326,7 @@ function buildReceiveNote(
    Main
 ========================================================= */
 
-export default function Purchase() {
+export default function Purchase({ generalUsage = false }: { generalUsage?: boolean }) {
   const [
     session,
     setSession,
@@ -348,6 +354,9 @@ export default function Purchase() {
   const [purchaseRequests, setPurchaseRequests] = useState<DentflowPurchaseRequestRecord[]>([]);
   const [requestOpen, setRequestOpen] = useState(false);
   const [requestForm, setRequestForm] = useState<RequestForm>(createRequestForm());
+  const [outboundItem, setOutboundItem] = useState<DentflowInventoryRecord | null>(null);
+  const [outboundQuantity, setOutboundQuantity] = useState("1");
+  const [outboundNote, setOutboundNote] = useState("");
 
   const [
     loading,
@@ -521,13 +530,15 @@ export default function Purchase() {
           window.dentflow.purchaseRequests.list(activeSession.clinicId),
         ]);
 
-      setInventory(
-        inventoryRecords,
-      );
+      const visibleInventory = generalUsage
+        ? inventoryRecords.filter((item) => isGeneralConsumable(item.category))
+        : inventoryRecords;
+      setInventory(visibleInventory);
 
-      setTransactions(
-        transactionRecords,
-      );
+      const visibleIds = new Set(visibleInventory.map((item) => item.id));
+      setTransactions(generalUsage
+        ? transactionRecords.filter((item) => visibleIds.has(item.inventoryItemId))
+        : transactionRecords);
 
       setPurchaseRequests(requestRecords);
     } catch (
@@ -631,13 +642,12 @@ export default function Purchase() {
   const inboundTransactions =
     useMemo(
       () =>
-        transactions.filter(
-          (transaction) =>
-            transaction.type ===
-            "入庫",
-        ),
+        generalUsage
+          ? transactions
+          : transactions.filter((transaction) => transaction.type === "入庫"),
       [
         transactions,
+        generalUsage,
       ],
     );
 
@@ -1081,6 +1091,45 @@ export default function Purchase() {
     }
   }
 
+  function openOutbound(item?: DentflowInventoryRecord) {
+    if (!canReceive || !generalUsage) return;
+    setOutboundItem(item ?? inventory[0] ?? null);
+    setOutboundQuantity("1");
+    setOutboundNote("");
+    setError("");
+  }
+
+  async function handleOutbound(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!session || !canReceive || !outboundItem) return;
+    const quantity = Number(outboundQuantity);
+    if (!Number.isInteger(quantity) || quantity <= 0 || quantity > outboundItem.quantity) {
+      setError(`出庫數量必須介於 1 與 ${outboundItem.quantity} 之間。`);
+      return;
+    }
+    if (!outboundNote.trim()) {
+      setError("請填寫出庫用途或領用人。");
+      return;
+    }
+    try {
+      setSaving(true);
+      await window.dentflow.inventory.adjustQuantity(
+        outboundItem.id,
+        session.clinicId,
+        outboundItem.quantity - quantity,
+        `一般耗材出庫｜${outboundNote.trim()}`,
+        session.userId,
+      );
+      setOutboundItem(null);
+      setSuccess(`「${outboundItem.name}」已出庫 -${quantity}。`);
+      await refresh();
+    } catch (outboundError) {
+      setError(getErrorMessage(outboundError));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   /* =======================================================
      Permission States
   ======================================================= */
@@ -1124,16 +1173,18 @@ export default function Purchase() {
       <div style={styles.header}>
         <div>
           <div style={styles.eyebrow}>
-            PURCHASE & RECEIVING
+            {generalUsage ? "GENERAL CONSUMABLE MOVEMENT" : "PURCHASE & RECEIVING"}
           </div>
 
           <h1 style={styles.title}>
-            採購入庫
+            {generalUsage ? "一般耗材使用紀錄" : "採購入庫"}
           </h1>
 
           <div style={styles.subtitle}>
             {session
-              ? `${session.clinicName}｜進貨入庫、低庫存補貨與歷史追溯`
+              ? generalUsage
+                ? `${session.clinicName}｜一般耗材進貨、出庫與異動追溯`
+                : `${session.clinicName}｜進貨入庫、低庫存補貨與歷史追溯`
               : "採購入庫"}
           </div>
         </div>
@@ -1147,6 +1198,11 @@ export default function Purchase() {
           {canReceive && (
             <button type="button" style={styles.primaryButton} onClick={() => openReceive()}>
               ＋ 新增入庫
+            </button>
+          )}
+          {canReceive && generalUsage && (
+            <button type="button" style={styles.primaryButton} onClick={() => openOutbound()}>
+              − 一般耗材出庫
             </button>
           )}
         </div>
@@ -1415,11 +1471,11 @@ export default function Purchase() {
         <div style={styles.sectionHeader}>
           <div>
             <h2 style={styles.sectionTitle}>
-              入庫歷史
+              {generalUsage ? "進貨及出庫紀錄" : "入庫歷史"}
             </h2>
 
             <div style={styles.sectionSubtitle}>
-              顯示由庫存入庫功能建立的「入庫」異動紀錄。
+              {generalUsage ? "顯示一般耗材的進貨、出庫與庫存異動紀錄。" : "顯示由庫存入庫功能建立的「入庫」異動紀錄。"}
             </div>
           </div>
         </div>
@@ -1843,6 +1899,33 @@ export default function Purchase() {
             <div style={styles.modalActions}>
               <button type="button" style={styles.secondaryButton} onClick={closeRequest} disabled={saving}>取消</button>
               <button type="submit" style={styles.primaryButton} disabled={saving}>{saving ? "送出中..." : "送出叫貨"}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {outboundItem && canReceive && generalUsage && (
+        <Modal title="一般耗材出庫" onClose={() => !saving && setOutboundItem(null)} wide>
+          <form style={styles.modalForm} onSubmit={handleOutbound}>
+            <div style={styles.formGrid}>
+              <label style={styles.field}>
+                <span style={styles.label}>出庫品項 *</span>
+                <select style={styles.input} value={outboundItem.id} onChange={(event) => setOutboundItem(inventory.find((item) => item.id === Number(event.target.value)) ?? null)}>
+                  {inventory.map((item) => <option key={item.id} value={item.id}>{item.category}｜{item.name}｜庫存 {item.quantity}</option>)}
+                </select>
+              </label>
+              <label style={styles.field}>
+                <span style={styles.label}>出庫數量 *</span>
+                <input type="number" min="1" max={outboundItem.quantity} step="1" style={styles.input} value={outboundQuantity} onChange={(event) => setOutboundQuantity(event.target.value)} />
+              </label>
+            </div>
+            <label style={styles.field}>
+              <span style={styles.label}>出庫用途／領用人 *</span>
+              <textarea rows={3} style={styles.textarea} value={outboundNote} onChange={(event) => setOutboundNote(event.target.value)} />
+            </label>
+            <div style={styles.modalActions}>
+              <button type="button" style={styles.secondaryButton} onClick={() => setOutboundItem(null)} disabled={saving}>取消</button>
+              <button type="submit" style={styles.primaryButton} disabled={saving || outboundItem.quantity <= 0}>{saving ? "出庫中..." : "確認出庫"}</button>
             </div>
           </form>
         </Modal>
