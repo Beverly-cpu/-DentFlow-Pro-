@@ -16,6 +16,12 @@ const dentflowApi = {
     update: (id: number, input: unknown, actorUserId: number) => ipcRenderer.invoke("machines:update", id, input, actorUserId),
     reserve: (input: unknown, actorUserId: number) => ipcRenderer.invoke("machines:reserve", input, actorUserId),
     scan: (token: string, reservationId: number, clinicId: number, action: "搬出"|"到院", actorUserId: number) => ipcRenderer.invoke("machines:scan", token, reservationId, clinicId, action, actorUserId),
+    usageCredits: (machineId: number, actorUserId: number) => ipcRenderer.invoke("machines:usage-credits", machineId, actorUserId),
+    purchaseCredits: (machineId: number, quantity: number, actorUserId: number) => ipcRenderer.invoke("machines:purchase-credits", machineId, quantity, actorUserId),
+    updateUsageCost: (machineId: number, unitCost: number, actorUserId: number) => ipcRenderer.invoke("machines:update-usage-cost", machineId, unitCost, actorUserId),
+    usageRecords: (actorUserId: number) => ipcRenderer.invoke("machines:usage-records", actorUserId),
+    createUsage: (input: unknown, actorUserId: number) => ipcRenderer.invoke("machines:create-usage", input, actorUserId),
+    signUsage: (id: number, signature: string, actorUserId: number) => ipcRenderer.invoke("machines:sign-usage", id, signature, actorUserId),
   },
   system: {
     backupDatabase() {
