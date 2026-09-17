@@ -443,6 +443,9 @@ export default function Inventory({
       DentflowInventoryRecord | null
     >(null);
 
+  const [costItem, setCostItem] = useState<DentflowInventoryRecord | null>(null);
+  const [costValue, setCostValue] = useState("");
+
   const [
     form,
     setForm,
@@ -518,6 +521,10 @@ export default function Inventory({
       role,
       "inventory",
     );
+
+  const canEditItemDetails = canUpdateInventory && role !== "Accountant";
+  const canEditCost = role === "Admin" || role === "Accountant";
+  const canViewCost = role !== "Procurement" || scope === "general";
 
   const canDeleteInventory =
     role !== null &&
@@ -1008,7 +1015,7 @@ export default function Inventory({
     item:
       DentflowInventoryRecord,
   ) {
-    if (!canUpdateInventory) {
+    if (!canEditItemDetails) {
       return;
     }
 
@@ -1070,6 +1077,40 @@ export default function Inventory({
     );
   }
 
+  function openCost(item: DentflowInventoryRecord) {
+    if (!canEditCost) return;
+    setCostItem(item);
+    setCostValue(String(item.unitCost ?? 0));
+    setError("");
+  }
+
+  async function handleCostSave(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!session || !costItem || !canEditCost) return;
+    const unitCost = Number(costValue);
+    if (!Number.isFinite(unitCost) || unitCost < 0) {
+      setError("品項成本必須是 0 以上的數字。");
+      return;
+    }
+    try {
+      setSaving(true);
+      await window.dentflow.inventory.update(costItem.id, session.clinicId, {
+        name: costItem.name, category: costItem.category, brand: costItem.brand,
+        model: costItem.model, specification: costItem.specification,
+        refNumber: costItem.refNumber, lotNumber: costItem.lotNumber,
+        expiryDate: costItem.expiryDate, quantity: costItem.quantity,
+        safetyStock: costItem.safetyStock, unitCost, note: costItem.note,
+      }, session.userId);
+      setCostItem(null);
+      setSuccess(`「${costItem.name}」成本已更新。`);
+      await refresh();
+    } catch (costError) {
+      setError(getErrorMessage(costError));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function closeCreate() {
     if (saving) {
       return;
@@ -1128,7 +1169,7 @@ export default function Inventory({
     if (
       !session ||
       (editItem
-        ? !canUpdateInventory
+        ? !canEditItemDetails
         : !canCreateInventory)
     ) {
       return;
@@ -1253,6 +1294,7 @@ export default function Inventory({
           editItem.id,
           session.clinicId,
           input,
+          session.userId,
         );
 
         setSuccess(
@@ -1826,9 +1868,7 @@ export default function Inventory({
                     安全庫存
                   </th>
 
-                  <th style={styles.th}>
-                    品項單價
-                  </th>
+                  {canViewCost && <th style={styles.th}>品項單價</th>}
 
                   <th style={styles.th}>
                     狀態
@@ -1938,9 +1978,9 @@ export default function Inventory({
                           {item.safetyStock}
                         </td>
 
-                        <td style={styles.td}>
+                        {canViewCost && <td style={styles.td}>
                           NT$ {Number(item.unitCost ?? 0).toLocaleString("zh-TW", { maximumFractionDigits: 2 })}
-                        </td>
+                        </td>}
 
                         <td style={styles.td}>
                           {item.quantity ===
@@ -1990,7 +2030,7 @@ export default function Inventory({
                               </button>
                             )}
 
-                            {canUpdateInventory && (
+                            {canEditItemDetails && (
                               <button
                                 type="button"
                                 style={styles.editButton}
@@ -2002,6 +2042,10 @@ export default function Inventory({
                               >
                                 編輯
                               </button>
+                            )}
+
+                            {canEditCost && (
+                              <button type="button" style={styles.editButton} onClick={() => openCost(item)}>編輯成本</button>
                             )}
 
                             {canDeleteInventory && (
@@ -2070,9 +2114,25 @@ export default function Inventory({
         </Modal>
       )}
 
+      {costItem && canEditCost && (
+        <Modal title="編輯品項成本" onClose={() => !saving && setCostItem(null)}>
+          <form onSubmit={handleCostSave} style={styles.modalForm}>
+            <div><strong>{costItem.name}</strong></div>
+            <label style={styles.field}>
+              <span style={styles.label}>品項單價 *</span>
+              <input autoFocus type="number" min="0" step="0.01" style={styles.input} value={costValue} onChange={(event) => setCostValue(event.target.value)} />
+            </label>
+            <div style={styles.modalActions}>
+              <button type="button" style={styles.secondaryButton} disabled={saving} onClick={() => setCostItem(null)}>取消</button>
+              <button type="submit" style={styles.primaryButton} disabled={saving}>{saving ? "儲存中..." : "儲存成本"}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
       {createOpen &&
         (editItem
-          ? canUpdateInventory
+          ? canEditItemDetails
           : canCreateInventory) && (
           <Modal
             title={
@@ -2369,7 +2429,7 @@ export default function Inventory({
                   />
                 </label>
 
-                <label style={styles.field}>
+                {canEditCost && <label style={styles.field}>
                   <span style={styles.label}>品項單價</span>
                   <input
                     type="number"
@@ -2379,7 +2439,7 @@ export default function Inventory({
                     value={form.unitCost}
                     onChange={(event) => setForm((current) => ({ ...current, unitCost: event.target.value }))}
                   />
-                </label>
+                </label>}
               </div>
 
               <label style={styles.field}>

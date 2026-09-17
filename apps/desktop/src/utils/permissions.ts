@@ -72,6 +72,7 @@ const ROLE_PERMISSIONS:
       "patients",
       "implants",
       "consumables",
+      "inventory",
       "reports",
     ],
 
@@ -102,6 +103,9 @@ const ROLE_PERMISSIONS:
 
       /* Reports */
       "reports:view",
+
+      /* Inventory: 醫師僅檢視 */
+      "inventory:view",
     ],
   },
 
@@ -241,6 +245,7 @@ const ROLE_PERMISSIONS:
   Accountant: {
     modules: [
       "dashboard",
+      "inventory",
       "purchase",
       "reports",
     ],
@@ -256,6 +261,10 @@ const ROLE_PERMISSIONS:
 
       /* Reports */
       "reports:view",
+
+      /* Inventory: 會計可維護成本 */
+      "inventory:view",
+      "inventory:update",
     ],
   },
 
