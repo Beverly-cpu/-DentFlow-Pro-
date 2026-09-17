@@ -311,6 +311,8 @@ export default function Consumables() {
       DentflowConsumableUsageType
     >("連針帶線");
 
+  const [usageTypes, setUsageTypes] = useState<DentflowConsumableUsageType[]>(USAGE_TYPES);
+
   const [
     loading,
     setLoading,
@@ -515,6 +517,7 @@ export default function Consumables() {
         patientRecords,
         doctorRecords,
         inventoryRecords,
+        categoryRecords,
       ] =
         await Promise.all([
           window.dentflow.patients.list(
@@ -526,11 +529,16 @@ export default function Consumables() {
           window.dentflow.inventory.list(
             activeClinicId,
           ),
+          window.dentflow.inventory.categories(activeClinicId),
         ]);
 
       setPatients(patientRecords);
       setDoctors(doctorRecords);
       setInventory(inventoryRecords);
+      setUsageTypes([...new Set([
+        ...USAGE_TYPES,
+        ...categoryRecords.filter((category) => category.requiresDoctorSignature).map((category) => category.name),
+      ])]);
 
       if (session.role === "Doctor") {
         const doctor =
@@ -1373,7 +1381,7 @@ export default function Consumables() {
       =================================================== */}
 
       <div style={styles.tabs}>
-        {USAGE_TYPES.map(
+        {usageTypes.map(
           (type) => (
             <button
               key={type}
