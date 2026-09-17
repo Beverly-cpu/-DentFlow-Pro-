@@ -72,8 +72,6 @@ const ROLE_PERMISSIONS:
       "patients",
       "implants",
       "consumables",
-      "inventory",
-      "reports",
     ],
 
     permissions: [
@@ -90,22 +88,12 @@ const ROLE_PERMISSIONS:
 
       /* Implants */
       "implants:view",
-      "implants:create",
       "implants:update",
-      "implants:recordUsage",
       "implants:updateStatus",
 
       /* Consumables */
       "consumables:view",
-      "consumables:create",
       "consumables:update",
-      "consumables:recordUsage",
-
-      /* Reports */
-      "reports:view",
-
-      /* Inventory: 醫師僅檢視 */
-      "inventory:view",
     ],
   },
 
