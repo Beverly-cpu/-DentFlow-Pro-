@@ -635,6 +635,18 @@ export default function App() {
         />
 
         <Route
+          path="other-consumables"
+          element={
+            <ModuleAccess
+              session={session}
+              module="inventory"
+            >
+              <Inventory scope="consumables" />
+            </ModuleAccess>
+          }
+        />
+
+        <Route
           path="purchase"
           element={
             <ModuleAccess

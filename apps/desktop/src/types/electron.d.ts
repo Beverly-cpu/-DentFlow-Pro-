@@ -348,6 +348,20 @@ type DentflowInventoryInput = {
   note: string;
 };
 
+type DentflowPurchaseRequestRecord = {
+  id: number;
+  clinicId: number;
+  inventoryItemId: number;
+  inventoryName: string;
+  quantity: number;
+  note: string;
+  status: "待採購" | "已處理";
+  requestedByUserId: number;
+  requestedByName: string;
+  createdAt: string;
+  processedAt: string | null;
+};
+
 /* =========================================================
    Inventory Transactions
 ========================================================= */
@@ -1183,6 +1197,7 @@ type DentflowApi = {
       quantity: number,
       unitCost: number,
       note: string,
+      actorUserId: number,
     ) =>
       Promise<DentflowInventoryRecord>;
 
@@ -1191,6 +1206,7 @@ type DentflowApi = {
       clinicId: number,
       quantity: number,
       note: string,
+      actorUserId: number,
     ) =>
       Promise<DentflowInventoryRecord>;
 
@@ -1204,6 +1220,12 @@ type DentflowApi = {
       clinicId: number,
     ) =>
       Promise<boolean>;
+  };
+
+  purchaseRequests: {
+    list: (clinicId: number) => Promise<DentflowPurchaseRequestRecord[]>;
+    create: (clinicId: number, inventoryItemId: number, quantity: number, note: string, actorUserId: number) => Promise<DentflowPurchaseRequestRecord>;
+    complete: (id: number, clinicId: number, actorUserId: number) => Promise<DentflowPurchaseRequestRecord>;
   };
 
   /* =======================================================

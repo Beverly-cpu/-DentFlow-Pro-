@@ -116,7 +116,7 @@ const ROLE_PERMISSIONS:
       "doctors",
       "implants",
       "consumables",
-      "inventory",
+      "purchase",
     ],
 
     permissions: [
@@ -144,11 +144,9 @@ const ROLE_PERMISSIONS:
       "consumables:update",
       "consumables:recordUsage",
 
-      /* Inventory */
-      "inventory:view",
-      "inventory:create",
-      "inventory:update",
-      "inventory:adjustInventory",
+      /* Purchase: 助理只可發起叫貨，不可入庫或出庫 */
+      "purchase:view",
+      "purchase:create",
 
     ],
   },
@@ -273,6 +271,7 @@ const ROLE_PERMISSIONS:
       "inventory:view",
       "inventory:create",
       "inventory:update",
+      "inventory:delete",
       "inventory:adjustInventory",
       "purchase:view",
       "purchase:create",

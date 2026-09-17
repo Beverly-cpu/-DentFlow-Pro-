@@ -39,7 +39,6 @@ const USAGE_TYPES:
     "膠原蛋白",
     "骨粉",
     "再生膜",
-    "其他耗材",
   ];
 
 type UsageFormItem = {
@@ -1336,13 +1335,13 @@ export default function Consumables() {
           </div>
 
           <h1 style={styles.title}>
-            其他耗材
+            癒合醫療耗材
           </h1>
 
           <div style={styles.subtitle}>
             {isAllClinics
               ? "我的全部院所｜一般耗材使用紀錄（跨院所唯讀）"
-              : `${session.clinicName}｜一般耗材使用、庫存追溯與醫師電子簽名`}
+              : `${session.clinicName}｜醫療耗材使用、庫存追溯與醫師電子簽名`}
           </div>
         </div>
 

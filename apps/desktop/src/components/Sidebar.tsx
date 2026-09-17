@@ -92,7 +92,7 @@ const sidebarItems:
 
     {
       label:
-        "耗材追溯",
+        "醫療耗材",
 
       path:
         "/consumables",
@@ -113,6 +113,20 @@ const sidebarItems:
 
       icon:
         "▣",
+
+      module:
+        "inventory",
+    },
+
+    {
+      label:
+        "其他耗材",
+
+      path:
+        "/other-consumables",
+
+      icon:
+        "✦",
 
       module:
         "inventory",

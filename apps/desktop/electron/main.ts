@@ -91,6 +91,12 @@ import {
   updateInventoryQuantity,
 } from "./database/inventoryRepository";
 
+import {
+  completePurchaseRequest,
+  createPurchaseRequest,
+  getPurchaseRequests,
+} from "./database/purchaseRequestRepository";
+
 /* =========================================================
    Inventory Transactions
 ========================================================= */
@@ -994,6 +1000,13 @@ function registerImplantHandlers() {
 }
 
 function registerInventoryHandlers() {
+  ipcMain.handle("purchase-requests:list", (_event, clinicId: number) =>
+    getPurchaseRequests(clinicId));
+  ipcMain.handle("purchase-requests:create", (_event, clinicId: number, inventoryItemId: number, quantity: number, note: string, actorUserId: number) =>
+    createPurchaseRequest(clinicId, inventoryItemId, quantity, note, actorUserId));
+  ipcMain.handle("purchase-requests:complete", (_event, id: number, clinicId: number, actorUserId: number) =>
+    completePurchaseRequest(id, clinicId, actorUserId));
+
   ipcMain.handle(
     "inventory:categories",
     (_event, clinicId: number) => getInventoryCategories(clinicId),
@@ -1104,6 +1117,7 @@ function registerInventoryHandlers() {
       quantity: number,
       unitCost: number,
       note: string,
+      actorUserId: number,
     ) => {
       return receiveInventory(
         inventoryItemId,
@@ -1111,6 +1125,7 @@ function registerInventoryHandlers() {
         quantity,
         unitCost,
         note,
+        actorUserId,
       );
     },
   );
@@ -1128,12 +1143,14 @@ function registerInventoryHandlers() {
       clinicId: number,
       quantity: number,
       note: string,
+      actorUserId: number,
     ) => {
       return adjustInventoryQuantity(
         inventoryItemId,
         clinicId,
         quantity,
         note,
+        actorUserId,
       );
     },
   );

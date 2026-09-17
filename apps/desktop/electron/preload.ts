@@ -759,6 +759,7 @@ const dentflowApi = {
       quantity: number,
       unitCost: number,
       note: string,
+      actorUserId: number,
     ) {
       return ipcRenderer.invoke(
         "inventory:receive",
@@ -767,6 +768,7 @@ const dentflowApi = {
         quantity,
         unitCost,
         note,
+        actorUserId,
       );
     },
 
@@ -780,6 +782,7 @@ const dentflowApi = {
       clinicId: number,
       quantity: number,
       note: string,
+      actorUserId: number,
     ) {
       return ipcRenderer.invoke(
         "inventory:adjust",
@@ -787,6 +790,7 @@ const dentflowApi = {
         clinicId,
         quantity,
         note,
+        actorUserId,
       );
     },
 
@@ -808,6 +812,18 @@ const dentflowApi = {
         inventoryItemId,
         clinicId,
       );
+    },
+  },
+
+  purchaseRequests: {
+    list(clinicId: number) {
+      return ipcRenderer.invoke("purchase-requests:list", clinicId);
+    },
+    create(clinicId: number, inventoryItemId: number, quantity: number, note: string, actorUserId: number) {
+      return ipcRenderer.invoke("purchase-requests:create", clinicId, inventoryItemId, quantity, note, actorUserId);
+    },
+    complete(id: number, clinicId: number, actorUserId: number) {
+      return ipcRenderer.invoke("purchase-requests:complete", id, clinicId, actorUserId);
     },
   },
 
