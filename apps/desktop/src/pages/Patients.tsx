@@ -344,7 +344,6 @@ export default function Patients() {
                 patient.chartNumber,
                 patient.name,
                 patient.birthDate,
-                patient.phone,
                 patient.doctor,
                 patient.note,
                 patient.clinicName,
@@ -740,8 +739,8 @@ export default function Patients() {
             }
             placeholder={
               isReadOnlyScope
-                ? "搜尋病歷號、姓名、電話、醫師、院所..."
-                : "搜尋病歷號、姓名、電話、醫師..."
+                ? "搜尋病歷號、姓名、醫師、院所..."
+                : "搜尋病歷號、姓名、醫師..."
             }
           />
         </div>
@@ -874,34 +873,6 @@ export default function Patients() {
                         }),
                       )
                   }
-                />
-              </label>
-
-              <label>
-                <span>
-                  聯絡電話
-                </span>
-
-                <input
-                  value={
-                    form.phone
-                  }
-                  onChange={
-                    (event) =>
-                      setForm(
-                        (
-                          current,
-                        ) => ({
-                          ...current,
-
-                          phone:
-                            event
-                              .target
-                              .value,
-                        }),
-                      )
-                  }
-                  placeholder="選填"
                 />
               </label>
 
@@ -1044,10 +1015,6 @@ export default function Patients() {
                   </th>
 
                   <th>
-                    電話
-                  </th>
-
-                  <th>
                     主治醫師
                   </th>
 
@@ -1102,11 +1069,6 @@ export default function Patients() {
 
                       <td>
                         {patient.birthDate ||
-                          "—"}
-                      </td>
-
-                      <td>
-                        {patient.phone ||
                           "—"}
                       </td>
 
