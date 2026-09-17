@@ -418,6 +418,7 @@ export default function Consumables() {
 
   const canCancel =
     !isAllClinics &&
+    role !== "Doctor" &&
     canUpdateModule(
       role,
       "consumables",
