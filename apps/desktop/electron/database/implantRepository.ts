@@ -3800,10 +3800,12 @@ function validateImplantInput(
         item.category !==
           "植體" &&
         item.category !==
-          "植體套件"
+          "植體套件" &&
+        item.category !==
+          "器械"
       ) {
         throw new Error(
-          "植體個案只能規劃「植體」或「植體套件」",
+          "植體個案只能規劃「植體」、「植體套件」或「器械」",
         );
       }
 

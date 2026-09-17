@@ -1141,6 +1141,10 @@ type DentflowApi = {
   ======================================================= */
 
   inventory: {
+    instrumentsAll: () => Promise<Array<DentflowInventoryRecord & {
+      clinicCode: string;
+      clinicName: string;
+    }>>;
     categories: (
       clinicId: number,
     ) => Promise<Array<{
