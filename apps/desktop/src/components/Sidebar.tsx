@@ -92,7 +92,7 @@ const sidebarItems:
 
     {
       label:
-        "癒合醫療耗材",
+        "癒合醫療使用紀錄",
 
       path:
         "/consumables",
@@ -106,10 +106,10 @@ const sidebarItems:
 
     {
       label:
-        "一般耗材",
+        "癒合醫療庫存管理",
 
       path:
-        "/other-consumables",
+        "/medical-inventory",
 
       icon:
         "✦",
@@ -120,7 +120,21 @@ const sidebarItems:
 
     {
       label:
-        "庫存管理",
+        "一般耗材使用紀錄",
+
+      path:
+        "/general-consumable-usage",
+
+      icon:
+        "⇅",
+
+      module:
+        "purchase",
+    },
+
+    {
+      label:
+        "一般耗材庫存管理",
 
       path:
         "/inventory",
@@ -130,20 +144,6 @@ const sidebarItems:
 
       module:
         "inventory",
-    },
-
-    {
-      label:
-        "採購入庫",
-
-      path:
-        "/purchase",
-
-      icon:
-        "↓",
-
-      module:
-        "purchase",
     },
 
     {
