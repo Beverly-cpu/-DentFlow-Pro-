@@ -10,6 +10,7 @@ export type DentflowModule =
   | "dashboard"
   | "patients"
   | "doctors"
+  | "machines"
   | "implants"
   | "consumables"
   | "inventory"
@@ -105,6 +106,7 @@ const ROLE_PERMISSIONS:
     modules: [
       "dashboard",
       "patients",
+      "machines",
       "implants",
       "consumables",
       "purchase",
@@ -118,6 +120,9 @@ const ROLE_PERMISSIONS:
       "patients:view",
       "patients:create",
       "patients:update",
+
+      "machines:view",
+      "machines:create",
 
       /* Implants */
       "implants:view",
@@ -148,6 +153,7 @@ const ROLE_PERMISSIONS:
       "dashboard",
       "patients",
       "doctors",
+      "machines",
       "implants",
       "consumables",
       "inventory",
@@ -174,6 +180,11 @@ const ROLE_PERMISSIONS:
       "doctors:update",
       "doctors:delete",
       "doctors:manage",
+
+      "machines:view",
+      "machines:create",
+      "machines:update",
+      "machines:manage",
 
       /* Implants */
       "implants:view",
@@ -287,6 +298,9 @@ export const MODULE_LABELS:
 
   patients:
     "病患管理",
+
+  machines:
+    "大型機台",
 
   doctors:
     "醫師管理",
