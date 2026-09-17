@@ -29,6 +29,13 @@ type Doctor =
 type InventoryItem =
   DentflowInventoryRecord;
 
+type InstrumentItem = InventoryItem & {
+  clinicCode: string;
+  clinicName: string;
+};
+
+type OrderType = "植體" | "套件" | "植體及套件";
+
 type Implant =
   DentflowImplantRecord & {
     clinicName: string;
@@ -57,6 +64,8 @@ type PlanOption = {
 type PlanItemForm = {
   key: string;
 
+  category: "植體" | "植體套件";
+
   brand: string;
 
   model: string;
@@ -76,6 +85,10 @@ type ToothForm = {
 };
 
 type ImplantForm = {
+  orderType: OrderType;
+
+  instrumentIds: string[];
+
   patientId: string;
 
   doctorId: string;
@@ -143,11 +156,13 @@ function formatTimestamp(value: string | null) {
   return value ? new Date(value).toLocaleString("zh-TW") : "—";
 }
 
-function emptyPlanItem():
+function emptyPlanItem(category: "植體" | "植體套件" = "植體"):
   PlanItemForm {
   return {
     key:
       createKey(),
+
+    category,
 
     brand:
       "",
@@ -181,6 +196,10 @@ function emptyTooth():
 function emptyForm():
   ImplantForm {
   return {
+    orderType: "植體",
+
+    instrumentIds: [],
+
     patientId:
       "",
 
@@ -395,6 +414,9 @@ export default function Implants() {
       InventoryItem[]
     >([]);
 
+  const [instruments, setInstruments] = useState<InstrumentItem[]>([]);
+  const [newInstrumentName, setNewInstrumentName] = useState("");
+
   const [
     doctorProfile,
     setDoctorProfile,
@@ -488,8 +510,6 @@ export default function Implants() {
 
   const canCreate =
     session.role ===
-      "Doctor" ||
-    session.role ===
       "Assistant" ||
     session.role ===
       "Admin";
@@ -547,6 +567,8 @@ export default function Implants() {
         [],
       );
 
+      setInstruments([]);
+
       setDoctorProfile(
         null,
       );
@@ -571,6 +593,7 @@ export default function Implants() {
         patientRecords,
         doctorRecords,
         inventoryRecords,
+        instrumentRecords,
       ] =
         await Promise.all([
           window.dentflow.patients.list(
@@ -584,6 +607,8 @@ export default function Implants() {
           window.dentflow.inventory.list(
             activeClinicId,
           ),
+
+          window.dentflow.inventory.instrumentsAll(),
         ]);
 
       setPatients(
@@ -603,6 +628,8 @@ export default function Implants() {
       setInventory(
         inventoryRecords,
       );
+
+      setInstruments(instrumentRecords);
 
       /* ===================================================
          Doctor
@@ -1054,16 +1081,36 @@ export default function Implants() {
 
   function addTooth() {
     setForm(
-      (previous) => ({
-        ...previous,
-
-        teeth: [
-          ...previous.teeth,
-
-          emptyTooth(),
-        ],
-      }),
+      (previous) => {
+        const tooth = emptyTooth();
+        if (previous.orderType === "套件") tooth.items = [emptyPlanItem("植體套件")];
+        if (previous.orderType === "植體及套件") tooth.items = [emptyPlanItem("植體"), emptyPlanItem("植體套件")];
+        return {...previous, teeth: [...previous.teeth, tooth]};
+      },
     );
+  }
+
+  function changeOrderType(orderType: OrderType) {
+    setForm((previous) => ({
+      ...previous,
+      orderType,
+      teeth: previous.teeth.map((tooth) => ({
+        ...tooth,
+        items: orderType === "植體及套件"
+          ? [emptyPlanItem("植體"), emptyPlanItem("植體套件")]
+          : [emptyPlanItem(orderType === "套件" ? "植體套件" : "植體")],
+      })),
+    }));
+  }
+
+  function toggleInstrument(id: number) {
+    const value = String(id);
+    setForm((previous) => ({
+      ...previous,
+      instrumentIds: previous.instrumentIds.includes(value)
+        ? previous.instrumentIds.filter((item) => item !== value)
+        : [...previous.instrumentIds, value],
+    }));
   }
 
   function removeTooth(
@@ -1135,7 +1182,7 @@ export default function Implants() {
                     items: [
                       ...tooth.items,
 
-                      emptyPlanItem(),
+                      emptyPlanItem(previous.orderType === "套件" ? "植體套件" : "植體"),
                     ],
                   }
                 : tooth,
@@ -1261,6 +1308,24 @@ export default function Implants() {
     );
 
     setForm({
+      orderType: (() => {
+        const categories = implant.teeth.flatMap((tooth) => tooth.items.map((item) => item.category));
+        const hasImplant = categories.includes("植體");
+        const hasKit = categories.includes("植體套件");
+        return hasImplant && hasKit ? "植體及套件" : hasKit ? "套件" : "植體";
+      })(),
+
+      instrumentIds: implant.teeth
+        .flatMap((tooth) => tooth.items)
+        .filter((item) => item.category === "器械")
+        .map((item) => {
+          const match = instruments.find((instrument) =>
+            instrument.name === item.name && instrument.brand === item.brand && instrument.model === item.model,
+          );
+          return match ? String(match.id) : "";
+        })
+        .filter(Boolean),
+
       patientId:
         String(
           implant.patientId,
@@ -1293,10 +1358,12 @@ export default function Implants() {
               tooth.toothPosition,
 
             items:
-              tooth.items.map(
+              tooth.items.filter((item) => item.category !== "器械").map(
                 (item) => ({
                   key:
                     createKey(),
+
+                  category: item.category === "植體套件" ? "植體套件" : "植體",
 
                   brand:
                     item.brand,
@@ -1420,6 +1487,18 @@ export default function Implants() {
           return;
         }
 
+        if (session.role === "Assistant") {
+          planItems.push({
+            name: item.category === "植體" ? "待醫師選擇植體" : "待醫師選擇套件",
+            category: item.category,
+            brand: item.brand,
+            model: "",
+            specification: "",
+            plannedQuantity: 1,
+          });
+          continue;
+        }
+
         if (!item.model) {
           window.alert(
             `牙位 #${tooth.toothPosition} 尚未選擇植體型號 / 系列。`,
@@ -1480,6 +1559,21 @@ export default function Implants() {
         items:
           planItems,
       });
+    }
+
+    const requestedInstruments = form.instrumentIds
+      .map((id) => instruments.find((instrument) => instrument.id === Number(id)))
+      .filter((instrument): instrument is InstrumentItem => Boolean(instrument));
+
+    if (requestedInstruments.length > 0 && teethPayload.length > 0) {
+      teethPayload[0].items.push(...requestedInstruments.map((instrument) => ({
+        name: instrument.name,
+        category: "器械",
+        brand: instrument.brand,
+        model: instrument.model,
+        specification: `${instrument.specification}${instrument.specification ? "｜" : ""}來源院所：${instrument.clinicName}（${instrument.clinicCode}）`,
+        plannedQuantity: 1,
+      })));
     }
 
     const payload:
@@ -1546,6 +1640,45 @@ export default function Implants() {
       setIsSaving(
         false,
       );
+    }
+  }
+
+  async function createInstrument() {
+    const name = newInstrumentName.trim();
+    if (!name) return;
+    try {
+      await window.dentflow.inventory.create(activeClinicId, {
+        name,
+        category: "器械",
+        brand: "",
+        model: "",
+        specification: "",
+        refNumber: "",
+        lotNumber: "",
+        expiryDate: "",
+        quantity: 1,
+        safetyStock: 0,
+        unitCost: 0,
+        note: "植體手術器械",
+      });
+      setNewInstrumentName("");
+      await loadAll();
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, "新增器械失敗。"));
+    }
+  }
+
+  async function deleteInstrument(instrument: InstrumentItem) {
+    if (instrument.clinicId !== activeClinicId) {
+      window.alert("請先切換到器械所屬院所再刪除。");
+      return;
+    }
+    if (!window.confirm(`確認刪除器械「${instrument.name}」？`)) return;
+    try {
+      await window.dentflow.inventory.delete(instrument.id, activeClinicId);
+      await loadAll();
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, "刪除器械失敗。"));
     }
   }
 
@@ -2554,6 +2687,20 @@ export default function Implants() {
             </label>
 
             <label>
+              叫貨類型
+
+              <select
+                value={form.orderType}
+                onChange={(event) => changeOrderType(event.target.value as OrderType)}
+                style={fieldStyle}
+              >
+                <option value="植體">只叫植體</option>
+                <option value="套件">只叫套件</option>
+                <option value="植體及套件">植體及套件皆叫貨</option>
+              </select>
+            </label>
+
+            <label>
               狀態
 
               <input
@@ -2601,7 +2748,7 @@ export default function Implants() {
                       "0 0 4px",
                   }}
                 >
-                  治療牙位 / 植體規格
+                  治療牙位 / 叫貨廠牌
                 </h3>
 
                 <small
@@ -2610,7 +2757,7 @@ export default function Implants() {
                       "#78817a",
                   }}
                 >
-                  術前不指定生產 REF、LOT。
+                  助理設定牙位與廠牌；醫師再選型號、規格與器械。術前不指定 REF、LOT。
                 </small>
               </div>
 
@@ -2717,7 +2864,7 @@ export default function Implants() {
                         }}
                       >
                         <label>
-                          廠牌 #{itemIndex + 1}
+                          {item.category === "植體" ? "植體廠牌" : "套件廠牌"} #{itemIndex + 1}
 
                           <select
                             value={item.brand}
@@ -2737,7 +2884,12 @@ export default function Implants() {
 
                             {uniqueSorted(
                               planOptions.map(
-                                (option) => option.brand,
+                                (option) =>
+                                  (item.category === "植體"
+                                    ? option.category === "植體"
+                                    : option.category === "套件" || option.category === "植體套件")
+                                    ? option.brand
+                                    : "",
                               ),
                             ).map((brand) => (
                               <option
@@ -2750,7 +2902,7 @@ export default function Implants() {
                           </select>
                         </label>
 
-                        <label>
+                        <label style={{display: session.role === "Assistant" ? "none" : "block"}}>
                           型號 / 系列
 
                           <select
@@ -2776,6 +2928,9 @@ export default function Implants() {
                               planOptions
                                 .filter(
                                   (option) =>
+                                    (item.category === "植體"
+                                      ? option.category === "植體"
+                                      : option.category === "套件" || option.category === "植體套件") &&
                                     normalize(option.brand) ===
                                     normalize(item.brand),
                                 )
@@ -2793,7 +2948,7 @@ export default function Implants() {
                           </select>
                         </label>
 
-                        <label>
+                        <label style={{display: session.role === "Assistant" ? "none" : "block"}}>
                           植體規格
 
                           <select
@@ -2821,6 +2976,9 @@ export default function Implants() {
                             {planOptions
                               .filter(
                                 (option) =>
+                                  (item.category === "植體"
+                                    ? option.category === "植體"
+                                    : option.category === "套件" || option.category === "植體套件") &&
                                   normalize(option.brand) ===
                                     normalize(item.brand) &&
                                   normalize(option.model) ===
@@ -2916,6 +3074,56 @@ export default function Implants() {
               ),
             )}
           </div>
+
+          {session.role !== "Assistant" && (
+            <div style={{...subPanelStyle, marginTop: 20}}>
+              <h3 style={{margin: "0 0 6px"}}>器械叫貨</h3>
+              <small style={{color: "#78817a"}}>
+                可選擇其他院所器械；叫貨單會保留來源院所，供搬運與歸還追蹤。
+              </small>
+              <div style={{display: "grid", gap: 8, marginTop: 12}}>
+                {instruments.length === 0 ? (
+                  <span style={{color: "#78817a"}}>尚未建立器械。</span>
+                ) : instruments.map((instrument) => (
+                  <label key={instrument.id} style={{display: "flex", gap: 10, alignItems: "center"}}>
+                    <input
+                      type="checkbox"
+                      checked={form.instrumentIds.includes(String(instrument.id))}
+                      onChange={() => toggleInstrument(instrument.id)}
+                    />
+                    <span>
+                      <strong>{instrument.name}</strong>
+                      {instrument.brand ? `｜${instrument.brand}` : ""}
+                      {instrument.model ? `｜${instrument.model}` : ""}
+                      {`｜來源：${instrument.clinicName}（${instrument.clinicCode}）｜可用 ${instrument.quantity}`}
+                    </span>
+                  </label>
+                ))}
+              </div>
+
+              {session.role === "Admin" && (
+                <div style={{marginTop: 16, paddingTop: 14, borderTop: "1px solid #e5eae5"}}>
+                  <strong>管理目前院所器械</strong>
+                  <div style={{display: "flex", gap: 8, marginTop: 8}}>
+                    <input
+                      value={newInstrumentName}
+                      onChange={(event) => setNewInstrumentName(event.target.value)}
+                      placeholder="輸入器械名稱"
+                      style={{...fieldStyle, marginTop: 0}}
+                    />
+                    <button type="button" onClick={() => void createInstrument()}>新增器械</button>
+                  </div>
+                  <div style={{display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10}}>
+                    {instruments.filter((item) => item.clinicId === activeClinicId).map((instrument) => (
+                      <button type="button" key={instrument.id} onClick={() => void deleteInstrument(instrument)}>
+                        刪除 {instrument.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <label
             style={{
