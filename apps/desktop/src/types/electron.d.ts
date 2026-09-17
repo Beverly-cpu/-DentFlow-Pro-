@@ -592,7 +592,7 @@ type DentflowImplantPlanItemInput = {
 
   specification: string;
 
-  plannedQuantity: number;
+  quantity: number;
 };
 
 type DentflowImplantToothInput = {
