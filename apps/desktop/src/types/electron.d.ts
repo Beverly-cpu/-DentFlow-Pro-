@@ -1160,6 +1160,12 @@ type DentflowApi = {
       createdAt: string;
     }>;
 
+    deleteCategory: (
+      clinicId: number,
+      name: string,
+      actorUserId: number,
+    ) => Promise<boolean>;
+
     list: (
       clinicId: number,
     ) =>

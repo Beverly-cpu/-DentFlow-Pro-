@@ -345,7 +345,7 @@ function getTransactionDirection(
 export default function Inventory({
   scope = "all",
 }: {
-  scope?: "all" | "general";
+  scope?: "all" | "general" | "medical";
 }) {
   const [
     session,
@@ -530,14 +530,16 @@ export default function Inventory({
     canAdjustInventory(role);
 
   const canManageCategories =
-    role === "Admin" || role === "Procurement";
+    scope === "general" && (role === "Admin" || role === "Procurement");
 
   const allCategories = useMemo(
     () => [...new Set([
       ...DEFAULT_INVENTORY_CATEGORIES,
       ...customCategories,
       ...inventory.map((item) => item.category).filter(Boolean),
-    ])].filter((category) => scope === "all" || (isConsumableCategory(category) && !MEDICAL_CONSUMABLE_CATEGORIES.has(category))),
+    ])].filter((category) => scope === "all"
+      || (scope === "general" && isConsumableCategory(category) && !MEDICAL_CONSUMABLE_CATEGORIES.has(category))
+      || (scope === "medical" && MEDICAL_CONSUMABLE_CATEGORIES.has(category))),
     [customCategories, inventory, scope],
   );
 
@@ -603,18 +605,22 @@ export default function Inventory({
 
       const scopedInventory = scope === "general"
         ? inventoryRecords.filter((item) => isConsumableCategory(item.category) && !MEDICAL_CONSUMABLE_CATEGORIES.has(item.category))
-        : inventoryRecords;
+        : scope === "medical"
+          ? inventoryRecords.filter((item) => MEDICAL_CONSUMABLE_CATEGORIES.has(item.category))
+          : inventoryRecords;
 
       setInventory(scopedInventory);
 
       const scopedIds = new Set(scopedInventory.map((item) => item.id));
-      setTransactions(scope === "general"
+      setTransactions(scope !== "all"
         ? transactionRecords.filter((item) => scopedIds.has(item.inventoryItemId))
         : transactionRecords);
 
       setCustomCategories(categoryRecords
         .map((item) => item.name)
-        .filter((category) => scope === "all" || (isConsumableCategory(category) && !MEDICAL_CONSUMABLE_CATEGORIES.has(category))));
+        .filter((category) => scope === "all"
+          || (scope === "general" && isConsumableCategory(category) && !MEDICAL_CONSUMABLE_CATEGORIES.has(category))
+          || (scope === "medical" && MEDICAL_CONSUMABLE_CATEGORIES.has(category))));
     } catch (
       loadError
     ) {
@@ -676,6 +682,19 @@ export default function Inventory({
       setError(getErrorMessage(categoryError));
     } finally {
       setCategorySaving(false);
+    }
+  }
+
+  async function removeCategory(name: string) {
+    if (!session || !canManageCategories) return;
+    try {
+      setError("");
+      await window.dentflow.inventory.deleteCategory(session.clinicId, name, session.userId);
+      setCustomCategories((current) => current.filter((category) => category !== name));
+      if (categoryFilter === name) setCategoryFilter("全部");
+      setSuccess(`已刪除分類「${name}」。`);
+    } catch (categoryError) {
+      setError(getErrorMessage(categoryError));
     }
   }
 
@@ -958,7 +977,9 @@ export default function Inventory({
     );
 
     setForm(
-      createEmptyInventoryForm(),
+      scope === "medical"
+        ? { ...createEmptyInventoryForm(), category: "連針帶線" }
+        : createEmptyInventoryForm(),
     );
 
     setCreateOpen(
@@ -1512,17 +1533,19 @@ export default function Inventory({
       <div style={styles.header}>
         <div>
           <div style={styles.eyebrow}>
-            {scope === "general" ? "GENERAL CONSUMABLES" : "INVENTORY CONTROL"}
+            {scope === "general" ? "GENERAL CONSUMABLE INVENTORY" : scope === "medical" ? "HEALING MEDICAL INVENTORY" : "INVENTORY CONTROL"}
           </div>
 
           <h1 style={styles.title}>
-            {scope === "general" ? "一般耗材" : "庫存管理"}
+            {scope === "general" ? "一般耗材庫存管理" : scope === "medical" ? "癒合醫療庫存管理" : "庫存管理"}
           </h1>
 
           <div style={styles.subtitle}>
             {session
               ? scope === "general"
                 ? `${session.clinicName}｜一般耗材、自訂分類與庫存管理`
+                : scope === "medical"
+                  ? `${session.clinicName}｜六類癒合醫療耗材庫存與有效期限`
                 : `${session.clinicName}｜植體、套件與一般耗材庫存追溯`
               : "庫存管理"}
           </div>
@@ -1534,7 +1557,7 @@ export default function Inventory({
             style={styles.primaryButton}
             onClick={openCreate}
           >
-            ＋ {scope === "general" ? "新增一般耗材" : "新增庫存品項"}
+            ＋ {scope === "general" ? "新增一般耗材" : scope === "medical" ? "新增癒合醫療耗材" : "新增庫存品項"}
           </button>
         )}
       </div>
@@ -1606,6 +1629,8 @@ export default function Inventory({
             <div style={{fontSize: 11, color: "#77857d", marginTop: 4}}>
               {scope === "general"
                 ? "此頁只顯示一般耗材與自訂分類。"
+                : scope === "medical"
+                  ? "此頁只顯示需醫師簽名確認的六類癒合醫療耗材。"
                 : "點選分類立即篩選；新增後會自動產生快速格。"}
             </div>
           </div>
@@ -1620,20 +1645,20 @@ export default function Inventory({
             const count = inventory.filter((item) => item.category === category).length;
             const active = categoryFilter === category;
             return (
-              <button
-                key={category}
-                type="button"
-                onClick={() => setCategoryFilter(active ? "全部" : category)}
-                style={{
-                  padding: "13px 12px", borderRadius: 12,
+              <div key={category} style={{display: "flex", gap: 4}}>
+                <button type="button" onClick={() => setCategoryFilter(active ? "全部" : category)} style={{
+                  flex: 1, padding: "13px 12px", borderRadius: 12,
                   border: active ? "1px solid #4f8061" : "1px solid #d8e5dc",
                   background: active ? "#e4f1e7" : "#fff", color: "#355d45",
                   display: "flex", justifyContent: "space-between", gap: 8,
                   cursor: "pointer", fontWeight: 800,
-                }}
-              >
-                <span>{category}{scope === "general" && <small style={{display: "block", opacity: 0.7, marginTop: 3}}>一般耗材</small>}</span><span>{count}</span>
-              </button>
+                }}>
+                  <span>{category}{scope === "general" && <small style={{display: "block", opacity: 0.7, marginTop: 3}}>一般耗材</small>}</span><span>{count}</span>
+                </button>
+                {canManageCategories && customCategories.includes(category) && (
+                  <button type="button" title={`刪除分類 ${category}`} onClick={() => void removeCategory(category)} style={{...styles.deleteButton, padding: "8px"}}>×</button>
+                )}
+              </div>
             );
           })}
         </div>
@@ -1651,6 +1676,8 @@ export default function Inventory({
         <div style={styles.noticeText}>
           {scope === "general"
             ? "一般耗材免醫師簽名；管理者與採購可維護分類及品項，只有採購可執行入庫、出庫與盤點調整。"
+            : scope === "medical"
+              ? "癒合醫療耗材的實際使用請由「癒合醫療使用紀錄」登錄，並由指定醫師簽名確認。"
             : "植體與套件使用 REF / LOT；其他一般耗材只追蹤有效期限與庫存數量。正式進貨請使用「採購入庫」頁面。"}
         </div>
       </div>
