@@ -748,6 +748,7 @@ type DentflowApi = {
     reservations: () => Promise<Array<{id:number;machineId:number;machineName:string;clinicId:number;clinicName:string;clinicCode:string;scheduledStartAt:string;scheduledEndAt:string;moverUserId:number;moverName:string;status:string;overrideReason:string}>>;
     create: (input: unknown, actorUserId: number) => Promise<unknown>;
     setActive: (id: number, active: boolean, actorUserId: number) => Promise<boolean>;
+    update: (id: number, input: unknown, actorUserId: number) => Promise<unknown>;
     reserve: (input: unknown, actorUserId: number) => Promise<unknown>;
     scan: (token: string, reservationId: number, clinicId: number, action: "搬出" | "到院", actorUserId: number) => Promise<unknown>;
   };
