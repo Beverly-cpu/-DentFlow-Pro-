@@ -723,12 +723,14 @@ const dentflowApi = {
       inventoryItemId: number,
       clinicId: number,
       input: unknown,
+      actorUserId: number,
     ) {
       return ipcRenderer.invoke(
         "inventory:update",
         inventoryItemId,
         clinicId,
         input,
+        actorUserId,
       );
     },
 
