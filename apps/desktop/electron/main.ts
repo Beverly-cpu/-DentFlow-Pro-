@@ -85,6 +85,7 @@ import {
   deleteInventoryItem,
   getInventoryItemById,
   getInventoryItems,
+  getInstrumentsAllClinics,
   getInventoryCategories,
   getLowStockItems,
   receiveInventory,
@@ -710,10 +711,12 @@ function registerPatientHandlers() {
       _event,
       clinicId: number,
       input,
+      actorUserId: number,
     ) => {
       return createPatient(
         clinicId,
         input,
+        actorUserId,
       );
     },
   );
@@ -1001,6 +1004,7 @@ function registerImplantHandlers() {
 }
 
 function registerInventoryHandlers() {
+  ipcMain.handle("inventory:instruments-all", () => getInstrumentsAllClinics());
   ipcMain.handle("purchase-requests:list", (_event, clinicId: number) =>
     getPurchaseRequests(clinicId));
   ipcMain.handle("purchase-requests:create", (_event, clinicId: number, inventoryItemId: number, quantity: number, note: string, actorUserId: number) =>
