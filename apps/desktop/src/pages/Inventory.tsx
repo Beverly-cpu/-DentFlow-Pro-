@@ -345,7 +345,7 @@ function getTransactionDirection(
 export default function Inventory({
   scope = "all",
 }: {
-  scope?: "all" | "consumables";
+  scope?: "all" | "general";
 }) {
   const [
     session,
@@ -537,7 +537,7 @@ export default function Inventory({
       ...DEFAULT_INVENTORY_CATEGORIES,
       ...customCategories,
       ...inventory.map((item) => item.category).filter(Boolean),
-    ])].filter((category) => scope === "all" || isConsumableCategory(category)),
+    ])].filter((category) => scope === "all" || (isConsumableCategory(category) && !MEDICAL_CONSUMABLE_CATEGORIES.has(category))),
     [customCategories, inventory, scope],
   );
 
@@ -601,20 +601,20 @@ export default function Inventory({
           ),
         ]);
 
-      const scopedInventory = scope === "consumables"
-        ? inventoryRecords.filter((item) => isConsumableCategory(item.category))
+      const scopedInventory = scope === "general"
+        ? inventoryRecords.filter((item) => isConsumableCategory(item.category) && !MEDICAL_CONSUMABLE_CATEGORIES.has(item.category))
         : inventoryRecords;
 
       setInventory(scopedInventory);
 
       const scopedIds = new Set(scopedInventory.map((item) => item.id));
-      setTransactions(scope === "consumables"
+      setTransactions(scope === "general"
         ? transactionRecords.filter((item) => scopedIds.has(item.inventoryItemId))
         : transactionRecords);
 
       setCustomCategories(categoryRecords
         .map((item) => item.name)
-        .filter((category) => scope === "all" || isConsumableCategory(category)));
+        .filter((category) => scope === "all" || (isConsumableCategory(category) && !MEDICAL_CONSUMABLE_CATEGORIES.has(category))));
     } catch (
       loadError
     ) {
@@ -1512,17 +1512,17 @@ export default function Inventory({
       <div style={styles.header}>
         <div>
           <div style={styles.eyebrow}>
-            {scope === "consumables" ? "OTHER CONSUMABLES" : "INVENTORY CONTROL"}
+            {scope === "general" ? "GENERAL CONSUMABLES" : "INVENTORY CONTROL"}
           </div>
 
           <h1 style={styles.title}>
-            {scope === "consumables" ? "其他耗材" : "庫存管理"}
+            {scope === "general" ? "一般耗材" : "庫存管理"}
           </h1>
 
           <div style={styles.subtitle}>
             {session
-              ? scope === "consumables"
-                ? `${session.clinicName}｜一般耗材與癒合醫療耗材分類管理`
+              ? scope === "general"
+                ? `${session.clinicName}｜一般耗材、自訂分類與庫存管理`
                 : `${session.clinicName}｜植體、套件與一般耗材庫存追溯`
               : "庫存管理"}
           </div>
@@ -1534,7 +1534,7 @@ export default function Inventory({
             style={styles.primaryButton}
             onClick={openCreate}
           >
-            ＋ {scope === "consumables" ? "新增耗材品項" : "新增庫存品項"}
+            ＋ {scope === "general" ? "新增一般耗材" : "新增庫存品項"}
           </button>
         )}
       </div>
@@ -1604,8 +1604,8 @@ export default function Inventory({
           <div>
             <strong style={{color: "#315b43"}}>快速分類</strong>
             <div style={{fontSize: 11, color: "#77857d", marginTop: 4}}>
-              {scope === "consumables"
-                ? "自訂分類預設為一般耗材；指定六類為癒合醫療耗材。"
+              {scope === "general"
+                ? "此頁只顯示一般耗材與自訂分類。"
                 : "點選分類立即篩選；新增後會自動產生快速格。"}
             </div>
           </div>
@@ -1632,7 +1632,7 @@ export default function Inventory({
                   cursor: "pointer", fontWeight: 800,
                 }}
               >
-                <span>{category}{scope === "consumables" && <small style={{display: "block", opacity: 0.7, marginTop: 3}}>{MEDICAL_CONSUMABLE_CATEGORIES.has(category) ? "癒合醫療耗材" : "一般耗材"}</small>}</span><span>{count}</span>
+                <span>{category}{scope === "general" && <small style={{display: "block", opacity: 0.7, marginTop: 3}}>一般耗材</small>}</span><span>{count}</span>
               </button>
             );
           })}
@@ -1649,8 +1649,8 @@ export default function Inventory({
         </strong>
 
         <div style={styles.noticeText}>
-          {scope === "consumables"
-            ? "癒合醫療耗材（連針帶線、牙周藥膏、膠原蛋白、再生膜、冷光藥劑、骨粉）使用後必須由指定醫師簽名確認。一般耗材免簽名，只有採購可執行入庫、出庫與盤點調整。"
+          {scope === "general"
+            ? "一般耗材免醫師簽名；管理者與採購可維護分類及品項，只有採購可執行入庫、出庫與盤點調整。"
             : "植體與套件使用 REF / LOT；其他一般耗材只追蹤有效期限與庫存數量。正式進貨請使用「採購入庫」頁面。"}
         </div>
       </div>
