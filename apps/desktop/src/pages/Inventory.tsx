@@ -344,6 +344,10 @@ export default function Inventory() {
 
   const [customCategories, setCustomCategories] = useState<string[]>([]);
 
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [categoryName, setCategoryName] = useState("");
+  const [categorySaving, setCategorySaving] = useState(false);
+
   const [
     transactions,
     setTransactions,
@@ -613,19 +617,41 @@ export default function Inventory() {
     );
   }
 
-  async function addCategory() {
+  function openCategoryModal() {
+    setCategoryName("");
+    setError("");
+    setCategoryModalOpen(true);
+  }
+
+  function closeCategoryModal() {
+    if (categorySaving) return;
+    setCategoryModalOpen(false);
+    setCategoryName("");
+  }
+
+  async function addCategory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     if (!session || !canManageCategories) return;
-    const name = window.prompt("請輸入新分類名稱：")?.trim();
-    if (!name) return;
+    const name = categoryName.trim();
+    if (!name) {
+      setError("請輸入分類名稱。");
+      return;
+    }
     try {
+      setCategorySaving(true);
       setError("");
+      setSuccess("");
       const created = await window.dentflow.inventory.createCategory(session.clinicId, name, session.userId);
       setCustomCategories((current) => [...new Set([...current, created.name])]);
       setCategoryFilter(created.name);
       setForm((current) => ({ ...current, category: created.name }));
+      setCategoryName("");
+      setCategoryModalOpen(false);
       setSuccess(`已新增分類「${created.name}」，可由下方快速分類格使用。`);
     } catch (categoryError) {
       setError(getErrorMessage(categoryError));
+    } finally {
+      setCategorySaving(false);
     }
   }
 
@@ -1541,7 +1567,7 @@ export default function Inventory() {
             <div style={{fontSize: 11, color: "#77857d", marginTop: 4}}>點選分類立即篩選；新增後會自動產生快速格。</div>
           </div>
           {canManageCategories && (
-            <button type="button" style={styles.secondaryButton} onClick={() => void addCategory()}>
+            <button type="button" style={styles.secondaryButton} onClick={openCategoryModal}>
               ＋ 新增分類
             </button>
           )}
@@ -1944,6 +1970,42 @@ export default function Inventory() {
       {/* ===================================================
           Create / Edit Modal
       =================================================== */}
+
+      {categoryModalOpen && (
+        <Modal title="新增庫存分類" onClose={closeCategoryModal}>
+          <form onSubmit={addCategory} style={styles.modalForm}>
+            <label style={styles.field}>
+              <span style={styles.label}>分類名稱 *</span>
+              <input
+                autoFocus
+                style={styles.input}
+                value={categoryName}
+                maxLength={40}
+                placeholder="例如：骨粉、縫線、手術耗材"
+                onChange={(event) => setCategoryName(event.target.value)}
+              />
+            </label>
+
+            <div style={styles.modalActions}>
+              <button
+                type="button"
+                style={styles.secondaryButton}
+                onClick={closeCategoryModal}
+                disabled={categorySaving}
+              >
+                取消
+              </button>
+              <button
+                type="submit"
+                style={styles.primaryButton}
+                disabled={categorySaving || !categoryName.trim()}
+              >
+                {categorySaving ? "建立中..." : "建立分類"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       {createOpen &&
         (editItem
