@@ -92,7 +92,7 @@ const sidebarItems:
 
     {
       label:
-        "醫療耗材",
+        "癒合醫療耗材",
 
       path:
         "/consumables",
@@ -106,13 +106,13 @@ const sidebarItems:
 
     {
       label:
-        "庫存管理",
+        "一般耗材",
 
       path:
-        "/inventory",
+        "/other-consumables",
 
       icon:
-        "▣",
+        "✦",
 
       module:
         "inventory",
@@ -120,13 +120,13 @@ const sidebarItems:
 
     {
       label:
-        "其他耗材",
+        "庫存管理",
 
       path:
-        "/other-consumables",
+        "/inventory",
 
       icon:
-        "✦",
+        "▣",
 
       module:
         "inventory",
