@@ -6,6 +6,10 @@ export type ReservationInput = {
   machineId: number; clinicId: number; scheduledStartAt: string; scheduledEndAt: string;
   moverUserId: number; note: string; force?: boolean; overrideReason?: string;
 };
+export type MachineUsageInput = {
+  machineId: number; clinicId: number; patientId: number; usageDate: string;
+  toothPositions: string[]; doctorId: number;
+};
 
 function actor(userId: number, roles: string[]) {
   const row = getDatabase().prepare(`SELECT id, role FROM users WHERE id = ? AND isActive = 1`).get(userId) as {id:number;role:string}|undefined;
@@ -36,6 +40,29 @@ export function ensureMachineSchema() {
       actorUserId INTEGER NOT NULL REFERENCES users(id), action TEXT NOT NULL,
       scannedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS machineUsageCredits (
+      machineId INTEGER PRIMARY KEY REFERENCES machines(id) ON DELETE CASCADE,
+      remainingUses INTEGER NOT NULL DEFAULT 0 CHECK (remainingUses >= 0),
+      unitCost REAL NOT NULL DEFAULT 0 CHECK (unitCost >= 0),
+      updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS machineUsageCreditPurchases (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      machineId INTEGER NOT NULL REFERENCES machines(id), quantity INTEGER NOT NULL CHECK (quantity > 0),
+      actorUserId INTEGER NOT NULL REFERENCES users(id), createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS machineUsageRecords (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, machineId INTEGER NOT NULL REFERENCES machines(id),
+      clinicId INTEGER NOT NULL REFERENCES clinics(id), patientId INTEGER NOT NULL REFERENCES patients(id),
+      patientNameSnapshot TEXT NOT NULL, patientBirthDateSnapshot TEXT NOT NULL DEFAULT '',
+      usageDate TEXT NOT NULL, toothPositions TEXT NOT NULL, doctorId INTEGER NOT NULL REFERENCES doctors(id),
+      status TEXT NOT NULL DEFAULT '待醫師簽名', signature TEXT NOT NULL DEFAULT '',
+      signedAt TEXT, signedByUserId INTEGER REFERENCES users(id),
+      createdByUserId INTEGER NOT NULL REFERENCES users(id), createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    INSERT OR IGNORE INTO machineUsageCredits(machineId)
+      SELECT id FROM machines WHERE type LIKE '%導航%';
   `);
 }
 
@@ -57,10 +84,13 @@ export function listMachineReservations() {
 export function createMachine(input: MachineInput, actorUserId: number) {
   actor(actorUserId,["Admin"]);
   if (!input.name.trim() || !input.type.trim()) throw new Error("請輸入機台名稱與類型");
+  if(input.type.includes("導航") && getDatabase().prepare(`SELECT id FROM machines WHERE type LIKE '%導航%' AND isActive=1`).get()) throw new Error("植牙導航機台僅能啟用一台");
   const token = `MACHINE-${randomBytes(16).toString("hex")}`;
   const result=getDatabase().prepare(`INSERT INTO machines(name,type,serialNumber,qrToken,currentClinicId,lastConfirmedAt,lastConfirmedByUserId)
     VALUES(?,?,?,?,?,CURRENT_TIMESTAMP,?)`).run(input.name.trim(),input.type.trim(),input.serialNumber.trim(),token,input.clinicId,actorUserId);
-  return getDatabase().prepare(`${selectMachine} WHERE m.id=?`).get(Number(result.lastInsertRowid));
+  const id=Number(result.lastInsertRowid);
+  if(input.type.includes("導航")) getDatabase().prepare(`INSERT OR IGNORE INTO machineUsageCredits(machineId) VALUES(?)`).run(id);
+  return getDatabase().prepare(`${selectMachine} WHERE m.id=?`).get(id);
 }
 export function setMachineActive(id:number,isActive:boolean,actorUserId:number){
   actor(actorUserId,["Admin"]); getDatabase().prepare(`UPDATE machines SET isActive=?,status=CASE WHEN ?=1 THEN '在院可用' ELSE '停用' END,updatedAt=CURRENT_TIMESTAMP WHERE id=?`).run(isActive?1:0,isActive?1:0,id); return true;
@@ -102,4 +132,75 @@ export function scanMachine(qrToken:string,reservationId:number,clinicId:number,
   }
   db.prepare(`INSERT INTO machineScans(machineId,reservationId,clinicId,actorUserId,action) VALUES(?,?,?,?,?)`).run(machine.id,reservationId,clinicId,actorUserId,action);
   return db.prepare(`${selectMachine} WHERE m.id=?`).get(machine.id);
+}
+
+export function getMachineUsageCredits(machineId:number,actorUserId:number){
+  const currentActor=actor(actorUserId,["Admin","Assistant","Doctor","Accountant"]);
+  const row=getDatabase().prepare(`SELECT machineId,remainingUses,unitCost,updatedAt FROM machineUsageCredits WHERE machineId=?`).get(machineId) as {machineId:number;remainingUses:number;unitCost:number;updatedAt:string}|undefined;
+  if(!row) throw new Error("找不到導航機使用額度");
+  return currentActor.role==="Admin"||currentActor.role==="Accountant"?row:{machineId:row.machineId,remainingUses:row.remainingUses,updatedAt:row.updatedAt};
+}
+
+export function purchaseMachineUsageCredits(machineId:number,quantity:number,actorUserId:number){
+  actor(actorUserId,["Admin","Assistant"]);
+  if(!Number.isInteger(quantity)||quantity<=0) throw new Error("購買次數必須是大於 0 的整數");
+  const db=getDatabase();
+  return db.transaction(()=>{
+    const result=db.prepare(`UPDATE machineUsageCredits SET remainingUses=remainingUses+?,updatedAt=CURRENT_TIMESTAMP WHERE machineId=?`).run(quantity,machineId);
+    if(result.changes!==1) throw new Error("找不到導航機使用額度");
+    db.prepare(`INSERT INTO machineUsageCreditPurchases(machineId,quantity,actorUserId) VALUES(?,?,?)`).run(machineId,quantity,actorUserId);
+    return getMachineUsageCredits(machineId,actorUserId);
+  })();
+}
+
+export function updateMachineUsageCost(machineId:number,unitCost:number,actorUserId:number){
+  actor(actorUserId,["Admin","Accountant"]);
+  if(!Number.isFinite(unitCost)||unitCost<0) throw new Error("每次使用成本不可小於 0");
+  const result=getDatabase().prepare(`UPDATE machineUsageCredits SET unitCost=?,updatedAt=CURRENT_TIMESTAMP WHERE machineId=?`).run(unitCost,machineId);
+  if(result.changes!==1) throw new Error("找不到導航機使用額度");
+  return getMachineUsageCredits(machineId,actorUserId);
+}
+
+export function listMachineUsageRecords(actorUserId:number){
+  const currentActor=actor(actorUserId,["Admin","Assistant","Doctor","Accountant"]); const db=getDatabase();
+  const doctor=currentActor.role==="Doctor"?db.prepare(`SELECT id FROM doctors WHERE userId=? AND isActive=1`).get(actorUserId) as {id:number}|undefined:undefined;
+  if(currentActor.role==="Doctor"&&!doctor) return [];
+  const rows=db.prepare(`SELECT ur.*,m.name machineName,c.name clinicName,c.code clinicCode,d.name doctorName,mc.unitCost
+    FROM machineUsageRecords ur JOIN machines m ON m.id=ur.machineId JOIN clinics c ON c.id=ur.clinicId
+    JOIN doctors d ON d.id=ur.doctorId JOIN machineUsageCredits mc ON mc.machineId=ur.machineId
+    ${doctor?"WHERE ur.doctorId = ?":""} ORDER BY date(ur.usageDate) DESC,ur.id DESC`).all(...(doctor?[doctor.id]:[])) as Array<Record<string,unknown>&{unitCost:number;toothPositions:string}>;
+  return rows.map(row=>{
+    const base={...row,toothPositions:JSON.parse(row.toothPositions||"[]")};
+    if(currentActor.role==="Admin"||currentActor.role==="Accountant") return base;
+    const safe={...base}; delete safe.unitCost; return safe;
+  });
+}
+
+export function createMachineUsage(input:MachineUsageInput,actorUserId:number){
+  actor(actorUserId,["Admin","Assistant"]); const db=getDatabase();
+  const teeth=[...new Set((input.toothPositions??[]).map(value=>String(value).trim()).filter(Boolean))];
+  if(!input.usageDate||teeth.length===0) throw new Error("請填寫使用日期與至少一個牙位");
+  const patient=db.prepare(`SELECT id,clinicId,name,birthDate FROM patients WHERE id=?`).get(input.patientId) as {id:number;clinicId:number;name:string;birthDate:string}|undefined;
+  if(!patient||patient.clinicId!==input.clinicId) throw new Error("病患與使用院所不符");
+  const doctor=db.prepare(`SELECT d.id FROM doctors d JOIN doctorClinics dc ON dc.doctorId=d.id WHERE d.id=? AND dc.clinicId=? AND d.isActive=1`).get(input.doctorId,input.clinicId);
+  if(!doctor) throw new Error("醫師未在此院所執業");
+  const machine=db.prepare(`SELECT id FROM machines WHERE id=? AND type LIKE '%導航%' AND isActive=1`).get(input.machineId);
+  if(!machine) throw new Error("找不到可用的植牙導航機");
+  return db.transaction(()=>{
+    const debit=db.prepare(`UPDATE machineUsageCredits SET remainingUses=remainingUses-1,updatedAt=CURRENT_TIMESTAMP WHERE machineId=? AND remainingUses>0`).run(input.machineId);
+    if(debit.changes!==1) throw new Error("植牙導航機使用額度不足，請先購買額度");
+    const result=db.prepare(`INSERT INTO machineUsageRecords(machineId,clinicId,patientId,patientNameSnapshot,patientBirthDateSnapshot,usageDate,toothPositions,doctorId,createdByUserId)
+      VALUES(?,?,?,?,?,?,?,?,?)`).run(input.machineId,input.clinicId,input.patientId,patient.name,patient.birthDate,input.usageDate,JSON.stringify(teeth),input.doctorId,actorUserId);
+    return {id:Number(result.lastInsertRowid),remainingUses:(db.prepare(`SELECT remainingUses FROM machineUsageCredits WHERE machineId=?`).get(input.machineId) as {remainingUses:number}).remainingUses};
+  })();
+}
+
+export function signMachineUsage(id:number,signature:string,actorUserId:number){
+  actor(actorUserId,["Doctor"]); const normalized=String(signature??"").trim();
+  if(!normalized) throw new Error("請輸入醫師簽名");
+  const doctor=getDatabase().prepare(`SELECT id,name FROM doctors WHERE userId=? AND isActive=1`).get(actorUserId) as {id:number;name:string}|undefined;
+  if(!doctor) throw new Error("找不到醫師資料");
+  const result=getDatabase().prepare(`UPDATE machineUsageRecords SET status='已簽名',signature=?,signedAt=CURRENT_TIMESTAMP,signedByUserId=?,updatedAt=CURRENT_TIMESTAMP WHERE id=? AND doctorId=? AND status='待醫師簽名'`).run(normalized,actorUserId,id,doctor.id);
+  if(result.changes!==1) throw new Error("此紀錄無法簽名或已完成簽名");
+  return true;
 }
