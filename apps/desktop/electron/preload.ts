@@ -684,6 +684,10 @@ const dentflowApi = {
       return ipcRenderer.invoke("inventory:create-category", clinicId, name, actorUserId);
     },
 
+    deleteCategory(clinicId: number, name: string, actorUserId: number) {
+      return ipcRenderer.invoke("inventory:delete-category", clinicId, name, actorUserId);
+    },
+
     list(
       clinicId: number,
     ) {
