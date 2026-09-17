@@ -100,6 +100,11 @@ import {
   getPurchaseRequests,
 } from "./database/purchaseRequestRepository";
 
+import {
+  createMachine, createMachineReservation, ensureMachineSchema, listMachineReservations,
+  listMachines, scanMachine, setMachineActive,
+} from "./database/machineRepository";
+
 /* =========================================================
    Inventory Transactions
 ========================================================= */
@@ -1642,6 +1647,12 @@ function registerClinicHandlers() {
 ========================================================= */
 
 function registerIpcHandlers() {
+  ipcMain.handle("machines:list", () => listMachines());
+  ipcMain.handle("machines:reservations", () => listMachineReservations());
+  ipcMain.handle("machines:create", (_event, input, actorUserId:number) => createMachine(input, actorUserId));
+  ipcMain.handle("machines:set-active", (_event, id:number, active:boolean, actorUserId:number) => setMachineActive(id,active,actorUserId));
+  ipcMain.handle("machines:reserve", (_event, input, actorUserId:number) => createMachineReservation(input,actorUserId));
+  ipcMain.handle("machines:scan", (_event, token:string,reservationId:number,clinicId:number,action:"搬出"|"到院",actorUserId:number) => scanMachine(token,reservationId,clinicId,action,actorUserId));
   ipcMain.handle("system:backup-database", async () => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const result = await dialog.showSaveDialog({
@@ -1780,6 +1791,7 @@ app.whenReady().then(
      * 缺少的新欄位由 repository 安全補上。
      */
     ensureConsumableUsageSchema();
+    ensureMachineSchema();
 
     /*
      * 3. 註冊 IPC。
