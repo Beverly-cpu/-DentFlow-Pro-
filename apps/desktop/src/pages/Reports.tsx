@@ -1589,12 +1589,6 @@ export default function Reports() {
             使用紀錄報表
           </h1>
 
-          <div style={styles.subtitle}>
-            {isDoctor &&
-            isAllClinics
-              ? "我的全部院所｜植體與一般耗材跨院所追溯報表"
-              : `${session.clinicName}｜植體與一般耗材追溯、簽名與取消稽核`}
-          </div>
         </div>
 
         <div style={styles.headerActions}>

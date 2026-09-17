@@ -1346,11 +1346,6 @@ export default function Consumables() {
             癒合醫療耗材
           </h1>
 
-          <div style={styles.subtitle}>
-            {isAllClinics
-              ? "我的全部院所｜一般耗材使用紀錄（跨院所唯讀）"
-              : `${session.clinicName}｜醫療耗材使用、庫存追溯與醫師電子簽名`}
-          </div>
         </div>
 
         {canCreate && (
@@ -1483,18 +1478,6 @@ export default function Consumables() {
           <strong>我的全部院所｜唯讀模式</strong>
           <div style={styles.noticeText}>
             此模式會合併顯示您各執業院所的耗材使用紀錄。為避免跨院所庫存異動，簽名、建立與取消請先由上方院所選單切換至紀錄所屬院所。
-          </div>
-        </div>
-      )}
-
-      {canCancel && (
-        <div style={styles.cancelNotice}>
-          <strong>
-            取消紀錄規則
-          </strong>
-
-          <div style={styles.noticeText}>
-            只有「待醫師簽名」可以取消。取消後原始紀錄不會刪除，已扣庫存會自動歸回並留下庫存異動。
           </div>
         </div>
       )}

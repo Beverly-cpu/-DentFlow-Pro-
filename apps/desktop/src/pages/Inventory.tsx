@@ -527,7 +527,7 @@ export default function Inventory({
     );
 
   const canAdjustInventoryQuantity =
-    role === "Procurement" &&
+    (role === "Procurement" || role === "Admin") &&
     canAdjustInventory(role);
 
   const canManageCategories =
@@ -1557,17 +1557,6 @@ export default function Inventory({
             {scope === "general" ? "一般耗材庫存管理" : scope === "medical" ? "癒合醫療庫存管理" : scope === "implant" ? "植體與套件庫存" : "庫存管理"}
           </h1>
 
-          <div style={styles.subtitle}>
-            {session
-              ? scope === "general"
-                ? `${session.clinicName}｜一般耗材、自訂分類與庫存管理`
-                : scope === "medical"
-                  ? `${session.clinicName}｜六類癒合醫療耗材庫存與有效期限`
-                  : scope === "implant"
-                    ? `${session.clinicName}｜植體與套件 REF、LOT 及有效期限追溯`
-                : `${session.clinicName}｜植體、套件與一般耗材庫存追溯`
-              : "庫存管理"}
-          </div>
         </div>
 
         {canCreateInventory && (
@@ -1645,15 +1634,6 @@ export default function Inventory({
         <div style={{display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 12}}>
           <div>
             <strong style={{color: "#315b43"}}>快速分類</strong>
-            <div style={{fontSize: 11, color: "#77857d", marginTop: 4}}>
-              {scope === "general"
-                ? "此頁只顯示一般耗材與自訂分類。"
-                : scope === "medical"
-                  ? "此頁只顯示需醫師簽名確認的六類癒合醫療耗材。"
-                  : scope === "implant"
-                    ? "此頁只顯示植體與套件庫存。"
-                : "點選分類立即篩選；新增後會自動產生快速格。"}
-            </div>
           </div>
           {canManageCategories && (
             <button type="button" style={styles.secondaryButton} onClick={openCategoryModal}>
@@ -1682,26 +1662,6 @@ export default function Inventory({
               </div>
             );
           })}
-        </div>
-      </div>
-
-      {/* ===================================================
-          Information
-      =================================================== */}
-
-      <div style={styles.infoNotice}>
-        <strong>
-          庫存追溯規則
-        </strong>
-
-        <div style={styles.noticeText}>
-          {scope === "general"
-            ? "一般耗材免醫師簽名；管理者與採購可維護分類及品項，只有採購可執行入庫、出庫與盤點調整。"
-            : scope === "medical"
-              ? "癒合醫療耗材的實際使用請由「癒合醫療使用紀錄」登錄，並由指定醫師簽名確認。"
-              : scope === "implant"
-                ? "植體與套件必須記錄 REF、LOT 與有效期限；實際使用及歸回由植體追溯流程自動建立庫存異動。"
-            : "植體與套件使用 REF / LOT；其他一般耗材只追蹤有效期限與庫存數量。正式進貨請使用「採購入庫」頁面。"}
         </div>
       </div>
 
@@ -2362,9 +2322,7 @@ export default function Inventory({
                     value={
                       form.quantity
                     }
-                    readOnly={
-                      Boolean(editItem) || role !== "Procurement"
-                    }
+                    readOnly={Boolean(editItem)}
                     onChange={
                       (event) =>
                         setForm(
@@ -2380,15 +2338,6 @@ export default function Inventory({
                     }
                   />
 
-                  {editItem && (
-                    <span style={styles.helpText}>
-                      正式進貨請使用「採購入庫」；盤點修正請使用「調整」功能。
-                    </span>
-                  )}
-
-                  {!editItem && role !== "Procurement" && (
-                    <span style={styles.helpText}>新增品項的初始庫存為 0；只有採購可執行入庫。</span>
-                  )}
                 </label>
 
                 <label style={styles.field}>
@@ -2430,17 +2379,8 @@ export default function Inventory({
                     value={form.unitCost}
                     onChange={(event) => setForm((current) => ({ ...current, unitCost: event.target.value }))}
                   />
-                  <span style={styles.helpText}>正式入庫後會依進貨成本更新移動平均單價。</span>
                 </label>
               </div>
-
-              {!isRefLotCategory(
-                form.category,
-              ) && (
-                <div style={styles.generalConsumableNotice}>
-                  此分類為一般耗材，不使用 REF / LOT；系統只會保留品項資料、有效期限與庫存數量。
-                </div>
-              )}
 
               <label style={styles.field}>
                 <span style={styles.label}>

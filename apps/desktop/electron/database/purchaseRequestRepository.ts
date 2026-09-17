@@ -90,9 +90,9 @@ export function completePurchaseRequest(
     SELECT users.id FROM users
     INNER JOIN userClinics ON userClinics.userId = users.id
     WHERE users.id = ? AND users.isActive = 1 AND userClinics.clinicId = ?
-      AND users.role = 'Procurement' LIMIT 1
+      AND users.role IN ('Admin', 'Procurement') LIMIT 1
   `).get(actorUserId, clinicId);
-  if (!actor) throw new Error("只有採購可完成叫貨需求。");
+  if (!actor) throw new Error("只有管理者或採購可完成叫貨需求。");
   const result = db.prepare(`
     UPDATE purchaseRequests SET status = '已處理', processedAt = CURRENT_TIMESTAMP
     WHERE id = ? AND clinicId = ? AND status = '待採購'
