@@ -34,6 +34,7 @@ import Inventory from "./pages/Inventory";
 import Purchase from "./pages/Purchase";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import Machines from "./pages/Machines";
 
 /* =========================================================
    Constants
@@ -605,6 +606,8 @@ export default function App() {
             </ModuleAccess>
           }
         />
+
+        <Route path="machines" element={<ModuleAccess session={session} module="machines"><Machines /></ModuleAccess>} />
 
         <Route
           path="consumables"
