@@ -1074,11 +1074,13 @@ function registerInventoryHandlers() {
       inventoryItemId: number,
       clinicId: number,
       input,
+      actorUserId: number,
     ) => {
       return updateInventoryItem(
         inventoryItemId,
         clinicId,
         input,
+        actorUserId,
       );
     },
   );
