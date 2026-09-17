@@ -105,7 +105,6 @@ const ROLE_PERMISSIONS:
     modules: [
       "dashboard",
       "patients",
-      "doctors",
       "implants",
       "consumables",
       "purchase",
@@ -119,9 +118,6 @@ const ROLE_PERMISSIONS:
       "patients:view",
       "patients:create",
       "patients:update",
-
-      /* Doctors */
-      "doctors:view",
 
       /* Implants */
       "implants:view",
