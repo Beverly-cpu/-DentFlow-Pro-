@@ -69,6 +69,7 @@ import {
   getImplantsByDoctor,
   getImplantsByPatient,
   recordImplantUsage,
+  signImplantUsage,
   updateImplant,
   updateImplantStatus,
 } from "./database/implantRepository";
@@ -992,6 +993,12 @@ function registerImplantHandlers() {
     "implants:close",
     (_event, implantId: number, clinicId: number, actorUserId: number) =>
       closeImplantCase(implantId, clinicId, actorUserId),
+  );
+
+  ipcMain.handle(
+    "implants:sign-usage",
+    (_event, implantId: number, clinicId: number, doctorId: number, signature: string, actorUserId: number) =>
+      signImplantUsage(implantId, clinicId, doctorId, signature, actorUserId),
   );
 
   ipcMain.handle(

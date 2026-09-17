@@ -559,6 +559,9 @@ type DentflowImplantRecord = {
   returnedByUserId: number | null;
   closedByUserId: number | null;
   cancelledByUserId: number | null;
+  doctorSignedAt: string | null;
+  doctorSignature: string;
+  doctorSignedByUserId: number | null;
   reservations: Array<{
     id: number;
     implantPlanItemId: number;
@@ -1126,6 +1129,14 @@ type DentflowApi = {
     close: (
       implantId: number,
       clinicId: number,
+      actorUserId: number,
+    ) => Promise<DentflowImplantRecord>;
+
+    signUsage: (
+      implantId: number,
+      clinicId: number,
+      doctorId: number,
+      signature: string,
       actorUserId: number,
     ) => Promise<DentflowImplantRecord>;
 

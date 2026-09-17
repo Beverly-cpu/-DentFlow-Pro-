@@ -1797,6 +1797,34 @@ export default function Implants() {
     }
   }
 
+  async function handleDoctorSign(implant: Implant) {
+    if (!doctorProfile || implant.doctorId !== doctorProfile.id) {
+      window.alert("只有此個案指定的醫師可以簽名。");
+      return;
+    }
+    const signature = window.prompt(
+      "請輸入您的姓名作為電子簽名，確認下方實際使用植體資料正確：",
+      doctorProfile.name,
+    )?.trim();
+    if (!signature) return;
+    if (!window.confirm(`確認以「${signature}」簽署此植體使用紀錄？簽署後不可修改。`)) return;
+    try {
+      setActiveId(implant.id);
+      await window.dentflow.implants.signUsage(
+        implant.id,
+        activeClinicId,
+        doctorProfile.id,
+        signature,
+        session.userId,
+      );
+      await loadAll();
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, "植體使用簽名失敗。"));
+    } finally {
+      setActiveId(null);
+    }
+  }
+
   /* =======================================================
      Usage Draft
   ======================================================= */
@@ -3330,6 +3358,12 @@ export default function Implants() {
                         叫貨：{formatTimestamp(implant.orderedAt)}（#{implant.orderedByUserId ?? "—"}） ｜ 取出：{formatTimestamp(implant.pickedAt)}（#{implant.pickedByUserId ?? "—"}） ｜ 手術完成：{formatTimestamp(implant.surgeryCompletedAt)}（#{implant.surgeryCompletedByUserId ?? "—"}） ｜ 歸回：{formatTimestamp(implant.returnedAt)}（#{implant.returnedByUserId ?? "—"}） ｜ 結案：{formatTimestamp(implant.closedAt)}（#{implant.closedByUserId ?? "—"}）
                       </div>
 
+                      {implant.doctorSignedAt && (
+                        <div style={{marginTop: 8, color: "#347047", fontWeight: 700}}>
+                          醫師已簽名確認實際使用植體：{implant.doctorSignature}｜{formatTimestamp(implant.doctorSignedAt)}
+                        </div>
+                      )}
+
                       {implant.reservations.length > 0 && (
                         <div style={{marginTop: 6, color: "#526b58", fontSize: 12}}>
                           備貨 {implant.reservations.reduce((sum, item) => sum + item.reservedQuantity, 0)} ｜ 已取出 {implant.reservations.reduce((sum, item) => sum + item.pickedQuantity, 0)} ｜ 已使用 {implant.reservations.reduce((sum, item) => sum + item.usedQuantity, 0)} ｜ 已歸回 {implant.reservations.reduce((sum, item) => sum + item.returnedQuantity, 0)}
@@ -3360,6 +3394,8 @@ export default function Implants() {
                     >
                       {canUpdate &&
                         currentClinic &&
+                        ((isDoctor && implant.status === "待醫師叫貨") ||
+                          (!isDoctor && implant.status !== "待醫師叫貨")) &&
                         ![
                           "待術後紀錄",
                           "待歸回品項",
@@ -3389,6 +3425,7 @@ export default function Implants() {
 
                       {canUpdate &&
                         currentClinic &&
+                        (!isDoctor || implant.status === "待醫師叫貨") &&
                         ![
                           "待術後紀錄",
                           "待歸回品項",
@@ -3432,12 +3469,19 @@ export default function Implants() {
                         )}
 
                       {canUpdate && currentClinic && implant.status === "已完成" && (
+                        !isDoctor &&
                         <button type="button" disabled={busy} onClick={() => void handleCloseCase(implant)}>
                           正式結案
                         </button>
                       )}
 
-                      {canUpdate && currentClinic && ["待醫師叫貨", "醫師已叫貨", "已取出待手術"].includes(implant.status) && (
+                      {isDoctor && currentClinic && implant.status === "已完成" && !implant.doctorSignedAt && (
+                        <button type="button" className="primary-button" disabled={busy} onClick={() => void handleDoctorSign(implant)}>
+                          簽名確認實際使用植體
+                        </button>
+                      )}
+
+                      {canUpdate && !isDoctor && currentClinic && ["待醫師叫貨", "醫師已叫貨", "已取出待手術"].includes(implant.status) && (
                         <button type="button" className="danger-action" disabled={busy} onClick={() => void handleCancelCase(implant)}>
                           取消個案
                         </button>
@@ -3653,6 +3697,7 @@ export default function Implants() {
                                   ======================= */}
 
                                   {canUpdate &&
+                                    !isDoctor &&
                                     currentClinic &&
                                     implant.status ===
                                       "待術後紀錄" && (
@@ -3849,6 +3894,7 @@ export default function Implants() {
                   ======================================= */}
 
                   {canUpdate &&
+                    !isDoctor &&
                     currentClinic &&
                     implant.status ===
                       "待術後紀錄" && (

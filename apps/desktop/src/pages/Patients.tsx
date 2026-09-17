@@ -251,6 +251,25 @@ export default function Patients() {
         return;
       }
 
+      if (isDoctor) {
+        const doctor = await window.dentflow.doctors.byUserId(
+          session.userId,
+          activeClinicId,
+        );
+        if (!doctor) throw new Error("找不到目前登入帳號所對應的醫師資料。");
+        const patientRecords = await window.dentflow.patients.byDoctor(
+          doctor.id,
+          activeClinicId,
+        );
+        setPatients(patientRecords.map((patient) => ({
+          ...patient,
+          clinicName: session.clinicName,
+          clinicCode: session.clinicCode,
+        })));
+        setDoctors([]);
+        return;
+      }
+
       const [
         patientRecords,
         doctorRecords,
