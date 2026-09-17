@@ -634,7 +634,8 @@ type DentflowConsumableUsageType =
   | "膠原蛋白"
   | "骨粉"
   | "再生膜"
-  | "其他耗材";
+  | "其他耗材"
+  | (string & {});
 
 type DentflowConsumableUsageStatus =
   | "待醫師簽名"
@@ -1146,6 +1147,7 @@ type DentflowApi = {
       id: number;
       clinicId: number;
       name: string;
+      requiresDoctorSignature: number;
       createdAt: string;
     }>>;
 
@@ -1153,10 +1155,12 @@ type DentflowApi = {
       clinicId: number,
       name: string,
       actorUserId: number,
+      requiresDoctorSignature?: boolean,
     ) => Promise<{
       id: number;
       clinicId: number;
       name: string;
+      requiresDoctorSignature: number;
       createdAt: string;
     }>;
 
