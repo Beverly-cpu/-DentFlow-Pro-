@@ -462,7 +462,7 @@ export default function Purchase({ generalUsage = false }: { generalUsage?: bool
     );
 
   const canReceive =
-    role === "Procurement" &&
+    (role === "Procurement" || role === "Admin") &&
     canCreateModule(
       role,
       "purchase",
@@ -1077,7 +1077,7 @@ export default function Purchase({ generalUsage = false }: { generalUsage?: bool
   }
 
   async function completeRequest(id: number) {
-    if (!session || role !== "Procurement") return;
+    if (!session || (role !== "Procurement" && role !== "Admin")) return;
     try {
       setSaving(true);
       setError("");
@@ -1180,13 +1180,6 @@ export default function Purchase({ generalUsage = false }: { generalUsage?: bool
             {generalUsage ? "一般耗材使用紀錄" : "採購入庫"}
           </h1>
 
-          <div style={styles.subtitle}>
-            {session
-              ? generalUsage
-                ? `${session.clinicName}｜一般耗材進貨、出庫與異動追溯`
-                : `${session.clinicName}｜進貨入庫、低庫存補貨與歷史追溯`
-              : "採購入庫"}
-          </div>
         </div>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -1268,20 +1261,6 @@ export default function Purchase({ generalUsage = false }: { generalUsage?: bool
             )
           }
         />
-      </div>
-
-      {/* ===================================================
-          Process Notice
-      =================================================== */}
-
-      <div style={styles.infoNotice}>
-        <strong>
-          入庫流程
-        </strong>
-
-        <div style={styles.noticeText}>
-          此頁的「入庫數量」是本次實際收到的數量；「單位成本」會保存為本次進貨成本快照，並更新該庫存批次的移動加權平均成本。若只是盤點修正庫存總數，請改到庫存管理使用「手動調整」。
-        </div>
       </div>
 
       {/* ===================================================
@@ -1862,7 +1841,7 @@ export default function Purchase({ generalUsage = false }: { generalUsage?: bool
                   <td style={styles.td}>{formatDateTime(request.createdAt)}</td>
                   <td style={styles.td}>{request.status}</td>
                   <td style={styles.td}>{request.note || "—"}</td>
-                  <td style={styles.td}>{role === "Procurement" && request.status === "待採購" ? (
+                  <td style={styles.td}>{(role === "Procurement" || role === "Admin") && request.status === "待採購" ? (
                     <button type="button" style={styles.secondaryButton} disabled={saving} onClick={() => void completeRequest(request.id)}>標記已處理</button>
                   ) : "—"}</td>
                 </tr>
@@ -2238,13 +2217,6 @@ export default function Purchase({ generalUsage = false }: { generalUsage?: bool
                     )}
                   </div>
 
-                  {!isRefLotCategory(
-                    selectedReceiveItem.category,
-                  ) && (
-                    <div style={styles.generalConsumableNotice}>
-                      此品項屬於一般耗材，入庫紀錄只追蹤有效期限與數量，不使用 REF / LOT。
-                    </div>
-                  )}
                 </>
               )}
 
@@ -2276,9 +2248,6 @@ export default function Purchase({ generalUsage = false }: { generalUsage?: bool
                 />
               </label>
 
-              <div style={styles.receiveWarning}>
-                確認後系統會立即增加庫存，保存本次單位成本與總成本，並更新該批次的移動加權平均成本。若目前庫存本身有盤點差異，請不要用入庫修正，應至庫存管理使用「手動調整」。
-              </div>
 
               <div style={styles.modalActions}>
                 <button
