@@ -71,6 +71,7 @@ const ROLE_PERMISSIONS:
     modules: [
       "dashboard",
       "patients",
+      "machines",
       "implants",
       "consumables",
     ],
@@ -81,6 +82,8 @@ const ROLE_PERMISSIONS:
 
       /* Patients */
       "patients:view",
+
+      "machines:view",
 
       /*
        * Doctor 不提供「醫師管理」與「庫存管理」。
@@ -240,6 +243,7 @@ const ROLE_PERMISSIONS:
   Accountant: {
     modules: [
       "dashboard",
+      "machines",
       "inventory",
       "purchase",
       "reports",
@@ -248,6 +252,9 @@ const ROLE_PERMISSIONS:
     permissions: [
       /* Dashboard */
       "dashboard:view",
+
+      "machines:view",
+      "machines:update",
 
       /* Purchase */
       "purchase:view",

@@ -751,6 +751,12 @@ type DentflowApi = {
     update: (id: number, input: unknown, actorUserId: number) => Promise<unknown>;
     reserve: (input: unknown, actorUserId: number) => Promise<unknown>;
     scan: (token: string, reservationId: number, clinicId: number, action: "搬出" | "到院", actorUserId: number) => Promise<unknown>;
+    usageCredits: (machineId: number, actorUserId: number) => Promise<{machineId:number;remainingUses:number;unitCost?:number;updatedAt:string}>;
+    purchaseCredits: (machineId: number, quantity: number, actorUserId: number) => Promise<unknown>;
+    updateUsageCost: (machineId: number, unitCost: number, actorUserId: number) => Promise<unknown>;
+    usageRecords: (actorUserId: number) => Promise<Array<{id:number;machineId:number;machineName:string;clinicId:number;clinicName:string;clinicCode:string;patientId:number;patientNameSnapshot:string;patientBirthDateSnapshot:string;usageDate:string;toothPositions:string[];doctorId:number;doctorName:string;status:string;signature:string;signedAt:string|null;unitCost?:number}>>;
+    createUsage: (input: {machineId:number;clinicId:number;patientId:number;usageDate:string;toothPositions:string[];doctorId:number}, actorUserId: number) => Promise<{id:number;remainingUses:number}>;
+    signUsage: (id: number, signature: string, actorUserId: number) => Promise<boolean>;
   };
   system: {
     backupDatabase: () => Promise<{
