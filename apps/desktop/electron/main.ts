@@ -80,6 +80,7 @@ import {
 import {
   adjustInventoryQuantity,
   createInventoryCategory,
+  deleteInventoryCategory,
   createInventoryItem,
   deleteInventoryItem,
   getInventoryItemById,
@@ -1017,6 +1018,8 @@ function registerInventoryHandlers() {
     (_event, clinicId: number, name: string, actorUserId: number) =>
       createInventoryCategory(clinicId, name, actorUserId),
   );
+  ipcMain.handle("inventory:delete-category", (_event, clinicId: number, name: string, actorUserId: number) =>
+    deleteInventoryCategory(clinicId, name, actorUserId));
 
   ipcMain.handle(
     "inventory:list",
