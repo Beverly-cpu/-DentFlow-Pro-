@@ -1080,6 +1080,9 @@ export function initializeDatabase():
     ["returnedByUserId", "ALTER TABLE implants ADD COLUMN returnedByUserId INTEGER REFERENCES users(id);"],
     ["closedByUserId", "ALTER TABLE implants ADD COLUMN closedByUserId INTEGER REFERENCES users(id);"],
     ["cancelledByUserId", "ALTER TABLE implants ADD COLUMN cancelledByUserId INTEGER REFERENCES users(id);"],
+    ["doctorSignedAt", "ALTER TABLE implants ADD COLUMN doctorSignedAt TEXT;"],
+    ["doctorSignature", "ALTER TABLE implants ADD COLUMN doctorSignature TEXT NOT NULL DEFAULT '';"],
+    ["doctorSignedByUserId", "ALTER TABLE implants ADD COLUMN doctorSignedByUserId INTEGER REFERENCES users(id);"],
   ] as const) {
     ensureColumn(db, "implants", columnName, sql);
   }
