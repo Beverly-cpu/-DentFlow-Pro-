@@ -262,6 +262,9 @@ export type ImplantRecord = {
   returnedByUserId: number | null;
   closedByUserId: number | null;
   cancelledByUserId: number | null;
+  doctorSignedAt: string | null;
+  doctorSignature: string;
+  doctorSignedByUserId: number | null;
   reservations: ImplantReservationRecord[];
 
   teeth:
@@ -317,6 +320,9 @@ type ImplantBaseRow = {
   returnedByUserId: number | null;
   closedByUserId: number | null;
   cancelledByUserId: number | null;
+  doctorSignedAt: string | null;
+  doctorSignature: string;
+  doctorSignedByUserId: number | null;
 
   createdAt: string;
 
@@ -466,6 +472,9 @@ const implantBaseSelect = `
     implants.returnedByUserId,
     implants.closedByUserId,
     implants.cancelledByUserId,
+    implants.doctorSignedAt,
+    implants.doctorSignature,
+    implants.doctorSignedByUserId,
 
     implants.createdAt,
 
@@ -3549,6 +3558,10 @@ export function closeImplantCase(
   actorUserId: number,
 ): ImplantRecord {
   ensureWorkflowActor(actorUserId, clinicId);
+  const current = getImplantById(implantId, clinicId);
+  if (!current.doctorSignedAt) {
+    throw new Error("必須先由指定醫師簽名確認實際使用植體，才能正式結案");
+  }
   const result = getDatabase().prepare(`
     UPDATE implants SET status = '已結案', closedAt = CURRENT_TIMESTAMP,
       closedByUserId = ?,
@@ -3556,6 +3569,44 @@ export function closeImplantCase(
     WHERE id = ? AND clinicId = ? AND status = '已完成'
   `).run(actorUserId, implantId, clinicId);
   if (result.changes !== 1) throw new Error("只有已完成手術的個案可以結案");
+  return getImplantById(implantId, clinicId);
+}
+
+export function signImplantUsage(
+  implantId: number,
+  clinicId: number,
+  doctorId: number,
+  signature: string,
+  actorUserId: number,
+): ImplantRecord {
+  ensureWorkflowActor(actorUserId, clinicId);
+  validatePositiveInteger(doctorId, "醫師 ID");
+  const normalizedSignature = String(signature ?? "").trim();
+  if (!normalizedSignature) throw new Error("請輸入醫師簽名");
+  if (normalizedSignature.length > 100) throw new Error("醫師簽名不可超過 100 個字元");
+
+  const current = getImplantById(implantId, clinicId);
+  if (current.status !== "已完成") throw new Error("只有已完成術後紀錄的個案可以簽名");
+  if (current.doctorId !== doctorId) throw new Error("只有此個案指定的醫師可以簽名");
+  if (current.doctorSignedAt) throw new Error("此個案已完成醫師簽名");
+
+  const doctor = getDatabase().prepare(`
+    SELECT doctors.id
+    FROM doctors
+    INNER JOIN doctorClinics ON doctorClinics.doctorId = doctors.id
+    WHERE doctors.id = ? AND doctors.userId = ? AND doctors.isActive = 1
+      AND doctorClinics.clinicId = ?
+    LIMIT 1
+  `).get(doctorId, actorUserId, clinicId);
+  if (!doctor) throw new Error("目前登入帳號不是此個案指定醫師");
+
+  const result = getDatabase().prepare(`
+    UPDATE implants
+    SET doctorSignature = ?, doctorSignedAt = CURRENT_TIMESTAMP,
+      doctorSignedByUserId = ?, updatedAt = CURRENT_TIMESTAMP
+    WHERE id = ? AND clinicId = ? AND status = '已完成' AND doctorSignedAt IS NULL
+  `).run(normalizedSignature, actorUserId, implantId, clinicId);
+  if (result.changes !== 1) throw new Error("簽名失敗，請重新整理後再試");
   return getImplantById(implantId, clinicId);
 }
 
