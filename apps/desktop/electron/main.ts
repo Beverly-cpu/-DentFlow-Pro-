@@ -711,12 +711,10 @@ function registerPatientHandlers() {
       _event,
       clinicId: number,
       input,
-      actorUserId: number,
     ) => {
       return createPatient(
         clinicId,
         input,
-        actorUserId,
       );
     },
   );
