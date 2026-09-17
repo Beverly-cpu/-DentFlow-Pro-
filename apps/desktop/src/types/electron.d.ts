@@ -1191,6 +1191,7 @@ type DentflowApi = {
       inventoryItemId: number,
       clinicId: number,
       input: DentflowInventoryInput,
+      actorUserId: number,
     ) =>
       Promise<DentflowInventoryRecord>;
 
