@@ -778,10 +778,24 @@ export default function Dashboard() {
         const start = new Date();
         start.setHours(0, 0, 0, 0);
         const target = new Date(`${item.record.implantDate}T00:00:00`);
-        return Math.ceil((target.getTime() - start.getTime()) / 86_400_000) <= 7;
+        const days = Math.ceil((target.getTime() - start.getTime()) / 86_400_000);
+        return days >= 0 && days <= 7;
       }).length,
       [implants],
     );
+
+  const overduePendingOrderCount = useMemo(
+    () => implants.filter((item) => {
+      if (item.record.status !== "待醫師叫貨" || !item.record.implantDate) return false;
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const target = new Date(`${item.record.implantDate}T00:00:00`);
+      return target.getTime() < start.getTime();
+    }).length,
+    [implants],
+  );
+
+  const futurePendingOrderCount = pendingOrderCount - urgentPendingOrderCount - overduePendingOrderCount;
 
   const orderedCount =
     useMemo(
@@ -1125,33 +1139,25 @@ export default function Dashboard() {
               | "normal";
           }> = [];
 
-        if (
-          canViewImplants &&
-          pendingOrderCount >
-            0
-        ) {
+        if (canViewImplants && overduePendingOrderCount > 0) {
           tasks.push({
-            key:
-              "implant-order",
-
-            title:
-              "待醫師叫貨",
-
-            description:
-              urgentPendingOrderCount > 0
-                ? `其中 ${urgentPendingOrderCount} 件已進入手術日前 7 天，請優先處理。`
-                : "尚有植體病例等待醫師完成術前叫貨。",
-
-            count:
-              pendingOrderCount,
-
-            path:
-              "/implants",
-
-            level:
-              urgentPendingOrderCount > 0 ? "danger" : "warning",
+            key: "implant-order-overdue", title: "逾期未叫貨",
+            description: "手術日已過，仍未完成叫貨。", count: overduePendingOrderCount,
+            path: "/implants?orderReminder=逾期未叫貨", level: "danger",
           });
         }
+
+        if (canViewImplants && urgentPendingOrderCount > 0) tasks.push({
+          key: "implant-order-seven-days", title: "七天內未叫貨",
+          description: "手術日進入七天內，請優先處理。", count: urgentPendingOrderCount,
+          path: "/implants?orderReminder=七天內未叫貨", level: "warning",
+        });
+
+        if (canViewImplants && futurePendingOrderCount > 0) tasks.push({
+          key: "implant-order-pending", title: "尚未叫貨",
+          description: "尚未進入七天提醒期的待叫貨個案。", count: futurePendingOrderCount,
+          path: "/implants?orderReminder=尚未叫貨", level: "normal",
+        });
 
         if (
           canViewImplants &&
@@ -1297,7 +1303,9 @@ export default function Dashboard() {
         canViewInventory,
         canViewPurchase,
         isDoctor,
-        pendingOrderCount,
+        urgentPendingOrderCount,
+        overduePendingOrderCount,
+        futurePendingOrderCount,
         postOpPendingCount,
         pendingSignatureRecords.length,
         zeroStockItems.length,
