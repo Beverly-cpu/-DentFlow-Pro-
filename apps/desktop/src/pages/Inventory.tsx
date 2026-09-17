@@ -345,7 +345,7 @@ function getTransactionDirection(
 export default function Inventory({
   scope = "all",
 }: {
-  scope?: "all" | "general" | "medical";
+  scope?: "all" | "general" | "medical" | "implant";
 }) {
   const [
     session,
@@ -539,7 +539,8 @@ export default function Inventory({
       ...inventory.map((item) => item.category).filter(Boolean),
     ])].filter((category) => scope === "all"
       || (scope === "general" && isConsumableCategory(category) && !MEDICAL_CONSUMABLE_CATEGORIES.has(category))
-      || (scope === "medical" && MEDICAL_CONSUMABLE_CATEGORIES.has(category))),
+      || (scope === "medical" && MEDICAL_CONSUMABLE_CATEGORIES.has(category))
+      || (scope === "implant" && (category === "植體" || category === "套件"))),
     [customCategories, inventory, scope],
   );
 
@@ -607,6 +608,8 @@ export default function Inventory({
         ? inventoryRecords.filter((item) => isConsumableCategory(item.category) && !MEDICAL_CONSUMABLE_CATEGORIES.has(item.category))
         : scope === "medical"
           ? inventoryRecords.filter((item) => MEDICAL_CONSUMABLE_CATEGORIES.has(item.category))
+          : scope === "implant"
+            ? inventoryRecords.filter((item) => item.category === "植體" || item.category === "套件")
           : inventoryRecords;
 
       setInventory(scopedInventory);
@@ -620,7 +623,8 @@ export default function Inventory({
         .map((item) => item.name)
         .filter((category) => scope === "all"
           || (scope === "general" && isConsumableCategory(category) && !MEDICAL_CONSUMABLE_CATEGORIES.has(category))
-          || (scope === "medical" && MEDICAL_CONSUMABLE_CATEGORIES.has(category))));
+          || (scope === "medical" && MEDICAL_CONSUMABLE_CATEGORIES.has(category))
+          || (scope === "implant" && (category === "植體" || category === "套件"))));
     } catch (
       loadError
     ) {
@@ -979,6 +983,8 @@ export default function Inventory({
     setForm(
       scope === "medical"
         ? { ...createEmptyInventoryForm(), category: "連針帶線" }
+        : scope === "implant"
+          ? { ...createEmptyInventoryForm(), category: "植體" }
         : createEmptyInventoryForm(),
     );
 
@@ -1533,11 +1539,11 @@ export default function Inventory({
       <div style={styles.header}>
         <div>
           <div style={styles.eyebrow}>
-            {scope === "general" ? "GENERAL CONSUMABLE INVENTORY" : scope === "medical" ? "HEALING MEDICAL INVENTORY" : "INVENTORY CONTROL"}
+            {scope === "general" ? "GENERAL CONSUMABLE INVENTORY" : scope === "medical" ? "HEALING MEDICAL INVENTORY" : scope === "implant" ? "IMPLANT & KIT INVENTORY" : "INVENTORY CONTROL"}
           </div>
 
           <h1 style={styles.title}>
-            {scope === "general" ? "一般耗材庫存管理" : scope === "medical" ? "癒合醫療庫存管理" : "庫存管理"}
+            {scope === "general" ? "一般耗材庫存管理" : scope === "medical" ? "癒合醫療庫存管理" : scope === "implant" ? "植體與套件庫存" : "庫存管理"}
           </h1>
 
           <div style={styles.subtitle}>
@@ -1546,6 +1552,8 @@ export default function Inventory({
                 ? `${session.clinicName}｜一般耗材、自訂分類與庫存管理`
                 : scope === "medical"
                   ? `${session.clinicName}｜六類癒合醫療耗材庫存與有效期限`
+                  : scope === "implant"
+                    ? `${session.clinicName}｜植體與套件 REF、LOT 及有效期限追溯`
                 : `${session.clinicName}｜植體、套件與一般耗材庫存追溯`
               : "庫存管理"}
           </div>
@@ -1557,7 +1565,7 @@ export default function Inventory({
             style={styles.primaryButton}
             onClick={openCreate}
           >
-            ＋ {scope === "general" ? "新增一般耗材" : scope === "medical" ? "新增癒合醫療耗材" : "新增庫存品項"}
+            ＋ {scope === "general" ? "新增一般耗材" : scope === "medical" ? "新增癒合醫療品項" : scope === "implant" ? "新增植體／套件" : "新增庫存品項"}
           </button>
         )}
       </div>
@@ -1631,6 +1639,8 @@ export default function Inventory({
                 ? "此頁只顯示一般耗材與自訂分類。"
                 : scope === "medical"
                   ? "此頁只顯示需醫師簽名確認的六類癒合醫療耗材。"
+                  : scope === "implant"
+                    ? "此頁只顯示植體與套件庫存。"
                 : "點選分類立即篩選；新增後會自動產生快速格。"}
             </div>
           </div>
@@ -1678,6 +1688,8 @@ export default function Inventory({
             ? "一般耗材免醫師簽名；管理者與採購可維護分類及品項，只有採購可執行入庫、出庫與盤點調整。"
             : scope === "medical"
               ? "癒合醫療耗材的實際使用請由「癒合醫療使用紀錄」登錄，並由指定醫師簽名確認。"
+              : scope === "implant"
+                ? "植體與套件必須記錄 REF、LOT 與有效期限；實際使用及歸回由植體追溯流程自動建立庫存異動。"
             : "植體與套件使用 REF / LOT；其他一般耗材只追蹤有效期限與庫存數量。正式進貨請使用「採購入庫」頁面。"}
         </div>
       </div>
