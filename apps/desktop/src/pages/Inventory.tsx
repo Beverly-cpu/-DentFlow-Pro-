@@ -364,6 +364,7 @@ export default function Inventory({
     >([]);
 
   const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [medicalCustomCategories, setMedicalCustomCategories] = useState<string[]>([]);
 
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [categoryName, setCategoryName] = useState("");
@@ -530,7 +531,12 @@ export default function Inventory({
     canAdjustInventory(role);
 
   const canManageCategories =
-    scope === "general" && (role === "Admin" || role === "Procurement");
+    (scope === "general" || scope === "medical") && (role === "Admin" || role === "Procurement");
+
+  const medicalCategoryNames = useMemo(
+    () => new Set([...MEDICAL_CONSUMABLE_CATEGORIES, ...medicalCustomCategories]),
+    [medicalCustomCategories],
+  );
 
   const allCategories = useMemo(
     () => [...new Set([
@@ -538,10 +544,10 @@ export default function Inventory({
       ...customCategories,
       ...inventory.map((item) => item.category).filter(Boolean),
     ])].filter((category) => scope === "all"
-      || (scope === "general" && isConsumableCategory(category) && !MEDICAL_CONSUMABLE_CATEGORIES.has(category))
-      || (scope === "medical" && MEDICAL_CONSUMABLE_CATEGORIES.has(category))
+      || (scope === "general" && isConsumableCategory(category) && !medicalCategoryNames.has(category))
+      || (scope === "medical" && medicalCategoryNames.has(category))
       || (scope === "implant" && (category === "植體" || category === "套件"))),
-    [customCategories, inventory, scope],
+    [customCategories, inventory, scope, medicalCategoryNames],
   );
 
   /*
@@ -605,9 +611,9 @@ export default function Inventory({
         ]);
 
       const scopedInventory = scope === "general"
-        ? inventoryRecords.filter((item) => isConsumableCategory(item.category) && !MEDICAL_CONSUMABLE_CATEGORIES.has(item.category))
+        ? inventoryRecords.filter((item) => isConsumableCategory(item.category) && !new Set(categoryRecords.filter((category) => category.requiresDoctorSignature).map((category) => category.name)).has(item.category) && !MEDICAL_CONSUMABLE_CATEGORIES.has(item.category))
         : scope === "medical"
-          ? inventoryRecords.filter((item) => MEDICAL_CONSUMABLE_CATEGORIES.has(item.category))
+          ? inventoryRecords.filter((item) => MEDICAL_CONSUMABLE_CATEGORIES.has(item.category) || categoryRecords.some((category) => category.requiresDoctorSignature && category.name === item.category))
           : scope === "implant"
             ? inventoryRecords.filter((item) => item.category === "植體" || item.category === "套件")
           : inventoryRecords;
@@ -622,9 +628,10 @@ export default function Inventory({
       setCustomCategories(categoryRecords
         .map((item) => item.name)
         .filter((category) => scope === "all"
-          || (scope === "general" && isConsumableCategory(category) && !MEDICAL_CONSUMABLE_CATEGORIES.has(category))
-          || (scope === "medical" && MEDICAL_CONSUMABLE_CATEGORIES.has(category))
+          || (scope === "general" && isConsumableCategory(category) && !categoryRecords.some((record) => record.requiresDoctorSignature && record.name === category) && !MEDICAL_CONSUMABLE_CATEGORIES.has(category))
+          || (scope === "medical" && (MEDICAL_CONSUMABLE_CATEGORIES.has(category) || categoryRecords.some((record) => record.requiresDoctorSignature && record.name === category)))
           || (scope === "implant" && (category === "植體" || category === "套件"))));
+      setMedicalCustomCategories(categoryRecords.filter((item) => item.requiresDoctorSignature).map((item) => item.name));
     } catch (
       loadError
     ) {
@@ -675,8 +682,11 @@ export default function Inventory({
       setCategorySaving(true);
       setError("");
       setSuccess("");
-      const created = await window.dentflow.inventory.createCategory(session.clinicId, name, session.userId);
+      const created = await window.dentflow.inventory.createCategory(session.clinicId, name, session.userId, scope === "medical");
       setCustomCategories((current) => [...new Set([...current, created.name])]);
+      if (created.requiresDoctorSignature) {
+        setMedicalCustomCategories((current) => [...new Set([...current, created.name])]);
+      }
       setCategoryFilter(created.name);
       setForm((current) => ({ ...current, category: created.name }));
       setCategoryName("");
@@ -695,6 +705,7 @@ export default function Inventory({
       setError("");
       await window.dentflow.inventory.deleteCategory(session.clinicId, name, session.userId);
       setCustomCategories((current) => current.filter((category) => category !== name));
+      setMedicalCustomCategories((current) => current.filter((category) => category !== name));
       if (categoryFilter === name) setCategoryFilter("全部");
       setSuccess(`已刪除分類「${name}」。`);
     } catch (categoryError) {
