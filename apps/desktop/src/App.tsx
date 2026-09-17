@@ -644,6 +644,15 @@ export default function App() {
         />
 
         <Route
+          path="implant-inventory"
+          element={
+            <ModuleAccess session={session} module="inventory">
+              <Inventory scope="implant" />
+            </ModuleAccess>
+          }
+        />
+
+        <Route
           path="other-consumables"
           element={
             <ModuleAccess
