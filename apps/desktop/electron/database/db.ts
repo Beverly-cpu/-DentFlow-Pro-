@@ -872,11 +872,17 @@ export function initializeDatabase():
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       clinicId INTEGER NOT NULL,
       name TEXT NOT NULL,
+      requiresDoctorSignature INTEGER NOT NULL DEFAULT 0,
       createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (clinicId) REFERENCES clinics(id) ON DELETE CASCADE,
       UNIQUE (clinicId, name)
     );
   `);
+
+  const inventoryCategoryColumns = db.prepare("PRAGMA table_info(inventoryCategories)").all() as Array<{ name: string }>;
+  if (!inventoryCategoryColumns.some((column) => column.name === "requiresDoctorSignature")) {
+    db.exec("ALTER TABLE inventoryCategories ADD COLUMN requiresDoctorSignature INTEGER NOT NULL DEFAULT 0");
+  }
 
   const usersSchema = db.prepare(`
     SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'

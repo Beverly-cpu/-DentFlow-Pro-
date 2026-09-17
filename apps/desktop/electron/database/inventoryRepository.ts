@@ -53,6 +53,7 @@ export type InventoryCategoryRecord = {
   id: number;
   clinicId: number;
   name: string;
+  requiresDoctorSignature: number;
   createdAt: string;
 };
 
@@ -61,7 +62,7 @@ export function getInventoryCategories(
 ): InventoryCategoryRecord[] {
   assertValidClinicId(clinicId);
   return getDatabase().prepare(`
-    SELECT id, clinicId, name, createdAt
+    SELECT id, clinicId, name, requiresDoctorSignature, createdAt
     FROM inventoryCategories
     WHERE clinicId = ?
     ORDER BY name COLLATE NOCASE ASC
@@ -72,6 +73,7 @@ export function createInventoryCategory(
   clinicId: number,
   name: string,
   actorUserId: number,
+  requiresDoctorSignature = false,
 ): InventoryCategoryRecord {
   assertValidClinicId(clinicId);
   const actor = getDatabase().prepare(`
@@ -89,10 +91,10 @@ export function createInventoryCategory(
   const database = getDatabase();
   try {
     const result = database.prepare(`
-      INSERT INTO inventoryCategories (clinicId, name) VALUES (?, ?)
-    `).run(clinicId, normalized);
+      INSERT INTO inventoryCategories (clinicId, name, requiresDoctorSignature) VALUES (?, ?, ?)
+    `).run(clinicId, normalized, requiresDoctorSignature ? 1 : 0);
     return database.prepare(`
-      SELECT id, clinicId, name, createdAt FROM inventoryCategories WHERE id = ?
+      SELECT id, clinicId, name, requiresDoctorSignature, createdAt FROM inventoryCategories WHERE id = ?
     `).get(Number(result.lastInsertRowid)) as InventoryCategoryRecord;
   } catch (error) {
     if (error instanceof Error && error.message.includes("UNIQUE")) {

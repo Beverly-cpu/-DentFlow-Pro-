@@ -1015,8 +1015,8 @@ function registerInventoryHandlers() {
 
   ipcMain.handle(
     "inventory:create-category",
-    (_event, clinicId: number, name: string, actorUserId: number) =>
-      createInventoryCategory(clinicId, name, actorUserId),
+    (_event, clinicId: number, name: string, actorUserId: number, requiresDoctorSignature?: boolean) =>
+      createInventoryCategory(clinicId, name, actorUserId, requiresDoctorSignature),
   );
   ipcMain.handle("inventory:delete-category", (_event, clinicId: number, name: string, actorUserId: number) =>
     deleteInventoryCategory(clinicId, name, actorUserId));
