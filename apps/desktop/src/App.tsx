@@ -641,7 +641,7 @@ export default function App() {
               session={session}
               module="inventory"
             >
-              <Inventory scope="consumables" />
+              <Inventory scope="general" />
             </ModuleAccess>
           }
         />
