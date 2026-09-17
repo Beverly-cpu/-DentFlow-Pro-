@@ -438,6 +438,8 @@ export default function Implants() {
   ] =
     useState("");
 
+  const [patientSearch, setPatientSearch] = useState("");
+
   const [
     statusFilter,
     setStatusFilter,
@@ -958,6 +960,17 @@ export default function Implants() {
       ],
     );
 
+  const filteredPatients = useMemo(() => {
+    const query = patientSearch.trim().toLowerCase();
+    if (!query) return patients;
+    return patients.filter((patient) =>
+      [patient.chartNumber, patient.name, patient.phone]
+        .join(" ")
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [patients, patientSearch]);
+
   /* =======================================================
      Form
   ======================================================= */
@@ -993,6 +1006,8 @@ export default function Implants() {
       initial,
     );
 
+    setPatientSearch("");
+
     setIsFormOpen(
       true,
     );
@@ -1010,6 +1025,8 @@ export default function Implants() {
     setForm(
       emptyForm(),
     );
+
+    setPatientSearch("");
 
     setIsFormOpen(
       false,
@@ -1301,6 +1318,8 @@ export default function Implants() {
           }),
         ),
     });
+
+    setPatientSearch(`${implant.patientChartNumber} ${implant.patientName}`);
 
     setIsFormOpen(
       true,
@@ -2412,18 +2431,24 @@ export default function Implants() {
             <label>
               病患
 
+              <input
+                type="search"
+                value={patientSearch}
+                onChange={(event) => setPatientSearch(event.target.value)}
+                placeholder="搜尋病歷號、姓名或電話"
+                style={{...fieldStyle, marginBottom: 8}}
+              />
+
               <select
                 value={
                   form.patientId
                 }
-                onChange={(
-                  event,
-                ) =>
-                  updateRoot(
-                    "patientId",
-                    event.target.value,
-                  )
-                }
+                onChange={(event) => {
+                  const value = event.target.value;
+                  updateRoot("patientId", value);
+                  const selected = patients.find((patient) => String(patient.id) === value);
+                  if (selected) setPatientSearch(`${selected.chartNumber} ${selected.name}`);
+                }}
                 style={
                   fieldStyle
                 }
@@ -2432,7 +2457,7 @@ export default function Implants() {
                   請選擇
                 </option>
 
-                {patients.map(
+                {filteredPatients.map(
                   (patient) => (
                     <option
                       key={
@@ -2451,6 +2476,10 @@ export default function Implants() {
                       }
                     </option>
                   ),
+                )}
+
+                {filteredPatients.length === 0 && (
+                  <option value="" disabled>找不到符合的病患</option>
                 )}
               </select>
             </label>
