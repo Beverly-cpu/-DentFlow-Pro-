@@ -128,13 +128,15 @@ function createKey() {
     .slice(2)}`;
 }
 
-function isOrderDueSoon(implant: Implant) {
-  if (implant.status !== "待醫師叫貨" || !implant.implantDate) return false;
+function getOrderReminder(implant: Implant): "逾期未叫貨" | "七天內未叫貨" | "尚未叫貨" | null {
+  if (implant.status !== "待醫師叫貨" || !implant.implantDate) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const target = new Date(`${implant.implantDate}T00:00:00`);
   const days = Math.ceil((target.getTime() - today.getTime()) / 86_400_000);
-  return days <= 7;
+  if (days < 0) return "逾期未叫貨";
+  if (days <= 7) return "七天內未叫貨";
+  return "尚未叫貨";
 }
 
 function formatTimestamp(value: string | null) {
@@ -440,9 +442,7 @@ export default function Implants() {
     statusFilter,
     setStatusFilter,
   ] =
-    useState(
-      "全部",
-    );
+    useState(() => new URLSearchParams(window.location.search).get("orderReminder") ?? "全部");
 
   const [
     isFormOpen,
@@ -886,13 +886,11 @@ export default function Implants() {
 
         return implants.filter(
           (implant) => {
-            if (
-              statusFilter !==
-                "全部" &&
-              implant.status !==
-                statusFilter
-            ) {
-              return false;
+            const reminderFilters = ["七天內未叫貨", "逾期未叫貨", "尚未叫貨"];
+            if (statusFilter !== "全部") {
+              if (reminderFilters.includes(statusFilter)) {
+                if (getOrderReminder(implant) !== statusFilter) return false;
+              } else if (implant.status !== statusFilter) return false;
             }
 
             if (!query) {
@@ -2309,6 +2307,9 @@ export default function Implants() {
           <option value="全部">
             全部狀態
           </option>
+          <option value="七天內未叫貨">七天內未叫貨</option>
+          <option value="逾期未叫貨">逾期未叫貨</option>
+          <option value="尚未叫貨">尚未叫貨</option>
 
           {statusFlow.map(
             (status) => (
@@ -3071,9 +3072,9 @@ export default function Implants() {
                           }
                         </span>
 
-                        {isOrderDueSoon(implant) && (
+                        {getOrderReminder(implant) && (
                           <span style={{...statusBadgeStyle("待歸回品項"), fontWeight: 800}}>
-                            手術日前 7 天內尚未叫貨
+                            {getOrderReminder(implant)}
                           </span>
                         )}
                       </div>
