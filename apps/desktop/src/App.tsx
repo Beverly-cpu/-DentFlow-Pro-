@@ -629,7 +629,16 @@ export default function App() {
               }
               module="inventory"
             >
-              <Inventory />
+              <Inventory scope="general" />
+            </ModuleAccess>
+          }
+        />
+
+        <Route
+          path="medical-inventory"
+          element={
+            <ModuleAccess session={session} module="inventory">
+              <Inventory scope="medical" />
             </ModuleAccess>
           }
         />
@@ -656,6 +665,15 @@ export default function App() {
               module="purchase"
             >
               <Purchase />
+            </ModuleAccess>
+          }
+        />
+
+        <Route
+          path="general-consumable-usage"
+          element={
+            <ModuleAccess session={session} module="purchase">
+              <Purchase generalUsage />
             </ModuleAccess>
           }
         />
