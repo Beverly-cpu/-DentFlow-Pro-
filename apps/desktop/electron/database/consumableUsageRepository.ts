@@ -13,7 +13,8 @@ export type ConsumableUsageType =
   | "膠原蛋白"
   | "骨粉"
   | "再生膜"
-  | "其他耗材";
+  | "其他耗材"
+  | (string & {});
 
 export type ConsumableUsageStatus =
   | "待醫師簽名"
@@ -228,17 +229,6 @@ type DoctorMembershipRow = {
    Constants
 ========================================================= */
 
-const VALID_USAGE_TYPES =
-  new Set<ConsumableUsageType>([
-    "連針帶線",
-    "牙周藥膏",
-    "冷光藥劑",
-    "膠原蛋白",
-    "骨粉",
-    "再生膜",
-    "其他耗材",
-  ]);
-
 const SIGNATURE_MAX_LENGTH =
   2_000_000;
 
@@ -303,11 +293,8 @@ function isImplantOrKitCategory(
 function assertUsageType(
   value: string,
 ): asserts value is ConsumableUsageType {
-  if (
-    !VALID_USAGE_TYPES.has(
-      value as ConsumableUsageType,
-    )
-  ) {
+  const normalized = normalizeCategory(value);
+  if (!normalized || isImplantOrKitCategory(normalized)) {
     throw new Error(
       "不支援的耗材使用類型。",
     );
