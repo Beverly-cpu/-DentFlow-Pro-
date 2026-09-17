@@ -661,6 +661,10 @@ const dentflowApi = {
       return ipcRenderer.invoke("implants:close", implantId, clinicId, actorUserId);
     },
 
+    signUsage(implantId: number, clinicId: number, doctorId: number, signature: string, actorUserId: number) {
+      return ipcRenderer.invoke("implants:sign-usage", implantId, clinicId, doctorId, signature, actorUserId);
+    },
+
     delete(
       implantId: number,
       clinicId: number,
