@@ -92,6 +92,20 @@ const sidebarItems:
 
     {
       label:
+        "植體與套件庫存",
+
+      path:
+        "/implant-inventory",
+
+      icon:
+        "▣",
+
+      module:
+        "inventory",
+    },
+
+    {
+      label:
         "癒合醫療使用紀錄",
 
       path:
