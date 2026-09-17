@@ -102,6 +102,26 @@ export function createInventoryCategory(
   }
 }
 
+export function deleteInventoryCategory(
+  clinicId: number,
+  name: string,
+  actorUserId: number,
+): boolean {
+  assertValidClinicId(clinicId);
+  const db = getDatabase();
+  const actor = db.prepare(`
+    SELECT users.id FROM users
+    INNER JOIN userClinics ON userClinics.userId = users.id
+    WHERE users.id = ? AND users.isActive = 1
+      AND users.role IN ('Admin', 'Procurement') AND userClinics.clinicId = ? LIMIT 1
+  `).get(actorUserId, clinicId);
+  if (!actor) throw new Error("只有管理者或採購可刪除分類。");
+  const normalized = String(name ?? "").trim();
+  const inUse = db.prepare(`SELECT id FROM inventory WHERE clinicId = ? AND category = ? LIMIT 1`).get(clinicId, normalized);
+  if (inUse) throw new Error("此分類尚有庫存品項，請先移動或刪除品項。");
+  return db.prepare(`DELETE FROM inventoryCategories WHERE clinicId = ? AND name = ?`).run(clinicId, normalized).changes > 0;
+}
+
 /* =========================================================
    Helpers
 ========================================================= */
