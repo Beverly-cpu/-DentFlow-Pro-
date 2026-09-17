@@ -33,6 +33,12 @@ type ReceiveForm = {
   note: string;
 };
 
+type RequestForm = {
+  inventoryItemId: string;
+  quantity: string;
+  note: string;
+};
+
 type HistoryDateFilter =
   | "全部"
   | "今天"
@@ -89,6 +95,10 @@ function createReceiveForm():
     orderNumber: "",
     note: "",
   };
+}
+
+function createRequestForm(): RequestForm {
+  return { inventoryItemId: "", quantity: "1", note: "" };
 }
 
 function isRefLotCategory(
@@ -335,6 +345,10 @@ export default function Purchase() {
       DentflowInventoryTransactionRecord[]
     >([]);
 
+  const [purchaseRequests, setPurchaseRequests] = useState<DentflowPurchaseRequestRecord[]>([]);
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [requestForm, setRequestForm] = useState<RequestForm>(createRequestForm());
+
   const [
     loading,
     setLoading,
@@ -439,11 +453,13 @@ export default function Purchase() {
     );
 
   const canReceive =
-    role !== null &&
+    role === "Procurement" &&
     canCreateModule(
       role,
       "purchase",
     );
+
+  const canRequest = role === "Assistant" || role === "Admin" || role === "Procurement";
 
   /* =======================================================
      Load
@@ -491,6 +507,7 @@ export default function Purchase() {
       const [
         inventoryRecords,
         transactionRecords,
+        requestRecords,
       ] =
         await Promise.all([
           window.dentflow.inventory.list(
@@ -500,6 +517,8 @@ export default function Purchase() {
           window.dentflow.inventoryTransactions.list(
             activeSession.clinicId,
           ),
+
+          window.dentflow.purchaseRequests.list(activeSession.clinicId),
         ]);
 
       setInventory(
@@ -509,6 +528,8 @@ export default function Purchase() {
       setTransactions(
         transactionRecords,
       );
+
+      setPurchaseRequests(requestRecords);
     } catch (
       loadError
     ) {
@@ -519,6 +540,7 @@ export default function Purchase() {
       setTransactions(
         [],
       );
+      setPurchaseRequests([]);
 
       setError(
         getErrorMessage(
@@ -962,6 +984,7 @@ export default function Purchase() {
         quantity,
         unitCost,
         note,
+        session.userId,
       );
 
       setReceiveOpen(
@@ -992,6 +1015,69 @@ export default function Purchase() {
       setSaving(
         false,
       );
+    }
+  }
+
+  function openRequest(item?: DentflowInventoryRecord) {
+    if (!canRequest) return;
+    setError("");
+    setSuccess("");
+    setRequestForm({ ...createRequestForm(), inventoryItemId: item ? String(item.id) : "" });
+    setRequestOpen(true);
+  }
+
+  function closeRequest() {
+    if (saving) return;
+    setRequestOpen(false);
+    setRequestForm(createRequestForm());
+  }
+
+  async function handleRequest(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!session || !canRequest) return;
+    const inventoryItemId = Number(requestForm.inventoryItemId);
+    const quantity = Number(requestForm.quantity);
+    if (!Number.isInteger(inventoryItemId) || inventoryItemId <= 0) {
+      setError("請選擇叫貨品項。");
+      return;
+    }
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      setError("叫貨數量必須是大於 0 的整數。");
+      return;
+    }
+    try {
+      setSaving(true);
+      setError("");
+      await window.dentflow.purchaseRequests.create(
+        session.clinicId,
+        inventoryItemId,
+        quantity,
+        requestForm.note.trim(),
+        session.userId,
+      );
+      setRequestOpen(false);
+      setRequestForm(createRequestForm());
+      setSuccess("叫貨需求已送出，不會直接變動庫存。");
+      await refresh();
+    } catch (requestError) {
+      setError(getErrorMessage(requestError));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function completeRequest(id: number) {
+    if (!session || role !== "Procurement") return;
+    try {
+      setSaving(true);
+      setError("");
+      await window.dentflow.purchaseRequests.complete(id, session.clinicId, session.userId);
+      setSuccess("叫貨需求已標記為已處理。");
+      await refresh();
+    } catch (requestError) {
+      setError(getErrorMessage(requestError));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -1052,17 +1138,18 @@ export default function Purchase() {
           </div>
         </div>
 
-        {canReceive && (
-          <button
-            type="button"
-            style={styles.primaryButton}
-            onClick={() =>
-              openReceive()
-            }
-          >
-            ＋ 新增入庫
-          </button>
-        )}
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {canRequest && (
+            <button type="button" style={styles.secondaryButton} onClick={() => openRequest()}>
+              ＋ 新增叫貨
+            </button>
+          )}
+          {canReceive && (
+            <button type="button" style={styles.primaryButton} onClick={() => openReceive()}>
+              ＋ 新增入庫
+            </button>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -1694,9 +1781,72 @@ export default function Purchase() {
         )}
       </section>
 
+      <section style={styles.sectionCard}>
+        <div style={styles.sectionHeader}>
+          <div>
+            <h2 style={styles.sectionTitle}>叫貨需求</h2>
+            <div style={styles.sectionSubtitle}>助理可送出叫貨；只有採購可標記處理並執行後續入庫。</div>
+          </div>
+        </div>
+        {purchaseRequests.length === 0 ? (
+          <div style={styles.emptyState}>尚無叫貨需求。</div>
+        ) : (
+          <div style={styles.tableScroll}>
+            <table style={styles.table}>
+              <thead><tr>
+                <th style={styles.th}>品項</th><th style={styles.th}>叫貨數量</th>
+                <th style={styles.th}>申請人</th><th style={styles.th}>時間</th>
+                <th style={styles.th}>狀態</th><th style={styles.th}>備註</th><th style={styles.th}>操作</th>
+              </tr></thead>
+              <tbody>{purchaseRequests.map((request) => (
+                <tr key={request.id}>
+                  <td style={styles.td}><strong>{request.inventoryName}</strong></td>
+                  <td style={styles.td}>{request.quantity}</td>
+                  <td style={styles.td}>{request.requestedByName}</td>
+                  <td style={styles.td}>{formatDateTime(request.createdAt)}</td>
+                  <td style={styles.td}>{request.status}</td>
+                  <td style={styles.td}>{request.note || "—"}</td>
+                  <td style={styles.td}>{role === "Procurement" && request.status === "待採購" ? (
+                    <button type="button" style={styles.secondaryButton} disabled={saving} onClick={() => void completeRequest(request.id)}>標記已處理</button>
+                  ) : "—"}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
       {/* ===================================================
           Receive Modal
       =================================================== */}
+
+      {requestOpen && canRequest && (
+        <Modal title="新增叫貨" onClose={closeRequest} wide>
+          <form style={styles.modalForm} onSubmit={handleRequest}>
+            <div style={styles.formGrid}>
+              <label style={styles.field}>
+                <span style={styles.label}>叫貨品項 *</span>
+                <select style={styles.input} value={requestForm.inventoryItemId} onChange={(event) => setRequestForm((current) => ({ ...current, inventoryItemId: event.target.value }))}>
+                  <option value="">請選擇品項</option>
+                  {inventory.map((item) => <option key={item.id} value={item.id}>{item.category}｜{item.name}｜庫存 {item.quantity}</option>)}
+                </select>
+              </label>
+              <label style={styles.field}>
+                <span style={styles.label}>叫貨數量 *</span>
+                <input type="number" min="1" step="1" style={styles.input} value={requestForm.quantity} onChange={(event) => setRequestForm((current) => ({ ...current, quantity: event.target.value }))} />
+              </label>
+            </div>
+            <label style={styles.field}>
+              <span style={styles.label}>備註</span>
+              <textarea rows={3} style={styles.textarea} value={requestForm.note} onChange={(event) => setRequestForm((current) => ({ ...current, note: event.target.value }))} />
+            </label>
+            <div style={styles.modalActions}>
+              <button type="button" style={styles.secondaryButton} onClick={closeRequest} disabled={saving}>取消</button>
+              <button type="submit" style={styles.primaryButton} disabled={saving}>{saving ? "送出中..." : "送出叫貨"}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       {receiveOpen &&
         canReceive && (

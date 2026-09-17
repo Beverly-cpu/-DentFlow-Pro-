@@ -136,6 +136,17 @@ function assertValidInventoryId(
   }
 }
 
+function assertProcurementActor(clinicId: number, actorUserId: number) {
+  const actor = getDatabase().prepare(`
+    SELECT users.id FROM users
+    INNER JOIN userClinics ON userClinics.userId = users.id
+    WHERE users.id = ? AND users.isActive = 1
+      AND users.role = 'Procurement' AND userClinics.clinicId = ?
+    LIMIT 1
+  `).get(actorUserId, clinicId);
+  if (!actor) throw new Error("只有採購可執行入庫、出庫或盤點調整。");
+}
+
 function assertValidQuantity(
   quantity: number,
   label = "庫存數量",
@@ -906,6 +917,7 @@ export function receiveInventory(
   quantity: number,
   unitCost: number,
   note: string,
+  actorUserId: number,
 ): InventoryRecord {
   assertValidInventoryId(
     id,
@@ -914,6 +926,8 @@ export function receiveInventory(
   assertActiveClinic(
     clinicId,
   );
+
+  assertProcurementActor(clinicId, actorUserId);
 
   assertPositiveQuantity(
     quantity,
@@ -1149,10 +1163,13 @@ export function adjustInventoryQuantity(
   clinicId: number,
   quantity: number,
   note: string,
+  actorUserId: number,
 ): InventoryRecord {
   assertValidInventoryId(
     id,
   );
+
+  assertProcurementActor(clinicId, actorUserId);
 
   assertActiveClinic(
     clinicId,

@@ -53,7 +53,20 @@ const TRANSACTION_TYPES:
     "手動調整",
     "耗材使用",
     "耗材取消歸回",
-  ];
+];
+
+const MEDICAL_CONSUMABLE_CATEGORIES = new Set([
+  "連針帶線",
+  "牙周藥膏",
+  "膠原蛋白",
+  "再生膜",
+  "冷光藥劑",
+  "骨粉",
+]);
+
+function isConsumableCategory(category: string) {
+  return category !== "植體" && category !== "套件";
+}
 
 /* =========================================================
    Form Types
@@ -79,6 +92,8 @@ type InventoryForm = {
   quantity: string;
 
   safetyStock: string;
+
+  unitCost: string;
 
   note: string;
 };
@@ -147,6 +162,8 @@ function createEmptyInventoryForm():
     quantity: "0",
 
     safetyStock: "0",
+
+    unitCost: "0",
 
     note: "",
   };
@@ -325,7 +342,11 @@ function getTransactionDirection(
    Main
 ========================================================= */
 
-export default function Inventory() {
+export default function Inventory({
+  scope = "all",
+}: {
+  scope?: "all" | "consumables";
+}) {
   const [
     session,
     setSession,
@@ -505,10 +526,8 @@ export default function Inventory() {
     );
 
   const canAdjustInventoryQuantity =
-    role !== null &&
-    canAdjustInventory(
-      role,
-    );
+    role === "Procurement" &&
+    canAdjustInventory(role);
 
   const canManageCategories =
     role === "Admin" || role === "Procurement";
@@ -518,8 +537,8 @@ export default function Inventory() {
       ...DEFAULT_INVENTORY_CATEGORIES,
       ...customCategories,
       ...inventory.map((item) => item.category).filter(Boolean),
-    ])],
-    [customCategories, inventory],
+    ])].filter((category) => scope === "all" || isConsumableCategory(category)),
+    [customCategories, inventory, scope],
   );
 
   /*
@@ -582,15 +601,20 @@ export default function Inventory() {
           ),
         ]);
 
-      setInventory(
-        inventoryRecords,
-      );
+      const scopedInventory = scope === "consumables"
+        ? inventoryRecords.filter((item) => isConsumableCategory(item.category))
+        : inventoryRecords;
 
-      setTransactions(
-        transactionRecords,
-      );
+      setInventory(scopedInventory);
 
-      setCustomCategories(categoryRecords.map((item) => item.name));
+      const scopedIds = new Set(scopedInventory.map((item) => item.id));
+      setTransactions(scope === "consumables"
+        ? transactionRecords.filter((item) => scopedIds.has(item.inventoryItemId))
+        : transactionRecords);
+
+      setCustomCategories(categoryRecords
+        .map((item) => item.name)
+        .filter((category) => scope === "all" || isConsumableCategory(category)));
     } catch (
       loadError
     ) {
@@ -996,6 +1020,9 @@ export default function Inventory() {
           item.safetyStock,
         ),
 
+      unitCost:
+        String(item.unitCost ?? 0),
+
       note:
         item.note,
     });
@@ -1090,6 +1117,8 @@ export default function Inventory() {
         form.safetyStock,
       );
 
+    const unitCost = Number(form.unitCost);
+
     if (
       !Number.isInteger(
         quantity,
@@ -1100,6 +1129,11 @@ export default function Inventory() {
         "庫存數量必須是 0 以上整數。",
       );
 
+      return;
+    }
+
+    if (!Number.isFinite(unitCost) || unitCost < 0) {
+      setError("品項單價必須是 0 以上的數字。");
       return;
     }
 
@@ -1162,6 +1196,8 @@ export default function Inventory() {
           : quantity,
 
       safetyStock,
+
+      unitCost,
 
       note:
         form.note.trim(),
@@ -1316,6 +1352,7 @@ export default function Inventory() {
         session.clinicId,
         quantity,
         note,
+        session.userId,
       );
 
       setAdjustItem(
@@ -1475,16 +1512,18 @@ export default function Inventory() {
       <div style={styles.header}>
         <div>
           <div style={styles.eyebrow}>
-            INVENTORY CONTROL
+            {scope === "consumables" ? "OTHER CONSUMABLES" : "INVENTORY CONTROL"}
           </div>
 
           <h1 style={styles.title}>
-            庫存管理
+            {scope === "consumables" ? "其他耗材" : "庫存管理"}
           </h1>
 
           <div style={styles.subtitle}>
             {session
-              ? `${session.clinicName}｜植體、套件與一般耗材庫存追溯`
+              ? scope === "consumables"
+                ? `${session.clinicName}｜一般耗材與癒合醫療耗材分類管理`
+                : `${session.clinicName}｜植體、套件與一般耗材庫存追溯`
               : "庫存管理"}
           </div>
         </div>
@@ -1495,7 +1534,7 @@ export default function Inventory() {
             style={styles.primaryButton}
             onClick={openCreate}
           >
-            ＋ 新增庫存品項
+            ＋ {scope === "consumables" ? "新增耗材品項" : "新增庫存品項"}
           </button>
         )}
       </div>
@@ -1564,7 +1603,11 @@ export default function Inventory() {
         <div style={{display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 12}}>
           <div>
             <strong style={{color: "#315b43"}}>快速分類</strong>
-            <div style={{fontSize: 11, color: "#77857d", marginTop: 4}}>點選分類立即篩選；新增後會自動產生快速格。</div>
+            <div style={{fontSize: 11, color: "#77857d", marginTop: 4}}>
+              {scope === "consumables"
+                ? "自訂分類預設為一般耗材；指定六類為癒合醫療耗材。"
+                : "點選分類立即篩選；新增後會自動產生快速格。"}
+            </div>
           </div>
           {canManageCategories && (
             <button type="button" style={styles.secondaryButton} onClick={openCategoryModal}>
@@ -1589,7 +1632,7 @@ export default function Inventory() {
                   cursor: "pointer", fontWeight: 800,
                 }}
               >
-                <span>{category}</span><span>{count}</span>
+                <span>{category}{scope === "consumables" && <small style={{display: "block", opacity: 0.7, marginTop: 3}}>{MEDICAL_CONSUMABLE_CATEGORIES.has(category) ? "癒合醫療耗材" : "一般耗材"}</small>}</span><span>{count}</span>
               </button>
             );
           })}
@@ -1606,7 +1649,9 @@ export default function Inventory() {
         </strong>
 
         <div style={styles.noticeText}>
-          植體與套件使用 REF / LOT；其他一般耗材只追蹤有效期限與庫存數量。正式進貨請使用「採購入庫」頁面，以記錄單位成本與移動加權平均成本；盤點修正請使用「手動調整」，耗材使用及取消歸回則由使用紀錄自動產生。
+          {scope === "consumables"
+            ? "癒合醫療耗材（連針帶線、牙周藥膏、膠原蛋白、再生膜、冷光藥劑、骨粉）使用後必須由指定醫師簽名確認。一般耗材免簽名，只有採購可執行入庫、出庫與盤點調整。"
+            : "植體與套件使用 REF / LOT；其他一般耗材只追蹤有效期限與庫存數量。正式進貨請使用「採購入庫」頁面。"}
         </div>
       </div>
 
@@ -1772,6 +1817,10 @@ export default function Inventory() {
                   </th>
 
                   <th style={styles.th}>
+                    品項單價
+                  </th>
+
+                  <th style={styles.th}>
                     狀態
                   </th>
 
@@ -1877,6 +1926,10 @@ export default function Inventory() {
 
                         <td style={styles.td}>
                           {item.safetyStock}
+                        </td>
+
+                        <td style={styles.td}>
+                          NT$ {Number(item.unitCost ?? 0).toLocaleString("zh-TW", { maximumFractionDigits: 2 })}
                         </td>
 
                         <td style={styles.td}>
@@ -2260,9 +2313,7 @@ export default function Inventory() {
                       form.quantity
                     }
                     readOnly={
-                      Boolean(
-                        editItem,
-                      )
+                      Boolean(editItem) || role !== "Procurement"
                     }
                     onChange={
                       (event) =>
@@ -2283,6 +2334,10 @@ export default function Inventory() {
                     <span style={styles.helpText}>
                       正式進貨請使用「採購入庫」；盤點修正請使用「調整」功能。
                     </span>
+                  )}
+
+                  {!editItem && role !== "Procurement" && (
+                    <span style={styles.helpText}>新增品項的初始庫存為 0；只有採購可執行入庫。</span>
                   )}
                 </label>
 
@@ -2313,6 +2368,19 @@ export default function Inventory() {
                         )
                     }
                   />
+                </label>
+
+                <label style={styles.field}>
+                  <span style={styles.label}>品項單價</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    style={styles.input}
+                    value={form.unitCost}
+                    onChange={(event) => setForm((current) => ({ ...current, unitCost: event.target.value }))}
+                  />
+                  <span style={styles.helpText}>正式入庫後會依進貨成本更新移動平均單價。</span>
                 </label>
               </div>
 
