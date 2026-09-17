@@ -34,7 +34,7 @@ type InstrumentItem = InventoryItem & {
   clinicName: string;
 };
 
-type OrderType = "植體" | "套件" | "植體及套件";
+type OrderType = "植體" | "套件" | "植體與套件";
 
 type Implant =
   DentflowImplantRecord & {
@@ -1084,7 +1084,7 @@ export default function Implants() {
       (previous) => {
         const tooth = emptyTooth();
         if (previous.orderType === "套件") tooth.items = [emptyPlanItem("植體套件")];
-        if (previous.orderType === "植體及套件") tooth.items = [emptyPlanItem("植體"), emptyPlanItem("植體套件")];
+        if (previous.orderType === "植體與套件") tooth.items = [emptyPlanItem("植體"), emptyPlanItem("植體套件")];
         return {...previous, teeth: [...previous.teeth, tooth]};
       },
     );
@@ -1096,7 +1096,7 @@ export default function Implants() {
       orderType,
       teeth: previous.teeth.map((tooth) => ({
         ...tooth,
-        items: orderType === "植體及套件"
+        items: orderType === "植體與套件"
           ? [emptyPlanItem("植體"), emptyPlanItem("植體套件")]
           : [emptyPlanItem(orderType === "套件" ? "植體套件" : "植體")],
       })),
@@ -1312,7 +1312,7 @@ export default function Implants() {
         const categories = implant.teeth.flatMap((tooth) => tooth.items.map((item) => item.category));
         const hasImplant = categories.includes("植體");
         const hasKit = categories.includes("植體套件");
-        return hasImplant && hasKit ? "植體及套件" : hasKit ? "套件" : "植體";
+        return hasImplant && hasKit ? "植體與套件" : hasKit ? "套件" : "植體";
       })(),
 
       instrumentIds: implant.teeth
@@ -1494,7 +1494,7 @@ export default function Implants() {
             brand: item.brand,
             model: "",
             specification: "",
-            plannedQuantity: 1,
+            quantity: 1,
           });
           continue;
         }
@@ -1510,24 +1510,6 @@ export default function Implants() {
           window.alert(
             `牙位 #${tooth.toothPosition} 尚未選擇植體規格。`,
           );
-          return;
-        }
-
-        const quantity =
-          Number(
-            item.quantity,
-          );
-
-        if (
-          !Number.isInteger(
-            quantity,
-          ) ||
-          quantity <= 0
-        ) {
-          window.alert(
-            "植體數量必須是大於 0 的整數。",
-          );
-
           return;
         }
 
@@ -1547,8 +1529,7 @@ export default function Implants() {
           specification:
             option.specification,
 
-          plannedQuantity:
-            quantity,
+          quantity: 1,
         });
       }
 
@@ -1572,7 +1553,7 @@ export default function Implants() {
         brand: instrument.brand,
         model: instrument.model,
         specification: `${instrument.specification}${instrument.specification ? "｜" : ""}來源院所：${instrument.clinicName}（${instrument.clinicCode}）`,
-        plannedQuantity: 1,
+        quantity: 1,
       })));
     }
 
@@ -2526,18 +2507,6 @@ export default function Implants() {
                   : "新增植體個案"}
               </h2>
 
-              <small
-                style={{
-                  color:
-                    "#78817a",
-                }}
-              >
-                建立院所：
-                {
-                  session.clinicName ??
-                  "—"
-                }
-              </small>
             </div>
 
             <button
@@ -2694,9 +2663,9 @@ export default function Implants() {
                 onChange={(event) => changeOrderType(event.target.value as OrderType)}
                 style={fieldStyle}
               >
-                <option value="植體">只叫植體</option>
-                <option value="套件">只叫套件</option>
-                <option value="植體及套件">植體及套件皆叫貨</option>
+                <option value="植體">植體</option>
+                <option value="套件">套件</option>
+                <option value="植體與套件">植體與套件</option>
               </select>
             </label>
 
@@ -2751,14 +2720,6 @@ export default function Implants() {
                   治療牙位 / 叫貨廠牌
                 </h3>
 
-                <small
-                  style={{
-                    color:
-                      "#78817a",
-                  }}
-                >
-                  助理設定牙位與廠牌；醫師再選型號、規格與器械。術前不指定 REF、LOT。
-                </small>
               </div>
 
               <button
@@ -2852,8 +2813,9 @@ export default function Implants() {
                           display:
                             "grid",
 
-                          gridTemplateColumns:
-                            "minmax(150px,0.8fr) minmax(170px,1fr) minmax(230px,1.4fr) 110px auto",
+                          gridTemplateColumns: session.role === "Assistant"
+                            ? "minmax(240px,1fr)"
+                            : "minmax(150px,0.8fr) minmax(170px,1fr) minmax(230px,1.4fr) auto",
 
                           gap: 10,
 
@@ -3001,41 +2963,6 @@ export default function Implants() {
                               ))}
                           </select>
 
-                          <small
-                            style={{
-                              display: "block",
-                              marginTop: 4,
-                              color: "#78817a",
-                            }}
-                          >
-                            相同規格不同 REF / LOT 已合併。
-                          </small>
-                        </label>
-
-                        <label>
-                          預計數量
-
-                          <input
-                            type="number"
-                            min="1"
-                            step="1"
-                            value={
-                              item.quantity
-                            }
-                            onChange={(
-                              event,
-                            ) =>
-                              updatePlanItem(
-                                tooth.key,
-                                item.key,
-                                "quantity",
-                                event.target.value,
-                              )
-                            }
-                            style={
-                              fieldStyle
-                            }
-                          />
                         </label>
 
                         <button
@@ -3050,6 +2977,7 @@ export default function Implants() {
                             tooth.items.length <=
                             1
                           }
+                          style={{display: session.role === "Assistant" ? "none" : "block"}}
                         >
                           移除
                         </button>
@@ -3057,19 +2985,15 @@ export default function Implants() {
                     ),
                   )}
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      addPlanItem(
-                        tooth.key,
-                      )
-                    }
-                    style={{
-                      marginTop: 14,
-                    }}
-                  >
-                    ＋ 新增植體規格
-                  </button>
+                  {session.role !== "Assistant" && (
+                    <button
+                      type="button"
+                      onClick={() => addPlanItem(tooth.key)}
+                      style={{marginTop: 14}}
+                    >
+                      ＋ 新增規格
+                    </button>
+                  )}
                 </div>
               ),
             )}
