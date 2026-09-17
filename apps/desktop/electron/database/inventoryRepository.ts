@@ -49,6 +49,21 @@ export type InventoryRecord =
     updatedAt: string;
   };
 
+export type InstrumentRecord = InventoryRecord & {
+  clinicCode: string;
+  clinicName: string;
+};
+
+export function getInstrumentsAllClinics(): InstrumentRecord[] {
+  return getDatabase().prepare(`
+    SELECT inventory.*, clinics.code AS clinicCode, clinics.name AS clinicName
+    FROM inventory
+    INNER JOIN clinics ON clinics.id = inventory.clinicId
+    WHERE inventory.category = '器械' AND clinics.isActive = 1
+    ORDER BY inventory.name COLLATE NOCASE, clinics.name COLLATE NOCASE
+  `).all() as InstrumentRecord[];
+}
+
 export type InventoryCategoryRecord = {
   id: number;
   clinicId: number;
