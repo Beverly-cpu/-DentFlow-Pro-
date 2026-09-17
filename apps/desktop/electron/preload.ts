@@ -13,6 +13,7 @@ const dentflowApi = {
     reservations: () => ipcRenderer.invoke("machines:reservations"),
     create: (input: unknown, actorUserId: number) => ipcRenderer.invoke("machines:create", input, actorUserId),
     setActive: (id: number, active: boolean, actorUserId: number) => ipcRenderer.invoke("machines:set-active", id, active, actorUserId),
+    update: (id: number, input: unknown, actorUserId: number) => ipcRenderer.invoke("machines:update", id, input, actorUserId),
     reserve: (input: unknown, actorUserId: number) => ipcRenderer.invoke("machines:reserve", input, actorUserId),
     scan: (token: string, reservationId: number, clinicId: number, action: "搬出"|"到院", actorUserId: number) => ipcRenderer.invoke("machines:scan", token, reservationId, clinicId, action, actorUserId),
   },
