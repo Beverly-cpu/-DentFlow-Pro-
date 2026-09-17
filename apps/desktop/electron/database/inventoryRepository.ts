@@ -786,12 +786,31 @@ export function updateInventoryItem(
   id: number,
   clinicId: number,
   input: InventoryInput,
+  actorUserId: number,
 ): InventoryRecord {
   const existing =
     getInventoryItemOrThrow(
       id,
       clinicId,
     );
+
+  const actor = getDatabase().prepare(`
+    SELECT users.role FROM users
+    INNER JOIN userClinics ON userClinics.userId = users.id
+    WHERE users.id = ? AND users.isActive = 1 AND userClinics.clinicId = ?
+      AND users.role IN ('Admin', 'Accountant', 'Procurement') LIMIT 1
+  `).get(actorUserId, clinicId) as { role: DentflowUserRole } | undefined;
+  if (!actor) throw new Error("此帳號沒有編輯庫存品項的權限。");
+
+  if (actor.role === "Accountant") {
+    const unitCost = Number(input.unitCost ?? existing.unitCost);
+    assertValidUnitCost(unitCost);
+    getDatabase().prepare(`
+      UPDATE inventory SET unitCost = ?, updatedAt = CURRENT_TIMESTAMP
+      WHERE id = ? AND clinicId = ?
+    `).run(unitCost, id, clinicId);
+    return getInventoryItemOrThrow(id, clinicId);
+  }
 
   const normalized =
     normalizeInventoryInput(
@@ -841,7 +860,7 @@ export function updateInventoryItem(
       existing.quantity,
 
       normalized.safetyStock,
-      input.unitCost === undefined
+      actor.role === "Procurement" || input.unitCost === undefined
         ? existing.unitCost
         : normalized.unitCost,
       normalized.note,
