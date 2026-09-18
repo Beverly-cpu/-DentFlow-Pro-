@@ -669,6 +669,9 @@ export function initializeDatabase():
       note TEXT NOT NULL
         DEFAULT '',
 
+      instrumentPhotoDataUrl TEXT NOT NULL
+        DEFAULT '',
+
       createdAt TEXT NOT NULL
         DEFAULT CURRENT_TIMESTAMP,
 
@@ -1123,6 +1126,17 @@ export function initializeDatabase():
       ALTER TABLE implantReservations
       ADD COLUMN pickedByUserId INTEGER
       REFERENCES users(id);
+    `,
+  );
+
+  ensureColumn(
+    db,
+    "implantPlanItems",
+    "instrumentPhotoDataUrl",
+    `
+      ALTER TABLE implantPlanItems
+      ADD COLUMN instrumentPhotoDataUrl TEXT
+      NOT NULL DEFAULT '';
     `,
   );
 
