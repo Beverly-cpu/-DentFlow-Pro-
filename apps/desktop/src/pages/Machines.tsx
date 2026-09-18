@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import QRCode from "qrcode";
 import type { DentflowMainLayoutContext } from "../layouts/MainLayout";
@@ -14,15 +14,15 @@ const grid:React.CSSProperties={display:"grid",gridTemplateColumns:"repeat(auto-
 const actions:React.CSSProperties={display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"};
 
 function HandwrittenSignature({onChange}:{onChange:(value:string)=>void}){
- const canvasRef=useRef<HTMLCanvasElement>(null),drawing=useRef(false),[hasInk,setHasInk]=useState(false);
- function context(canvas:HTMLCanvasElement){const value=canvas.getContext("2d");if(value){value.lineCap="round";value.lineJoin="round";value.strokeStyle="#173f2f";value.lineWidth=5;}return value;}
- function point(event:React.PointerEvent<HTMLCanvasElement>){const canvas=event.currentTarget,rect=canvas.getBoundingClientRect();return{x:(event.clientX-rect.left)*canvas.width/rect.width,y:(event.clientY-rect.top)*canvas.height/rect.height};}
- function sync(canvas:HTMLCanvasElement){setHasInk(true);onChange(canvas.toDataURL("image/png"));}
- function start(event:React.PointerEvent<HTMLCanvasElement>){event.preventDefault();const canvas=event.currentTarget,p=point(event),value=context(canvas);drawing.current=true;try{canvas.setPointerCapture(event.pointerId);}catch{/* Electron 舊版仍可繼續繪製 */}value?.beginPath();value?.moveTo(p.x,p.y);value?.lineTo(p.x+.5,p.y+.5);value?.stroke();sync(canvas);}
- function move(event:React.PointerEvent<HTMLCanvasElement>){if(!drawing.current)return;event.preventDefault();const p=point(event),value=context(event.currentTarget);value?.lineTo(p.x,p.y);value?.stroke();sync(event.currentTarget);}
- function finish(event:React.PointerEvent<HTMLCanvasElement>){if(!drawing.current)return;event.preventDefault();drawing.current=false;context(event.currentTarget)?.closePath();sync(event.currentTarget);}
- function clear(){const canvas=canvasRef.current;if(canvas)canvas.getContext("2d")?.clearRect(0,0,canvas.width,canvas.height);setHasInk(false);onChange("");}
- return <div><div className="machine-signature-canvas-wrap"><canvas ref={canvasRef} width={900} height={300} onPointerDown={start} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} onPointerLeave={event=>{if(drawing.current&&event.buttons===0)finish(event);}} aria-label="醫師手寫簽名區"/><span className={hasInk?"has-ink":""}>請在此手寫簽名</span></div><button type="button" className="machine-signature-clear" onClick={clear} disabled={!hasInk}>清除重簽</button></div>;
+ const canvasRef=useRef<HTMLCanvasElement>(null),drawingRef=useRef(false),pointerRef=useRef<number|null>(null),lastPointRef=useRef<{x:number;y:number}|null>(null),hasInkRef=useRef(false),[hasInk,setHasInk]=useState(false);
+ const prepareCanvas=useCallback(()=>{const canvas=canvasRef.current;if(!canvas)return;const rect=canvas.getBoundingClientRect();if(rect.width<=0||rect.height<=0)return;const ratio=Math.max(window.devicePixelRatio||1,1);canvas.width=Math.round(rect.width*ratio);canvas.height=Math.round(rect.height*ratio);const context=canvas.getContext("2d");if(!context)return;context.setTransform(1,0,0,1,0,0);context.fillStyle="#fff";context.fillRect(0,0,canvas.width,canvas.height);context.setTransform(ratio,0,0,ratio,0,0);context.lineCap="round";context.lineJoin="round";context.strokeStyle="#18251f";context.fillStyle="#18251f";context.lineWidth=2.2;drawingRef.current=false;pointerRef.current=null;lastPointRef.current=null;hasInkRef.current=false;setHasInk(false);onChange("");},[onChange]);
+ useEffect(()=>{const frame=window.requestAnimationFrame(prepareCanvas);return()=>window.cancelAnimationFrame(frame);},[prepareCanvas]);
+ function point(event:React.PointerEvent<HTMLCanvasElement>){const canvas=canvasRef.current;if(!canvas)return null;const rect=canvas.getBoundingClientRect();return{x:event.clientX-rect.left,y:event.clientY-rect.top};}
+ function start(event:React.PointerEvent<HTMLCanvasElement>){if(event.pointerType==="mouse"&&event.button!==0)return;const canvas=canvasRef.current,current=point(event);if(!canvas||!current)return;event.preventDefault();try{canvas.setPointerCapture(event.pointerId);}catch{/* ignore */}drawingRef.current=true;pointerRef.current=event.pointerId;lastPointRef.current=current;const context=canvas.getContext("2d");if(context){context.beginPath();context.arc(current.x,current.y,1.1,0,Math.PI*2);context.fill();}hasInkRef.current=true;setHasInk(true);}
+ function move(event:React.PointerEvent<HTMLCanvasElement>){if(!drawingRef.current||pointerRef.current!==event.pointerId)return;const canvas=canvasRef.current,current=point(event),previous=lastPointRef.current;if(!canvas||!current||!previous)return;event.preventDefault();const context=canvas.getContext("2d");if(!context)return;context.beginPath();context.moveTo(previous.x,previous.y);context.lineTo(current.x,current.y);context.stroke();lastPointRef.current=current;hasInkRef.current=true;setHasInk(true);}
+ function finish(event:React.PointerEvent<HTMLCanvasElement>){if(pointerRef.current!==event.pointerId)return;const canvas=canvasRef.current;drawingRef.current=false;pointerRef.current=null;lastPointRef.current=null;if(canvas?.hasPointerCapture(event.pointerId)){try{canvas.releasePointerCapture(event.pointerId);}catch{/* ignore */}}if(canvas&&hasInkRef.current)onChange(canvas.toDataURL("image/png"));}
+ function clear(){prepareCanvas();}
+ return <div><div className="machine-signature-canvas-wrap healing-signature-style"><canvas ref={canvasRef} onPointerDown={start} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} aria-label="醫師手寫簽名區"/>{!hasInk&&<span>請在此簽名</span>}<div className="machine-signature-line"><span>醫師簽名</span></div></div><button type="button" className="machine-signature-clear" onClick={clear} disabled={!hasInk}>清除重簽</button></div>;
 }
 
 type BarcodeResult={rawValue:string};
