@@ -885,8 +885,7 @@ export default function Inventory({
                 item.brand,
                 item.model,
                 item.specification,
-                item.refNumber,
-                item.lotNumber,
+                ...(scope === "general" ? [] : [item.refNumber, item.lotNumber]),
                 item.expiryDate,
                 item.note,
               ]
@@ -1727,7 +1726,7 @@ export default function Inventory({
                     event.target.value,
                   )
               }
-              placeholder="品項、品牌、型號、規格、REF、LOT..."
+              placeholder={scope === "general" ? "品項、品牌、型號、規格..." : "品項、品牌、型號、規格、REF、LOT..."}
             />
           </label>
 
@@ -1848,13 +1847,12 @@ export default function Inventory({
                     規格
                   </th>
 
-                  <th style={styles.th}>
-                    REF
-                  </th>
-
-                  <th style={styles.th}>
-                    LOT
-                  </th>
+                  {scope !== "general" && (
+                    <>
+                      <th style={styles.th}>REF</th>
+                      <th style={styles.th}>LOT</th>
+                    </>
+                  )}
 
                   <th style={styles.th}>
                     有效期限
@@ -1934,19 +1932,12 @@ export default function Inventory({
                             "—"}
                         </td>
 
-                        <td style={styles.td}>
-                          {refLotEnabled
-                            ? item.refNumber ||
-                              "—"
-                            : "—"}
-                        </td>
-
-                        <td style={styles.td}>
-                          {refLotEnabled
-                            ? item.lotNumber ||
-                              "—"
-                            : "—"}
-                        </td>
+                        {scope !== "general" && (
+                          <>
+                            <td style={styles.td}>{refLotEnabled ? item.refNumber || "—" : "—"}</td>
+                            <td style={styles.td}>{refLotEnabled ? item.lotNumber || "—" : "—"}</td>
+                          </>
+                        )}
 
                         <td style={styles.td}>
                           <ExpiryBadge
@@ -2733,13 +2724,12 @@ export default function Inventory({
                         牙位
                       </th>
 
-                      <th style={styles.th}>
-                        REF
-                      </th>
-
-                      <th style={styles.th}>
-                        LOT
-                      </th>
+                      {scope !== "general" && (
+                        <>
+                          <th style={styles.th}>REF</th>
+                          <th style={styles.th}>LOT</th>
+                        </>
+                      )}
 
                       <th style={styles.th}>
                         備註
@@ -2823,19 +2813,12 @@ export default function Inventory({
                                 "—"}
                             </td>
 
-                            <td style={styles.td}>
-                              {generalConsumable
-                                ? "—"
-                                : transaction.inventoryRefNumber ||
-                                  "—"}
-                            </td>
-
-                            <td style={styles.td}>
-                              {generalConsumable
-                                ? "—"
-                                : transaction.inventoryLotNumber ||
-                                  "—"}
-                            </td>
+                            {scope !== "general" && (
+                              <>
+                                <td style={styles.td}>{generalConsumable ? "—" : transaction.inventoryRefNumber || "—"}</td>
+                                <td style={styles.td}>{generalConsumable ? "—" : transaction.inventoryLotNumber || "—"}</td>
+                              </>
+                            )}
 
                             <td style={styles.noteCell}>
                               {transaction.note ||
