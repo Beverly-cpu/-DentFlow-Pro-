@@ -197,7 +197,7 @@ export function createMachineUsage(input:MachineUsageInput,actorUserId:number){
 
 export function signMachineUsage(id:number,signature:string,actorUserId:number){
   actor(actorUserId,["Doctor"]); const normalized=String(signature??"").trim();
-  if(!normalized) throw new Error("請輸入醫師簽名");
+  if(!normalized.startsWith("data:image/png;base64,")||normalized.length<200) throw new Error("手寫簽名資料格式不正確，請清除後重新簽名");
   const doctor=getDatabase().prepare(`SELECT id,name FROM doctors WHERE userId=? AND isActive=1`).get(actorUserId) as {id:number;name:string}|undefined;
   if(!doctor) throw new Error("找不到醫師資料");
   const result=getDatabase().prepare(`UPDATE machineUsageRecords SET status='已簽名',signature=?,signedAt=CURRENT_TIMESTAMP,signedByUserId=?,updatedAt=CURRENT_TIMESTAMP WHERE id=? AND doctorId=? AND status='待醫師簽名'`).run(normalized,actorUserId,id,doctor.id);
