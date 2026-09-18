@@ -206,3 +206,19 @@
 .machine-schedule-list em { padding: 4px 9px; border-radius: 999px; background: #edf5ed; color: #47795e; font-size: 12px; font-style: normal; }
 .machine-schedule-empty { padding: 28px; text-align: center; color: #849188; }
 @media (max-width: 820px) { .machine-schedule-list > div { grid-template-columns: 1fr 1fr; } }
+
+.machine-camera-dialog { width: min(680px,100%); padding: 22px; border: 1px solid #cbdacb; border-radius: 16px; background: #fff; box-shadow: 0 24px 70px rgba(25,60,40,.22); }
+.machine-camera-view { position: relative; overflow: hidden; margin-top: 18px; aspect-ratio: 4/3; border-radius: 12px; background: #15251c; }
+.machine-camera-view video { width: 100%; height: 100%; object-fit: cover; }
+.machine-camera-frame { position: absolute; inset: 16%; border: 3px solid #dff1df; border-radius: 18px; box-shadow: 0 0 0 999px rgba(10,25,15,.28); }
+.machine-camera-frame::before,.machine-camera-frame::after { content:""; position:absolute; left:15%; right:15%; height:2px; background:#76ad82; }
+.machine-camera-frame::before { top:50%; }.machine-camera-frame::after { display:none; }
+.machine-camera-status,.machine-camera-error { margin-top:10px; padding:10px 12px; border-radius:9px; background:#edf6ee; color:#356449; font-size:13px; }
+.machine-camera-error { background:#fff0f0; color:#a33; }
+.machine-camera-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; margin-top:14px; }
+.machine-photo-upload { display:inline-flex; align-items:center; min-height:38px; padding:8px 14px; border:1px solid #47795e; border-radius:9px; background:#fff; color:#47795e!important; font-size:13px!important; font-weight:650; cursor:pointer; }
+.machine-photo-upload input { display:none; }
+.machine-camera-open { width:100%; }
+.machine-scan-success,.machine-scan-waiting { display:grid; gap:4px; margin:10px 0; padding:11px 12px; border-radius:9px; background:#edf6ee; }
+.machine-scan-success span,.machine-scan-waiting,.machine-transfer-hint { color:#65776b; font-size:12px; }
+.machine-transfer-hint { margin:8px 0 10px; }
