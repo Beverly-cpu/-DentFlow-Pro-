@@ -96,6 +96,8 @@ export type ImplantUsageInput = {
 
   usages:
     ImplantUsageSelectionInput[];
+
+  instrumentPhotoDataUrl?: string;
 };
 
 /* =========================================================
@@ -186,6 +188,8 @@ export type ImplantPlanItemRecord = {
   quantity: number;
 
   note: string;
+
+  instrumentPhotoDataUrl: string;
 
   usageItems:
     ImplantUsageItemRecord[];
@@ -362,6 +366,8 @@ type ImplantPlanItemRow = {
   quantity: number;
 
   note: string;
+
+  instrumentPhotoDataUrl: string;
 
   createdAt: string;
 
@@ -1209,6 +1215,8 @@ function getImplantPlanItems(
             AS quantity,
 
           note,
+
+          instrumentPhotoDataUrl,
 
           createdAt,
 
@@ -2272,6 +2280,20 @@ export function recordImplantUsage(
       );
     }
 
+    if (entry.plan.category === "器械") {
+      const photo = String(input.instrumentPhotoDataUrl ?? "").trim();
+      if (!photo.startsWith("data:image/") || photo.length < 200) {
+        throw new Error(`器械「${entry.plan.name}」請先拍照留存`);
+      }
+      if (photo.length > 7_000_000) {
+        throw new Error(`器械「${entry.plan.name}」照片過大，請重新拍照`);
+      }
+      if (input.usages.length > 0) {
+        throw new Error("器械只需拍照留存，不記錄 REF / LOT");
+      }
+      continue;
+    }
+
     const selectedInventoryIds =
       new Set<number>();
 
@@ -2431,6 +2453,13 @@ export function recordImplantUsage(
             )
           `);
 
+        const saveInstrumentPhoto =
+          database.prepare(`
+            UPDATE implantPlanItems
+            SET instrumentPhotoDataUrl = ?, updatedAt = CURRENT_TIMESTAMP
+            WHERE id = ? AND category = '器械'
+          `);
+
         const getInventoryQuantity =
           database.prepare(`
             SELECT
@@ -2540,6 +2569,14 @@ export function recordImplantUsage(
             throw new Error(
               "找不到植體規格資料",
             );
+          }
+
+          if (entry.plan.category === "器械") {
+            saveInstrumentPhoto.run(
+              String(input.instrumentPhotoDataUrl ?? "").trim(),
+              entry.plan.id,
+            );
+            continue;
           }
 
           for (
