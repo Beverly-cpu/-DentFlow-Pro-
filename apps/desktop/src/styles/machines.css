@@ -108,3 +108,71 @@
   .machines-page { padding: 20px 16px; }
   .machines-page h1 { font-size: 26px; }
 }
+
+.machine-signature-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(22, 48, 34, .42);
+  backdrop-filter: blur(3px);
+}
+
+.machine-signature-dialog {
+  width: min(560px, 100%);
+  padding: 24px;
+  border: 1px solid #cbdacb;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(25, 60, 40, .2);
+}
+
+.machine-signature-title,
+.machine-signature-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.machine-signature-title span {
+  color: #47795e;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .13em;
+}
+
+.machine-signature-title h2 { margin: 4px 0 0; }
+.machines-page .machine-signature-close {
+  min-width: 38px;
+  padding: 4px;
+  border-color: transparent;
+  background: transparent;
+  color: #587063;
+  font-size: 25px;
+}
+
+.machine-signature-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 22px 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: #f3f8f3;
+}
+
+.machine-signature-summary div { display: grid; gap: 4px; }
+.machine-signature-summary small { color: #748579; }
+.machine-signature-summary strong { color: #234d37; }
+.machine-signature-field { display: grid; gap: 8px; font-weight: 700; }
+.machine-signature-field input { min-height: 48px; padding: 10px 12px; border: 1px solid #bcd0bf; border-radius: 9px; font: inherit; }
+.machine-signature-note { margin: 10px 0 22px; color: #718077 !important; font-size: 12px !important; }
+.machine-signature-actions { justify-content: flex-end; }
+.machines-page .machine-signature-cancel { border-color: #cbdacb; background: #fff; color: #365943; }
+
+@media (max-width: 560px) {
+  .machine-signature-summary { grid-template-columns: 1fr; }
+}
