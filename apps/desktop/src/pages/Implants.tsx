@@ -443,6 +443,8 @@ export default function Implants() {
       number | null
     >(null);
 
+  const [isDoctorOrderOpen, setIsDoctorOrderOpen] = useState(false);
+
   const [
     usageDrafts,
     setUsageDrafts,
@@ -1014,6 +1016,7 @@ export default function Implants() {
     setEditingId(
       null,
     );
+    setIsDoctorOrderOpen(false);
 
     const initial =
       emptyForm();
@@ -1048,6 +1051,7 @@ export default function Implants() {
     setEditingId(
       null,
     );
+    setIsDoctorOrderOpen(false);
 
     setForm(
       emptyForm(),
@@ -1294,6 +1298,7 @@ export default function Implants() {
 
   function handleEdit(
     implant: Implant,
+    mode: "edit" | "doctor-order" = "edit",
   ) {
     if (
       !requireCurrentClinic(
@@ -1306,6 +1311,7 @@ export default function Implants() {
     setEditingId(
       implant.id,
     );
+    setIsDoctorOrderOpen(mode === "doctor-order");
 
     setForm({
       orderType: (() => {
@@ -1605,6 +1611,15 @@ export default function Implants() {
           activeClinicId,
           payload,
         );
+
+        if (isDoctorOrderOpen) {
+          await window.dentflow.implants.updateStatus(
+            editingId,
+            activeClinicId,
+            "醫師已叫貨",
+            activeSession.userId,
+          );
+        }
       }
 
       resetForm();
@@ -2529,10 +2544,11 @@ export default function Implants() {
                     "0 0 4px",
                 }}
               >
-                {editingId !==
-                null
-                  ? "編輯植體個案"
-                  : "新增植體個案"}
+                {isDoctorOrderOpen
+                  ? "選擇植體／套件規格並叫貨"
+                  : editingId !== null
+                    ? "編輯植體個案"
+                    : "新增植體個案"}
               </h2>
 
             </div>
@@ -2547,15 +2563,23 @@ export default function Implants() {
             </button>
           </div>
 
+          {isDoctorOrderOpen && editingId !== null && (
+            <div style={{...subPanelStyle, marginBottom: 18}}>
+              <strong>{patientSearch}</strong>
+              <span style={{marginLeft: 16}}>手術日期：{form.implantDate || "未設定"}</span>
+              <div style={{marginTop: 6, color: "#68766d"}}>
+                請選擇型號、規格及需要搬運的器械；送出後將直接完成醫師叫貨。
+              </div>
+            </div>
+          )}
+
           <div
             style={{
-              display:
-                "grid",
-
               gridTemplateColumns:
                 "repeat(auto-fit,minmax(240px,1fr))",
 
               gap: 16,
+              display: isDoctorOrderOpen ? "none" : "grid",
             }}
           >
             <label>
@@ -2809,6 +2833,7 @@ export default function Implants() {
                         style={
                           fieldStyle
                         }
+                        readOnly={isDoctorOrderOpen}
                       />
                     </label>
 
@@ -3144,7 +3169,9 @@ export default function Implants() {
             >
               {isSaving
                 ? "儲存中…"
-                : editingId !==
+                : isDoctorOrderOpen
+                  ? "確認叫貨"
+                  : editingId !==
                     null
                   ? "儲存修改"
                   : "建立個案"}
@@ -3394,8 +3421,8 @@ export default function Implants() {
                     >
                       {canUpdate &&
                         currentClinic &&
-                        ((isDoctor && implant.status === "待醫師叫貨") ||
-                          (!isDoctor && implant.status !== "待醫師叫貨")) &&
+                        !isDoctor &&
+                        implant.status !== "待醫師叫貨" &&
                         ![
                           "待術後紀錄",
                           "待歸回品項",
@@ -3425,7 +3452,7 @@ export default function Implants() {
 
                       {canUpdate &&
                         currentClinic &&
-                        (!isDoctor || implant.status === "待醫師叫貨") &&
+                        !isDoctor &&
                         ![
                           "待術後紀錄",
                           "待歸回品項",
@@ -3446,9 +3473,20 @@ export default function Implants() {
                               )
                             }
                           >
-                            編輯
-                          </button>
-                        )}
+                          編輯
+                        </button>
+                      )}
+
+                      {canUpdate && isDoctor && currentClinic && implant.status === "待醫師叫貨" && (
+                        <button
+                          type="button"
+                          className="primary-button"
+                          disabled={busy}
+                          onClick={() => handleEdit(implant, "doctor-order")}
+                        >
+                          選擇規格並叫貨
+                        </button>
+                      )}
 
                       {canDelete &&
                         currentClinic && (
