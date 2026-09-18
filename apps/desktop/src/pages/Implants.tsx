@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -366,6 +367,87 @@ function getErrorMessage(
    Component
 ========================================================= */
 
+function InstrumentCameraModal({
+  instrumentName,
+  onCapture,
+  onChooseFile,
+  onClose,
+}: {
+  instrumentName: string;
+  onCapture: (photo: string) => void;
+  onChooseFile: (file: File) => void;
+  onClose: () => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError("此裝置無法直接開啟相機，請改用選擇照片。");
+      return;
+    }
+    void navigator.mediaDevices
+      .getUserMedia({video: {facingMode: {ideal: "environment"}}, audio: false})
+      .then((stream) => {
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          void videoRef.current.play();
+        }
+      })
+      .catch(() => setCameraError("無法開啟相機，請允許相機權限或改用選擇照片。"));
+
+    return () => {
+      cancelled = true;
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
+
+  function takePhoto() {
+    const video = videoRef.current;
+    if (!video || video.readyState < 2 || !video.videoWidth) {
+      setCameraError("相機尚未準備完成，請稍後再試。");
+      return;
+    }
+    const maxEdge = 1600;
+    const scale = Math.min(1, maxEdge / Math.max(video.videoWidth, video.videoHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
+    onCapture(canvas.toDataURL("image/jpeg", 0.82));
+  }
+
+  return (
+    <div style={{position: "fixed", inset: 0, zIndex: 1000, background: "rgba(31,50,39,.58)", display: "grid", placeItems: "center", padding: 20}}>
+      <div role="dialog" aria-modal="true" style={{width: "min(720px, 100%)", borderRadius: 18, background: "#fff", padding: 20, boxShadow: "0 24px 70px rgba(24,45,31,.28)"}}>
+        <div style={{display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 14}}>
+          <div><small style={{color: "#47795e", fontWeight: 800}}>INSTRUMENT PHOTO</small><h2 style={{margin: "4px 0 0"}}>拍攝器械：{instrumentName}</h2></div>
+          <button type="button" onClick={onClose}>×</button>
+        </div>
+        <div style={{background: "#102018", borderRadius: 14, overflow: "hidden", aspectRatio: "4 / 3", display: "grid", placeItems: "center"}}>
+          <video ref={videoRef} playsInline muted style={{width: "100%", height: "100%", objectFit: "cover"}} />
+        </div>
+        {cameraError && <div style={{marginTop: 10, color: "#a04444"}}>{cameraError}</div>}
+        <div style={{display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap", marginTop: 16}}>
+          <label style={{cursor: "pointer", padding: "9px 14px", border: "1px solid #bdd0c1", borderRadius: 9}}>
+            選擇既有照片
+            <input type="file" accept="image/*" style={{display: "none"}} onChange={(event) => { const file = event.target.files?.[0]; if (file) onChooseFile(file); }} />
+          </label>
+          <button type="button" onClick={onClose}>取消</button>
+          <button type="button" className="primary-button" onClick={takePhoto}>拍攝並使用</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Implants() {
   const {
     session,
@@ -459,6 +541,12 @@ export default function Implants() {
   const [instrumentPhotoDrafts, setInstrumentPhotoDrafts] = useState<
     Record<number, Record<number, string>>
   >({});
+
+  const [instrumentCamera, setInstrumentCamera] = useState<{
+    implantId: number;
+    planId: number;
+    name: string;
+  } | null>(null);
 
   const [
     keyword,
@@ -3812,20 +3900,13 @@ export default function Implants() {
                                       <div style={{marginTop: 14, paddingTop: 12, borderTop: "1px solid #e5ebe5"}}>
                                         <strong>器械拍照記錄</strong>
                                         <div style={{marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap"}}>
-                                          <label className="primary-button" style={{cursor: "pointer"}}>
-                                            {instrumentPhoto ? "重新拍照" : "拍照／選擇照片"}
-                                            <input
-                                              type="file"
-                                              accept="image/*"
-                                              capture="environment"
-                                              style={{display: "none"}}
-                                              onChange={(event) => {
-                                                const file = event.target.files?.[0];
-                                                if (file) recordInstrumentPhoto(implant.id, plan.id, file);
-                                                event.currentTarget.value = "";
-                                              }}
-                                            />
-                                          </label>
+                                          <button
+                                            type="button"
+                                            className="primary-button"
+                                            onClick={() => setInstrumentCamera({implantId: implant.id, planId: plan.id, name: plan.name})}
+                                          >
+                                            {instrumentPhoto ? "重新開啟相機" : "開啟相機拍照"}
+                                          </button>
                                           {instrumentPhoto && <span style={{color: "#47795e", fontSize: 13}}>照片已準備完成</span>}
                                         </div>
                                       </div>
@@ -4097,6 +4178,26 @@ export default function Implants() {
           )
         )}
       </div>
+      {instrumentCamera && (
+        <InstrumentCameraModal
+          instrumentName={instrumentCamera.name}
+          onClose={() => setInstrumentCamera(null)}
+          onChooseFile={(file) => {
+            recordInstrumentPhoto(instrumentCamera.implantId, instrumentCamera.planId, file);
+            setInstrumentCamera(null);
+          }}
+          onCapture={(photo) => {
+            setInstrumentPhotoDrafts((previous) => ({
+              ...previous,
+              [instrumentCamera.implantId]: {
+                ...(previous[instrumentCamera.implantId] ?? {}),
+                [instrumentCamera.planId]: photo,
+              },
+            }));
+            setInstrumentCamera(null);
+          }}
+        />
+      )}
     </section>
   );
 }
