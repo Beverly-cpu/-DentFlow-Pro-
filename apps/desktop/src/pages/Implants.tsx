@@ -456,6 +456,10 @@ export default function Implants() {
       >
     >({});
 
+  const [instrumentPhotoDrafts, setInstrumentPhotoDrafts] = useState<
+    Record<number, Record<number, string>>
+  >({});
+
   const [
     keyword,
     setKeyword,
@@ -1857,6 +1861,38 @@ export default function Implants() {
     );
   }
 
+  function recordInstrumentPhoto(
+    implantId: number,
+    planId: number,
+    file: File,
+  ) {
+    if (!file.type.startsWith("image/")) {
+      window.alert("請選擇照片檔案。");
+      return;
+    }
+    if (file.size > 5_000_000) {
+      window.alert("照片不可超過 5 MB，請降低解析度後重試。");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const photo = typeof reader.result === "string" ? reader.result : "";
+      if (!photo.startsWith("data:image/")) {
+        window.alert("照片讀取失敗，請重新拍照。");
+        return;
+      }
+      setInstrumentPhotoDrafts((previous) => ({
+        ...previous,
+        [implantId]: {
+          ...(previous[implantId] ?? {}),
+          [planId]: photo,
+        },
+      }));
+    };
+    reader.onerror = () => window.alert("照片讀取失敗，請重新拍照。");
+    reader.readAsDataURL(file);
+  }
+
   function addUsageRow(
     implantId: number,
     planId: number,
@@ -2043,6 +2079,7 @@ export default function Implants() {
     type PostOpPlanUsage = {
       implantPlanItemId: number;
       usages: PostOpUsageSelection[];
+      instrumentPhotoDataUrl?: string;
     };
 
     const inputs:
@@ -2057,6 +2094,17 @@ export default function Implants() {
         const plan of
         tooth.items
       ) {
+        if (plan.category === "器械") {
+          const instrumentPhotoDataUrl =
+            instrumentPhotoDrafts[implant.id]?.[plan.id] ?? plan.instrumentPhotoDataUrl ?? "";
+          if (!instrumentPhotoDataUrl.startsWith("data:image/")) {
+            window.alert(`請先拍攝器械「${plan.name}」照片。`);
+            return;
+          }
+          inputs.push({ implantPlanItemId: plan.id, usages: [], instrumentPhotoDataUrl });
+          continue;
+        }
+
         const rows =
           getUsageRows(
             implant.id,
@@ -2160,7 +2208,7 @@ export default function Implants() {
 
     if (
       !window.confirm(
-        "確定儲存術後實際 REF / LOT？儲存後會扣除真正使用的庫存，並將此個案完成。",
+        "確定儲存術後紀錄？植體／套件將扣除實際使用庫存，器械照片會留存於個案。",
       )
     ) {
       return;
@@ -2197,12 +2245,18 @@ export default function Implants() {
         },
       );
 
+      setInstrumentPhotoDrafts((previous) => {
+        const next = { ...previous };
+        delete next[implant.id];
+        return next;
+      });
+
       await loadAll();
     } catch (error) {
       setErrorMessage(
         getErrorMessage(
           error,
-          "術後 REF / LOT 紀錄儲存失敗。",
+          "術後紀錄儲存失敗。",
         ),
       );
     } finally {
@@ -3590,6 +3644,11 @@ export default function Implants() {
                                   0,
                                 );
 
+                              const instrumentPhoto =
+                                instrumentPhotoDrafts[implant.id]?.[plan.id] ??
+                                plan.instrumentPhotoDataUrl ??
+                                "";
+
                               return (
                                 <div
                                   key={
@@ -3734,11 +3793,50 @@ export default function Implants() {
                                       Post Op Entry
                                   ======================= */}
 
+                                  {plan.category === "器械" && instrumentPhoto && (
+                                    <div style={{marginTop: 12}}>
+                                      <strong style={{display: "block", marginBottom: 8}}>器械照片紀錄</strong>
+                                      <img
+                                        src={instrumentPhoto}
+                                        alt={`${plan.name} 器械照片`}
+                                        style={{display: "block", width: "100%", maxWidth: 420, maxHeight: 280, objectFit: "contain", borderRadius: 10, border: "1px solid #dce7dc"}}
+                                      />
+                                    </div>
+                                  )}
+
+                                  {canUpdate &&
+                                    !isDoctor &&
+                                    currentClinic &&
+                                    implant.status === "待術後紀錄" &&
+                                    plan.category === "器械" && (
+                                      <div style={{marginTop: 14, paddingTop: 12, borderTop: "1px solid #e5ebe5"}}>
+                                        <strong>器械拍照記錄</strong>
+                                        <div style={{marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap"}}>
+                                          <label className="primary-button" style={{cursor: "pointer"}}>
+                                            {instrumentPhoto ? "重新拍照" : "拍照／選擇照片"}
+                                            <input
+                                              type="file"
+                                              accept="image/*"
+                                              capture="environment"
+                                              style={{display: "none"}}
+                                              onChange={(event) => {
+                                                const file = event.target.files?.[0];
+                                                if (file) recordInstrumentPhoto(implant.id, plan.id, file);
+                                                event.currentTarget.value = "";
+                                              }}
+                                            />
+                                          </label>
+                                          {instrumentPhoto && <span style={{color: "#47795e", fontSize: 13}}>照片已準備完成</span>}
+                                        </div>
+                                      </div>
+                                    )}
+
                                   {canUpdate &&
                                     !isDoctor &&
                                     currentClinic &&
                                     implant.status ===
-                                      "待術後紀錄" && (
+                                      "待術後紀錄" &&
+                                    plan.category !== "器械" && (
                                       <div
                                         style={{
                                           marginTop: 14,
@@ -3961,7 +4059,7 @@ export default function Implants() {
                         >
                           {busy
                             ? "儲存中…"
-                            : "儲存術後 REF / LOT 並完成個案"}
+                            : "儲存術後紀錄並完成個案"}
                         </button>
                       </div>
                     )}
