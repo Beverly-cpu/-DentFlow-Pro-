@@ -181,3 +181,28 @@
 @media (max-width: 560px) {
   .machine-signature-summary { grid-template-columns: 1fr; }
 }
+
+.machine-location-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.machine-location-overview > div { display: grid; gap: 4px; padding: 14px 16px; border: 1px solid #cfe0d0; border-radius: 12px; background: #edf5ed; }
+.machine-location-overview span,.machine-location-overview small { color: #66796d; font-size: 12px; }
+.machine-location-overview strong,.machine-location-label { color: #2f6848; font-weight: 750; }
+.machine-edit-fields { display: grid; gap: 14px; margin: 22px 0 16px; }
+.machine-edit-fields label { display: grid; gap: 7px; font-weight: 700; }
+.machine-edit-fields input,.machine-edit-fields select { min-height: 46px; padding: 10px 12px; border: 1px solid #bfd1c1; border-radius: 9px; background: #fff; font: inherit; }
+.machine-current-location { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin-bottom: 22px; padding: 13px 15px; border-radius: 10px; background: #f1f7f1; }
+.machine-current-location small { grid-column: 1 / -1; color: #728278; }
+.machine-current-location strong { color: #28583d; }
+.machine-current-location span { color: #47795e; font-size: 12px; }
+.machine-schedule-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.machine-schedule-heading span { color: #718077; font-size: 13px; }
+.machine-schedule-list { display: grid; margin-top: 14px; }
+.machine-schedule-list > div { display: grid; grid-template-columns: minmax(120px,.8fr) minmax(120px,.8fr) minmax(300px,2fr) auto; gap: 14px; align-items: center; padding: 13px 8px; border-top: 1px solid #e5ede5; }
+.machine-schedule-list span,.machine-schedule-list time { color: #586d5f; font-size: 13px; }
+.machine-schedule-list em { padding: 4px 9px; border-radius: 999px; background: #edf5ed; color: #47795e; font-size: 12px; font-style: normal; }
+.machine-schedule-empty { padding: 28px; text-align: center; color: #849188; }
+@media (max-width: 820px) { .machine-schedule-list > div { grid-template-columns: 1fr 1fr; } }
