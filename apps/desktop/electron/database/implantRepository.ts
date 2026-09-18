@@ -2054,6 +2054,8 @@ export function confirmImplantWithdrawal(
 
           pickedAt = CURRENT_TIMESTAMP,
 
+          pickedByUserId = ?,
+
           updatedAt =
             CURRENT_TIMESTAMP
 
