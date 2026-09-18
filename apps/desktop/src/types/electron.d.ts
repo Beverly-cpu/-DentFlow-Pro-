@@ -504,6 +504,8 @@ type DentflowImplantPlanItemRecord = {
 
   specification: string;
 
+  instrumentPhotoDataUrl: string;
+
   plannedQuantity: number;
 
   createdAt: string;
@@ -621,9 +623,12 @@ type DentflowImplantInput = {
 type DentflowImplantUsageInput = {
   implantPlanItemId: number;
 
-  inventoryItemId: number;
+  usages: Array<{
+    inventoryItemId: number;
+    quantity: number;
+  }>;
 
-  quantity: number;
+  instrumentPhotoDataUrl?: string;
 };
 
 /* =========================================================
