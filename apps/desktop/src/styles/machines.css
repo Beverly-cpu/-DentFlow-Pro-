@@ -1,0 +1,110 @@
+.machines-page {
+  padding: 28px;
+  color: #173f2f;
+  font-family: inherit;
+}
+
+.machines-header {
+  margin: 0 0 22px;
+}
+
+.machines-header span {
+  display: block;
+  margin-bottom: 7px;
+  color: #47795e;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+
+.machines-page h1 {
+  margin: 0;
+  color: #143e2e;
+  font-size: 30px;
+  font-weight: 750;
+  letter-spacing: .02em;
+}
+
+.machines-page h2 {
+  color: #1f5039;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.machines-page p,
+.machines-page td,
+.machines-page label {
+  color: #52675a;
+  font-size: 14px;
+}
+
+.machines-page input,
+.machines-page select,
+.machines-page button {
+  font-family: inherit;
+}
+
+.machines-page input:focus,
+.machines-page select:focus {
+  border-color: #6f9d7b !important;
+  outline: 3px solid rgba(111, 157, 123, .13);
+}
+
+.machines-page button {
+  min-height: 38px;
+  padding: 8px 14px;
+  border: 1px solid #47795e;
+  border-radius: 9px;
+  background: #47795e;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, transform .15s ease;
+}
+
+.machines-page button:hover:not(:disabled) {
+  border-color: #38674e;
+  background: #38674e;
+  transform: translateY(-1px);
+}
+
+.machines-page button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.machines-page table {
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+.machines-page thead {
+  background: #f3f8f3;
+}
+
+.machines-page th {
+  color: #385b47;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.machines-page td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #edf2ed;
+}
+
+.machines-page tbody tr:hover {
+  background: #f8fbf8;
+}
+
+.machines-page img {
+  border: 1px solid #e1e9e1;
+  border-radius: 8px;
+  background: #fff;
+}
+
+@media (max-width: 760px) {
+  .machines-page { padding: 20px 16px; }
+  .machines-page h1 { font-size: 26px; }
+}
