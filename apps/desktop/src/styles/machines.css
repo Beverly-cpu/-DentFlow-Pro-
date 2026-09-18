@@ -168,10 +168,12 @@
 .machine-signature-summary small { color: #748579; }
 .machine-signature-summary strong { color: #234d37; }
 .machine-signature-field { display: grid; gap: 8px; font-weight: 700; }
-.machine-signature-canvas-wrap { position: relative; overflow: hidden; border: 1px solid #afc8b5; border-radius: 10px; background: repeating-linear-gradient(#fff 0,#fff 43px,#edf4ee 44px); }
-.machine-signature-canvas-wrap canvas { display: block; width: 100%; height: 180px; border: 0; border-radius: 0; background: transparent; touch-action: none; cursor: crosshair; }
+.machine-signature-canvas-wrap { position: relative; overflow: hidden; height: 260px; border: 2px solid #b9ccc0; border-radius: 12px; background: #fff; }
+.machine-signature-canvas-wrap canvas { position:absolute; inset:0; display:block; width:100%; height:100%; border:0; border-radius:0; background:transparent; touch-action:none; cursor:crosshair; }
 .machine-signature-canvas-wrap span { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; color: #a1afa5; font-size: 14px; font-weight: 400; transition: opacity .15s; }
 .machine-signature-canvas-wrap span.has-ink { opacity: 0; }
+.machine-signature-canvas-wrap .machine-signature-line { position:absolute; left:8%; right:8%; bottom:42px; border-bottom:1px solid #b8c3bd; pointer-events:none; }
+.machine-signature-canvas-wrap .machine-signature-line span { position:static; display:inline-block; padding:0 8px 4px 0; color:#263d31; font-size:13px; font-weight:600; background:#fff; }
 .machines-page .machine-signature-clear { min-height: 32px; margin-top: 8px; padding: 5px 10px; border-color: #cbdacb; background: #fff; color: #47705a; }
 .machine-signature-preview { width: 92px; height: 38px; object-fit: contain; border: 0 !important; border-radius: 0 !important; }
 .machine-signature-note { margin: 10px 0 22px; color: #718077 !important; font-size: 12px !important; }
