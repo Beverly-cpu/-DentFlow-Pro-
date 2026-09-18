@@ -1098,6 +1098,7 @@ export function initializeDatabase():
       returnedQuantity INTEGER NOT NULL DEFAULT 0,
       reservedAt TEXT,
       pickedAt TEXT,
+      pickedByUserId INTEGER REFERENCES users(id),
       returnedAt TEXT,
       createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1113,6 +1114,17 @@ export function initializeDatabase():
     CREATE INDEX IF NOT EXISTS idx_implantReservations_implantId
       ON implantReservations(implantId);
   `);
+
+  ensureColumn(
+    db,
+    "implantReservations",
+    "pickedByUserId",
+    `
+      ALTER TABLE implantReservations
+      ADD COLUMN pickedByUserId INTEGER
+      REFERENCES users(id);
+    `,
+  );
 
   ensureColumn(
     db,

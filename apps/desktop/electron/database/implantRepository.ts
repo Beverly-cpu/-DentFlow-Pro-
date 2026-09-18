@@ -2039,7 +2039,7 @@ export function confirmImplantWithdrawal(
           pickedByUserId = ?,
           updatedAt = CURRENT_TIMESTAMP
       WHERE implantId = ?
-    `).run(implantId);
+    `).run(actorUserId, implantId);
 
     const result = database.prepare(`
         UPDATE implants
