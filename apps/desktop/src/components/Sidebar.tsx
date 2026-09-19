@@ -26,6 +26,8 @@ type SidebarItem = {
   path: string;
   icon: string;
   module: DentflowModule;
+
+  roles?: DentflowUserRole[];
 };
 
 /* =========================================================
@@ -88,6 +90,14 @@ const sidebarItems:
 
       module:
         "implants",
+    },
+
+    {
+      label: "植體與套件使用紀錄",
+      path: "/implant-usage-records",
+      icon: "▤",
+      module: "implants",
+      roles: ["Assistant", "Admin"],
     },
 
     {
@@ -293,7 +303,8 @@ export default function Sidebar({
         canAccessModule(
           session.role,
           item.module,
-        ),
+        ) &&
+        (!item.roles || item.roles.includes(session.role)),
     );
 
   return (
