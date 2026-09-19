@@ -71,6 +71,8 @@ type ImplantReportRow = {
 
   itemName: string;
 
+  category: string;
+
   brand: string;
   model: string;
   specification: string;
@@ -895,6 +897,9 @@ export default function Reports() {
 
                         itemName:
                           planItem.name,
+
+                        category:
+                          planItem.category,
 
                         brand:
                           usage.inventoryBrand,
@@ -1978,6 +1983,7 @@ function ImplantReportTable({
     ImplantReportRow[];
   showClinic: boolean;
 }) {
+  const totalCost = rows.reduce((sum, row) => sum + Number(row.totalCost || 0), 0);
   if (
     rows.length ===
     0
@@ -2032,6 +2038,10 @@ function ImplantReportTable({
 
               <th style={styles.th}>
                 品項
+              </th>
+
+              <th style={styles.th}>
+                分類
               </th>
 
               <th style={styles.th}>
@@ -2121,6 +2131,10 @@ function ImplantReportTable({
                   </td>
 
                   <td style={styles.td}>
+                    {row.category === "植體套件" ? "套件" : row.category}
+                  </td>
+
+                  <td style={styles.td}>
                     {[
                       row.brand,
                       row.model,
@@ -2183,6 +2197,9 @@ function ImplantReportTable({
             )}
           </tbody>
         </table>
+      </div>
+      <div style={{display:"flex",justifyContent:"flex-end",padding:"14px 16px",borderTop:"1px solid #e2e9e3",background:"#f7faf7"}}>
+        <strong>植體／套件使用成本合計：{formatMoney(totalCost)}</strong>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -16,6 +17,8 @@ import {
 import type {
   DentflowMainLayoutContext,
 } from "../layouts/MainLayout";
+
+import "../styles/machines.css";
 
 /* =========================================================
    Types
@@ -448,6 +451,98 @@ function InstrumentCameraModal({
   );
 }
 
+function ImplantHandwrittenSignature({onChange}: {onChange: (value: string) => void}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawingRef = useRef(false);
+  const pointerRef = useRef<number | null>(null);
+  const lastPointRef = useRef<{x: number; y: number} | null>(null);
+  const hasInkRef = useRef(false);
+  const [hasInk, setHasInk] = useState(false);
+
+  const prepareCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    canvas.width = Math.round(rect.width * ratio);
+    canvas.height = Math.round(rect.height * ratio);
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.strokeStyle = "#18251f";
+    context.fillStyle = "#18251f";
+    context.lineWidth = 2.2;
+    drawingRef.current = false;
+    pointerRef.current = null;
+    lastPointRef.current = null;
+    hasInkRef.current = false;
+    setHasInk(false);
+    onChange("");
+  }, [onChange]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(prepareCanvas);
+    return () => window.cancelAnimationFrame(frame);
+  }, [prepareCanvas]);
+
+  function point(event: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    return {x: event.clientX - rect.left, y: event.clientY - rect.top};
+  }
+  function start(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    const canvas = canvasRef.current;
+    const current = point(event);
+    if (!canvas || !current) return;
+    event.preventDefault();
+    try { canvas.setPointerCapture(event.pointerId); } catch { /* ignore */ }
+    drawingRef.current = true;
+    pointerRef.current = event.pointerId;
+    lastPointRef.current = current;
+    const context = canvas.getContext("2d");
+    if (context) { context.beginPath(); context.arc(current.x, current.y, 1.1, 0, Math.PI * 2); context.fill(); }
+    hasInkRef.current = true;
+    setHasInk(true);
+  }
+  function move(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (!drawingRef.current || pointerRef.current !== event.pointerId) return;
+    const canvas = canvasRef.current;
+    const current = point(event);
+    const previous = lastPointRef.current;
+    if (!canvas || !current || !previous) return;
+    event.preventDefault();
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    context.beginPath(); context.moveTo(previous.x, previous.y); context.lineTo(current.x, current.y); context.stroke();
+    lastPointRef.current = current;
+    hasInkRef.current = true;
+    setHasInk(true);
+  }
+  function finish(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (pointerRef.current !== event.pointerId) return;
+    const canvas = canvasRef.current;
+    drawingRef.current = false;
+    pointerRef.current = null;
+    lastPointRef.current = null;
+    if (canvas?.hasPointerCapture(event.pointerId)) { try { canvas.releasePointerCapture(event.pointerId); } catch { /* ignore */ } }
+    if (canvas && hasInkRef.current) onChange(canvas.toDataURL("image/png"));
+  }
+  return <div><div className="machine-signature-canvas-wrap healing-signature-style"><canvas ref={canvasRef} onPointerDown={start} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} aria-label="植體醫師手寫簽名區"/>{!hasInk&&<span>請在此簽名</span>}<div className="machine-signature-line"><span>醫師簽名</span></div></div><button type="button" className="machine-signature-clear" onClick={prepareCanvas} disabled={!hasInk}>清除重簽</button></div>;
+}
+
+function ImplantSignatureModal({implant, doctorName, saving, onClose, onSave}: {implant: Implant; doctorName: string; saving: boolean; onClose: () => void; onSave: (signature: string) => Promise<void>}) {
+  const [signature, setSignature] = useState("");
+  return <div className="machine-signature-backdrop"><div className="machine-signature-dialog" role="dialog" aria-modal="true"><div className="machine-signature-title"><div><span>DOCTOR SIGNATURE</span><h2>植體／套件使用簽名確認</h2></div><button type="button" className="machine-signature-close" onClick={onClose}>×</button></div><div className="machine-signature-summary"><div><span>病患</span><strong>{implant.patientName}</strong></div><div><span>手術日期</span><strong>{implant.implantDate}</strong></div><div><span>醫師</span><strong>{doctorName}</strong></div><div><span>院所</span><strong>{implant.clinicName}</strong></div></div><p>請確認實際使用的植體與套件內容正確，再於下方手寫簽名。簽名完成後管理端才可正式結案。</p><ImplantHandwrittenSignature onChange={setSignature}/><div className="machine-signature-actions"><button type="button" className="machine-signature-cancel" onClick={onClose} disabled={saving}>取消</button><button type="button" disabled={saving||!signature.startsWith("data:image/png;base64,")||signature.length<200} onClick={()=>void onSave(signature)}>{saving?"儲存中…":"確認簽名"}</button></div></div></div>;
+}
+
 export default function Implants() {
   const {
     session,
@@ -547,6 +642,8 @@ export default function Implants() {
     planId: number;
     name: string;
   } | null>(null);
+
+  const [signingImplant, setSigningImplant] = useState<Implant | null>(null);
 
   const [
     keyword,
@@ -1910,12 +2007,11 @@ export default function Implants() {
       window.alert("只有此個案指定的醫師可以簽名。");
       return;
     }
-    const signature = window.prompt(
-      "請輸入您的姓名作為電子簽名，確認下方實際使用植體資料正確：",
-      doctorProfile.name,
-    )?.trim();
-    if (!signature) return;
-    if (!window.confirm(`確認以「${signature}」簽署此植體使用紀錄？簽署後不可修改。`)) return;
+    setSigningImplant(implant);
+  }
+
+  async function saveDoctorSignature(implant: Implant, signature: string) {
+    if (!doctorProfile || implant.doctorId !== doctorProfile.id) return;
     try {
       setActiveId(implant.id);
       await window.dentflow.implants.signUsage(
@@ -1925,6 +2021,7 @@ export default function Implants() {
         signature,
         session.userId,
       );
+      setSigningImplant(null);
       await loadAll();
     } catch (error) {
       setErrorMessage(getErrorMessage(error, "植體使用簽名失敗。"));
@@ -3530,7 +3627,8 @@ export default function Implants() {
 
                       {implant.doctorSignedAt && (
                         <div style={{marginTop: 8, color: "#347047", fontWeight: 700}}>
-                          醫師已簽名確認實際使用植體：{implant.doctorSignature}｜{formatTimestamp(implant.doctorSignedAt)}
+                          <div>醫師已手寫簽名確認實際使用植體／套件｜{formatTimestamp(implant.doctorSignedAt)}</div>
+                          {implant.doctorSignature.startsWith("data:image/") && <img src={implant.doctorSignature} alt="醫師植體使用簽名" style={{display:"block",marginTop:8,maxWidth:220,maxHeight:90,objectFit:"contain",border:"1px solid #dbe6dc",borderRadius:8,background:"#fff"}}/>}
                         </div>
                       )}
 
@@ -3651,8 +3749,8 @@ export default function Implants() {
 
                       {canUpdate && currentClinic && implant.status === "已完成" && (
                         !isDoctor &&
-                        <button type="button" disabled={busy} onClick={() => void handleCloseCase(implant)}>
-                          正式結案
+                        <button type="button" disabled={busy || !implant.doctorSignedAt} title={!implant.doctorSignedAt?"等待指定醫師完成手寫簽名":""} onClick={() => void handleCloseCase(implant)}>
+                          {implant.doctorSignedAt?"正式結案":"等待醫師簽名"}
                         </button>
                       )}
 
@@ -4197,6 +4295,15 @@ export default function Implants() {
             }));
             setInstrumentCamera(null);
           }}
+        />
+      )}
+      {signingImplant && doctorProfile && (
+        <ImplantSignatureModal
+          implant={signingImplant}
+          doctorName={doctorProfile.name}
+          saving={activeId===signingImplant.id}
+          onClose={()=>setSigningImplant(null)}
+          onSave={(signature)=>saveDoctorSignature(signingImplant,signature)}
         />
       )}
     </section>

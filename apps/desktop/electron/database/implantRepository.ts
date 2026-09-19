@@ -3643,8 +3643,10 @@ export function signImplantUsage(
   ensureWorkflowActor(actorUserId, clinicId);
   validatePositiveInteger(doctorId, "醫師 ID");
   const normalizedSignature = String(signature ?? "").trim();
-  if (!normalizedSignature) throw new Error("請輸入醫師簽名");
-  if (normalizedSignature.length > 100) throw new Error("醫師簽名不可超過 100 個字元");
+  if (!normalizedSignature.startsWith("data:image/png;base64,") || normalizedSignature.length < 200) {
+    throw new Error("請先完成醫師手寫簽名");
+  }
+  if (normalizedSignature.length > 2_000_000) throw new Error("醫師簽名圖片過大，請清除後重新簽名");
 
   const current = getImplantById(implantId, clinicId);
   if (current.status !== "已完成") throw new Error("只有已完成術後紀錄的個案可以簽名");
