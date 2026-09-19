@@ -35,6 +35,7 @@ import Purchase from "./pages/Purchase";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Machines from "./pages/Machines";
+import ImplantUsageRecords from "./pages/ImplantUsageRecords";
 
 /* =========================================================
    Constants
@@ -189,6 +190,20 @@ function ModuleAccess({
       {children}
     </>
   );
+}
+
+function ImplantUsageAccess({
+  session,
+  children,
+}: {
+  session: DentflowAuthSession;
+  children: ReactNode;
+}) {
+  if (session.role !== "Assistant" && session.role !== "Admin") {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
 }
 
 /* =========================================================
@@ -604,6 +619,15 @@ export default function App() {
             >
               <Implants />
             </ModuleAccess>
+          }
+        />
+
+        <Route
+          path="implant-usage-records"
+          element={
+            <ImplantUsageAccess session={session}>
+              <ImplantUsageRecords />
+            </ImplantUsageAccess>
           }
         />
 
