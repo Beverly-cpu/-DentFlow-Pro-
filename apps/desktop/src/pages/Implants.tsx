@@ -160,6 +160,10 @@ function formatTimestamp(value: string | null) {
   return value ? new Date(value).toLocaleString("zh-TW") : "—";
 }
 
+function formatCost(value: number | undefined) {
+  return new Intl.NumberFormat("zh-TW", {style:"currency",currency:"TWD",maximumFractionDigits:2}).format(Number(value ?? 0));
+}
+
 function emptyPlanItem(category: "植體" | "植體套件" = "植體"):
   PlanItemForm {
   return {
@@ -3988,6 +3992,12 @@ export default function Implants() {
                                                 ? `｜效期 ${usage.inventoryExpiryDate}`
                                                 : ""}
                                             </div>
+
+                                            {(session.role === "Doctor" || session.role === "Admin") && (
+                                              <div>
+                                                成本：{formatCost(usage.unitCost)} × {usage.quantity} ＝ <strong>{formatCost(usage.totalCost)}</strong>
+                                              </div>
+                                            )}
                                           </div>
                                         ),
                                       )}
