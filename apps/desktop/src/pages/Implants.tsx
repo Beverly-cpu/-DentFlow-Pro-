@@ -1696,6 +1696,7 @@ export default function Implants() {
         await window.dentflow.implants.create(
           activeClinicId,
           payload,
+          activeSession.userId,
         );
       } else {
         await window.dentflow.implants.update(
@@ -3524,7 +3525,7 @@ export default function Implants() {
                       )}
 
                       <div style={{marginTop: 10, color: "#728078", fontSize: 12, lineHeight: 1.8}}>
-                        叫貨：{formatTimestamp(implant.orderedAt)}（#{implant.orderedByUserId ?? "—"}） ｜ 取出：{formatTimestamp(implant.pickedAt)}（#{implant.pickedByUserId ?? "—"}） ｜ 手術完成：{formatTimestamp(implant.surgeryCompletedAt)}（#{implant.surgeryCompletedByUserId ?? "—"}） ｜ 歸回：{formatTimestamp(implant.returnedAt)}（#{implant.returnedByUserId ?? "—"}） ｜ 結案：{formatTimestamp(implant.closedAt)}（#{implant.closedByUserId ?? "—"}）
+                        助理紀錄者：{implant.createdByName ?? "—"} ｜ 叫貨：{formatTimestamp(implant.orderedAt)}（#{implant.orderedByUserId ?? "—"}） ｜ 取出：{formatTimestamp(implant.pickedAt)}（#{implant.pickedByUserId ?? "—"}） ｜ 術後／器械照片紀錄者：{implant.surgeryCompletedByName ?? "—"} ｜ 手術完成：{formatTimestamp(implant.surgeryCompletedAt)} ｜ 歸回：{formatTimestamp(implant.returnedAt)}（#{implant.returnedByUserId ?? "—"}） ｜ 結案：{formatTimestamp(implant.closedAt)}（#{implant.closedByUserId ?? "—"}）
                       </div>
 
                       {implant.doctorSignedAt && (
