@@ -6,6 +6,26 @@ export type ReservationInput = {
   machineId: number; clinicId: number; scheduledStartAt: string; scheduledEndAt: string;
   moverUserId: number; note: string; force?: boolean; overrideReason?: string;
 };
+
+function validateReservationWindow(input: ReservationInput, excludeId?: number) {
+  if (!input.scheduledStartAt || !input.scheduledEndAt || new Date(input.scheduledStartAt) >= new Date(input.scheduledEndAt)) {
+    throw new Error("預約開始與結束時間不正確");
+  }
+  const machine = getDatabase().prepare(`SELECT * FROM machines WHERE id=?`).get(input.machineId) as {isActive:number;status:string}|undefined;
+  if (!machine || !machine.isActive || machine.status === "維修中" || machine.status === "停用") {
+    throw new Error("機台目前停用或維修中");
+  }
+  const mover = getDatabase().prepare(`
+    SELECT id FROM users WHERE id = ? AND isActive = 1 AND role IN ('Admin','Assistant')
+  `).get(input.moverUserId);
+  if (!mover) throw new Error("請指定有效的搬運負責人");
+  const start = new Date(input.scheduledStartAt).getTime() - 60 * 60 * 1000;
+  const end = new Date(input.scheduledEndAt).getTime() + 60 * 60 * 1000;
+  return getDatabase().prepare(`SELECT id FROM machineReservations
+    WHERE machineId=? AND status<>'已取消' AND id<>?
+      AND datetime(scheduledStartAt) < datetime(?) AND datetime(scheduledEndAt) > datetime(?)
+    LIMIT 1`).get(input.machineId, excludeId ?? 0, new Date(end).toISOString(), new Date(start).toISOString());
+}
 export type MachineUsageInput = {
   machineId: number; clinicId: number; patientId: number; usageDate: string;
   toothPositions: string[]; doctorId: number;
@@ -82,6 +102,19 @@ export function listMachineReservations() {
     LEFT JOIN users creator ON creator.id=r.createdByUserId
     WHERE r.status <> '已取消' ORDER BY r.scheduledStartAt`).all();
 }
+export function listMachineMovers(actorUserId:number) {
+  actor(actorUserId,["Admin","Assistant"]);
+  return getDatabase().prepare(`SELECT DISTINCT u.id,u.name,u.role
+    FROM users u JOIN userClinics uc ON uc.userId=u.id
+    WHERE u.isActive=1 AND u.role IN ('Admin','Assistant') ORDER BY u.name`).all();
+}
+export function listMachineScans(actorUserId:number) {
+  actor(actorUserId,["Admin","Assistant"]);
+  return getDatabase().prepare(`SELECT s.id,s.machineId,s.reservationId,s.clinicId,s.actorUserId,s.action,s.scannedAt,
+    m.name machineName,c.name clinicName,u.name actorName
+    FROM machineScans s JOIN machines m ON m.id=s.machineId JOIN clinics c ON c.id=s.clinicId
+    JOIN users u ON u.id=s.actorUserId ORDER BY datetime(s.scannedAt) DESC,s.id DESC LIMIT 200`).all();
+}
 export function createMachine(input: MachineInput, actorUserId: number) {
   actor(actorUserId,["Admin"]);
   if (!input.name.trim() || !input.type.trim()) throw new Error("請輸入機台名稱與類型");
@@ -106,16 +139,34 @@ export function updateMachine(id:number,input:{name:string;type:string;serialNum
 }
 export function createMachineReservation(input:ReservationInput,actorUserId:number){
   const currentActor=actor(actorUserId,["Admin","Assistant"]);
-  if(!input.scheduledStartAt||!input.scheduledEndAt||new Date(input.scheduledStartAt)>=new Date(input.scheduledEndAt)) throw new Error("預約開始與結束時間不正確");
-  const machine=getDatabase().prepare(`SELECT * FROM machines WHERE id=?`).get(input.machineId) as {isActive:number;status:string}|undefined;
-  if(!machine||!machine.isActive||machine.status==="維修中"||machine.status==="停用") throw new Error("機台目前停用或維修中");
-  const start=new Date(input.scheduledStartAt).getTime()-60*60*1000,end=new Date(input.scheduledEndAt).getTime()+60*60*1000;
-  const conflict=getDatabase().prepare(`SELECT id FROM machineReservations WHERE machineId=? AND status<>'已取消'
-    AND datetime(scheduledStartAt) < datetime(?) AND datetime(scheduledEndAt) > datetime(?) LIMIT 1`).get(input.machineId,new Date(end).toISOString(),new Date(start).toISOString());
+  const conflict=validateReservationWindow(input);
   if(conflict && !(input.force&&currentActor.role==="Admin"&&input.overrideReason?.trim())) throw new Error("此時段與既有預約或搬運緩衝時間衝突");
   const result=getDatabase().prepare(`INSERT INTO machineReservations(machineId,clinicId,scheduledStartAt,scheduledEndAt,moverUserId,note,overrideReason,createdByUserId)
     VALUES(?,?,?,?,?,?,?,?)`).run(input.machineId,input.clinicId,input.scheduledStartAt,input.scheduledEndAt,input.moverUserId,input.note.trim(),input.overrideReason?.trim()??"",actorUserId);
   return {id:Number(result.lastInsertRowid)};
+}
+export function updateMachineReservation(id:number,input:ReservationInput,actorUserId:number){
+  const currentActor=actor(actorUserId,["Admin"]);
+  const current=getDatabase().prepare(`SELECT status FROM machineReservations WHERE id=?`).get(id) as {status:string}|undefined;
+  if(!current) throw new Error("找不到機台預約");
+  if(current.status!=="已預約") throw new Error("只有尚未搬出的預約可以修改");
+  const conflict=validateReservationWindow(input,id);
+  if(conflict && !(input.force&&currentActor.role==="Admin"&&input.overrideReason?.trim())) throw new Error("此時段與既有預約或搬運緩衝時間衝突");
+  const result=getDatabase().prepare(`UPDATE machineReservations SET machineId=?,clinicId=?,scheduledStartAt=?,scheduledEndAt=?,
+    moverUserId=?,note=?,overrideReason=?,updatedAt=CURRENT_TIMESTAMP WHERE id=? AND status='已預約'`).run(
+      input.machineId,input.clinicId,input.scheduledStartAt,input.scheduledEndAt,input.moverUserId,
+      input.note.trim(),input.overrideReason?.trim()??"",id);
+  if(result.changes!==1) throw new Error("機台預約修改失敗");
+  return {id};
+}
+export function cancelMachineReservation(id:number,reason:string,actorUserId:number){
+  actor(actorUserId,["Admin"]);
+  const normalized=String(reason??"").trim();
+  if(!normalized) throw new Error("請輸入取消原因");
+  const result=getDatabase().prepare(`UPDATE machineReservations SET status='已取消',note=CASE WHEN note='' THEN ? ELSE note||'｜取消：'||? END,
+    overrideReason=?,updatedAt=CURRENT_TIMESTAMP WHERE id=? AND status='已預約'`).run(`取消：${normalized}`,normalized,normalized,id);
+  if(result.changes!==1) throw new Error("只有尚未搬出的預約可以取消");
+  return true;
 }
 export function scanMachine(qrToken:string,reservationId:number,clinicId:number,action:"搬出"|"到院",actorUserId:number){
   actor(actorUserId,["Admin","Assistant"]); const db=getDatabase();
