@@ -101,9 +101,9 @@ import {
 } from "./database/purchaseRequestRepository";
 
 import {
-  createMachine, createMachineReservation, createMachineUsage, ensureMachineSchema,
+  cancelMachineUsage, createMachine, createMachineReservation, createMachineUsage, ensureMachineSchema,
   getMachineUsageCredits, listMachineReservations, listMachineUsageRecords, listMachines,
-  listMachineMovers, listMachineScans, updateMachineReservation, cancelMachineReservation,
+  listMachineMovers, listMachineScans, listMachineUsageCreditPurchases, updateMachineReservation, cancelMachineReservation,
   purchaseMachineUsageCredits, scanMachine, setMachineActive, signMachineUsage,
   updateMachine, updateMachineUsageCost,
 } from "./database/machineRepository";
@@ -1702,9 +1702,11 @@ function registerIpcHandlers() {
   ipcMain.handle("machines:scan", (_event, token:string,reservationId:number,clinicId:number,action:"搬出"|"到院",actorUserId:number) => scanMachine(token,reservationId,clinicId,action,actorUserId));
   ipcMain.handle("machines:usage-credits", (_event,machineId:number,actorUserId:number) => getMachineUsageCredits(machineId,actorUserId));
   ipcMain.handle("machines:purchase-credits", (_event,machineId:number,quantity:number,actorUserId:number) => purchaseMachineUsageCredits(machineId,quantity,actorUserId));
+  ipcMain.handle("machines:credit-purchases", (_event,machineId:number,actorUserId:number) => listMachineUsageCreditPurchases(machineId,actorUserId));
   ipcMain.handle("machines:update-usage-cost", (_event,machineId:number,unitCost:number,actorUserId:number) => updateMachineUsageCost(machineId,unitCost,actorUserId));
   ipcMain.handle("machines:usage-records", (_event,actorUserId:number) => listMachineUsageRecords(actorUserId));
   ipcMain.handle("machines:create-usage", (_event,input,actorUserId:number) => createMachineUsage(input,actorUserId));
+  ipcMain.handle("machines:cancel-usage", (_event,id:number,reason:string,actorUserId:number) => cancelMachineUsage(id,reason,actorUserId));
   ipcMain.handle("machines:sign-usage", (_event,id:number,signature:string,actorUserId:number) => signMachineUsage(id,signature,actorUserId));
   ipcMain.handle("system:backup-database", async () => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
