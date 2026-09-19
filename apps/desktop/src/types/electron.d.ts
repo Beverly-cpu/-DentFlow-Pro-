@@ -579,6 +579,20 @@ type DentflowImplantRecord = {
     pickedAt: string | null;
     returnedAt: string | null;
   }>;
+  returnAudits: Array<{
+    id: number;
+    implantPlanItemId: number;
+    itemName: string;
+    category: string;
+    brand: string;
+    model: string;
+    specification: string;
+    pickedQuantity: number;
+    returnedQuantity: number;
+    actorName: string;
+    reason: string;
+    returnedAt: string;
+  }>;
 
   inventoryDeducted: number;
 
@@ -1106,18 +1120,21 @@ type DentflowApi = {
   implants: {
     list: (
       clinicId: number,
+      actorUserId: number,
     ) =>
       Promise<DentflowImplantRecord[]>;
 
     byPatient: (
       patientId: number,
       clinicId: number,
+      actorUserId: number,
     ) =>
       Promise<DentflowImplantRecord[]>;
 
     byDoctor: (
       doctorId: number,
       clinicId: number,
+      actorUserId: number,
     ) =>
       Promise<DentflowImplantRecord[]>;
 
@@ -1219,6 +1236,7 @@ type DentflowApi = {
 
     list: (
       clinicId: number,
+      actorUserId: number,
     ) =>
       Promise<DentflowInventoryRecord[]>;
 
@@ -1355,6 +1373,7 @@ type DentflowApi = {
     list: (
       clinicId: number,
       usageType?: DentflowConsumableUsageType,
+      actorUserId?: number,
     ) =>
       Promise<
         DentflowConsumableUsageRecord[]
@@ -1400,6 +1419,7 @@ type DentflowApi = {
       doctorId: number,
       clinicId: number,
       usageType?: DentflowConsumableUsageType,
+      actorUserId?: number,
     ) =>
       Promise<
         DentflowConsumableUsageRecord[]

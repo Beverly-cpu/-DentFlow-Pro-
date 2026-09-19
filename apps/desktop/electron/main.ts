@@ -905,16 +905,48 @@ function registerDoctorHandlers() {
   );
 }
 
+function actorCanViewCost(actorUserId: number) {
+  const row = getDatabase().prepare(`SELECT role FROM users WHERE id = ? AND isActive = 1`).get(actorUserId) as { role: string } | undefined;
+  return row?.role === "Admin" || row?.role === "Accountant";
+}
+
+function removeCostFields(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(removeCostFields);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+    .filter(([key]) => key !== "unitCost" && key !== "totalCost")
+    .map(([key, child]) => [key, removeCostFields(child)]));
+}
+
+function redactCostFields<T>(value: T, actorUserId: number): T {
+  return (actorCanViewCost(actorUserId) ? value : removeCostFields(value)) as T;
+}
+
+const restrictedCostCategories = new Set([
+  "植體", "植體套件", "連針帶線", "牙周藥膏", "冷光藥劑", "膠原蛋白", "骨粉", "再生膜", "居家美白藥劑",
+]);
+
+function redactInventoryCosts<T extends Array<Record<string, unknown>>>(items: T, actorUserId: number): T {
+  const actor = getDatabase().prepare(`SELECT role FROM users WHERE id = ? AND isActive = 1`).get(actorUserId) as { role: string } | undefined;
+  if (actor?.role === "Admin" || actor?.role === "Accountant") return items;
+  return items.map((item) => {
+    if (actor?.role === "Procurement" && !restrictedCostCategories.has(String(item.category ?? ""))) return item;
+    const safe = { ...item };
+    delete safe.unitCost;
+    delete safe.totalCost;
+    return safe;
+  }) as T;
+}
+
 function registerImplantHandlers() {
   ipcMain.handle(
     "implants:list",
     (
       _event,
       clinicId: number,
+      actorUserId: number,
     ) => {
-      return getImplants(
-        clinicId,
-      );
+      return redactCostFields(getImplants(clinicId), actorUserId);
     },
   );
 
@@ -924,11 +956,12 @@ function registerImplantHandlers() {
       _event,
       patientId: number,
       clinicId: number,
+      actorUserId: number,
     ) => {
-      return getImplantsByPatient(
+      return redactCostFields(getImplantsByPatient(
         patientId,
         clinicId,
-      );
+      ), actorUserId);
     },
   );
 
@@ -938,11 +971,12 @@ function registerImplantHandlers() {
       _event,
       doctorId: number,
       clinicId: number,
+      actorUserId: number,
     ) => {
-      return getImplantsByDoctor(
+      return redactCostFields(getImplantsByDoctor(
         doctorId,
         clinicId,
-      );
+      ), actorUserId);
     },
   );
 
@@ -1045,10 +1079,9 @@ function registerInventoryHandlers() {
     (
       _event,
       clinicId: number,
+      actorUserId: number,
     ) => {
-      return getInventoryItems(
-        clinicId,
-      );
+      return redactInventoryCosts(getInventoryItems(clinicId), actorUserId);
     },
   );
 
@@ -1326,11 +1359,12 @@ function registerConsumableHandlers() {
       clinicId: number,
       usageType?:
         ConsumableUsageType,
+      actorUserId?: number,
     ) => {
-      return getConsumableUsageRecords(
+      return redactCostFields(getConsumableUsageRecords(
         clinicId,
         usageType,
-      );
+      ), actorUserId ?? 0);
     },
   );
 
@@ -1451,12 +1485,13 @@ function registerConsumableHandlers() {
       clinicId: number,
       usageType?:
         ConsumableUsageType,
+      actorUserId?: number,
     ) => {
-      return getConsumableUsageByDoctor(
+      return redactCostFields(getConsumableUsageByDoctor(
         doctorId,
         clinicId,
         usageType,
-      );
+      ), actorUserId ?? 0);
     },
   );
 

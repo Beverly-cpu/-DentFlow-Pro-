@@ -1119,6 +1119,23 @@ export function initializeDatabase():
 
     CREATE INDEX IF NOT EXISTS idx_implantReservations_implantId
       ON implantReservations(implantId);
+
+    CREATE TABLE IF NOT EXISTS implantReturnAudits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      implantId INTEGER NOT NULL REFERENCES implants(id) ON DELETE CASCADE,
+      reservationId INTEGER NOT NULL REFERENCES implantReservations(id) ON DELETE CASCADE,
+      implantPlanItemId INTEGER NOT NULL REFERENCES implantPlanItems(id) ON DELETE CASCADE,
+      pickedQuantity INTEGER NOT NULL DEFAULT 0,
+      returnedQuantity INTEGER NOT NULL DEFAULT 0,
+      actorUserId INTEGER NOT NULL REFERENCES users(id),
+      reason TEXT NOT NULL DEFAULT '',
+      returnedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CHECK (pickedQuantity >= 0),
+      CHECK (returnedQuantity >= 0)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_implantReturnAudits_implantId
+      ON implantReturnAudits(implantId);
   `);
 
   ensureColumn(

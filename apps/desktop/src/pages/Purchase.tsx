@@ -521,6 +521,7 @@ export default function Purchase({ generalUsage = false }: { generalUsage?: bool
         await Promise.all([
           window.dentflow.inventory.list(
             activeSession.clinicId,
+            activeSession.userId,
           ),
 
           window.dentflow.inventoryTransactions.list(

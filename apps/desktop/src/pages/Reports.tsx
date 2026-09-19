@@ -685,11 +685,14 @@ export default function Reports() {
                       window.dentflow.implants.byDoctor(
                         doctor.id,
                         membership.clinicId,
+                        session.userId,
                       ),
 
                       window.dentflow.consumables.byDoctor(
                         doctor.id,
                         membership.clinicId,
+                        undefined,
+                        session.userId,
                       ),
                     ]);
 
@@ -740,11 +743,14 @@ export default function Reports() {
               window.dentflow.implants.byDoctor(
                 doctor.id,
                 activeClinicId,
+                session.userId,
               ),
 
               window.dentflow.consumables.byDoctor(
                 doctor.id,
                 activeClinicId,
+                undefined,
+                session.userId,
               ),
             ]);
 
@@ -783,10 +789,13 @@ export default function Reports() {
           await Promise.all([
             window.dentflow.implants.list(
               activeClinicId,
+              session.userId,
             ),
 
             window.dentflow.consumables.list(
               activeClinicId,
+              undefined,
+              session.userId,
             ),
           ]);
 

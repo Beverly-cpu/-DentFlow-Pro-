@@ -495,6 +495,8 @@ export default function Consumables() {
                   await window.dentflow.consumables.byDoctor(
                     doctor.id,
                     membership.clinicId,
+                    undefined,
+                    session.userId,
                   );
 
                 return usageRecords.map(
@@ -529,6 +531,7 @@ export default function Consumables() {
           ),
           window.dentflow.inventory.list(
             activeClinicId,
+            session.userId,
           ),
           window.dentflow.inventory.categories(activeClinicId),
         ]);
@@ -560,6 +563,8 @@ export default function Consumables() {
           await window.dentflow.consumables.byDoctor(
             doctor.id,
             activeClinicId,
+            undefined,
+            session.userId,
           );
 
         setRecords(
@@ -575,6 +580,8 @@ export default function Consumables() {
         const usageRecords =
           await window.dentflow.consumables.list(
             activeClinicId,
+            undefined,
+            session.userId,
           );
 
         setRecords(
