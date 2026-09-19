@@ -555,6 +555,7 @@ type DentflowImplantRecord = {
   closedAt: string | null;
   cancelledAt: string | null;
   cancelReason: string;
+
   orderedByUserId: number | null;
   pickedByUserId: number | null;
   surgeryCompletedByUserId: number | null;
@@ -564,6 +565,9 @@ type DentflowImplantRecord = {
   doctorSignedAt: string | null;
   doctorSignature: string;
   doctorSignedByUserId: number | null;
+  createdByUserId: number | null;
+  createdByName: string | null;
+  surgeryCompletedByName: string | null;
   reservations: Array<{
     id: number;
     implantPlanItemId: number;
@@ -737,6 +741,9 @@ type DentflowConsumableUsageRecord = {
 
   cancelReason: string;
 
+  createdByUserId: number | null;
+  createdByName: string | null;
+
   items: DentflowConsumableUsageItemRecord[];
 
   createdAt: string;
@@ -750,7 +757,7 @@ type DentflowConsumableUsageRecord = {
 type DentflowApi = {
   machines: {
     list: () => Promise<Array<{id:number;name:string;type:string;serialNumber:string;qrToken:string;currentClinicId:number;clinicName:string;clinicCode:string;targetClinicName:string|null;status:string;isActive:number;lastConfirmedAt:string|null}>>;
-    reservations: () => Promise<Array<{id:number;machineId:number;machineName:string;clinicId:number;clinicName:string;clinicCode:string;scheduledStartAt:string;scheduledEndAt:string;moverUserId:number;moverName:string;status:string;overrideReason:string}>>;
+    reservations: () => Promise<Array<{id:number;machineId:number;machineName:string;clinicId:number;clinicName:string;clinicCode:string;scheduledStartAt:string;scheduledEndAt:string;moverUserId:number;moverName:string;createdByUserId:number;createdByName:string|null;status:string;overrideReason:string}>>;
     create: (input: unknown, actorUserId: number) => Promise<unknown>;
     setActive: (id: number, active: boolean, actorUserId: number) => Promise<boolean>;
     update: (id: number, input: unknown, actorUserId: number) => Promise<unknown>;
@@ -1113,6 +1120,7 @@ type DentflowApi = {
     create: (
       clinicId: number,
       input: DentflowImplantInput,
+      actorUserId: number,
     ) =>
       Promise<DentflowImplantRecord>;
 
@@ -1359,6 +1367,7 @@ type DentflowApi = {
     create: (
       clinicId: number,
       input: DentflowConsumableUsageInput,
+      actorUserId: number,
     ) =>
       Promise<
         DentflowConsumableUsageRecord
