@@ -158,6 +158,10 @@ function formatDateTime(
   );
 }
 
+function formatCost(value: number | undefined) {
+  return new Intl.NumberFormat("zh-TW", {style:"currency",currency:"TWD",maximumFractionDigits:2}).format(Number(value ?? 0));
+}
+
 function getInventoryDescription(
   item:
     DentflowInventoryRecord,
@@ -1572,6 +1576,7 @@ export default function Consumables() {
               <UsageRecordCard
                 key={record.id}
                 record={record}
+                showCost={role === "Doctor" || role === "Admin" || role === "Accountant"}
                 canSign={
                   canDoctorSignRecord(
                     record,
@@ -2065,6 +2070,7 @@ export default function Consumables() {
           record={
             detailRecord
           }
+          showCost={role === "Doctor" || role === "Admin" || role === "Accountant"}
           canSign={
             canDoctorSignRecord(
               detailRecord,
@@ -2312,6 +2318,7 @@ export default function Consumables() {
 
 function UsageRecordCard({
   record,
+  showCost,
   canSign,
   canCancel,
   onSign,
@@ -2320,6 +2327,8 @@ function UsageRecordCard({
 }: {
   record:
     ConsumableRecord;
+
+  showCost: boolean;
 
   canSign:
     boolean;
@@ -2485,6 +2494,8 @@ function UsageRecordCard({
                     }
                   </strong>
                 </span>
+
+                {showCost && <span>成本<strong>{formatCost(item.totalCost)}</strong></span>}
               </div>
             </div>
           ),
@@ -2575,6 +2586,7 @@ function UsageRecordCard({
 
 function RecordDetailModal({
   record,
+  showCost,
   canSign,
   canCancel,
   onClose,
@@ -2583,6 +2595,8 @@ function RecordDetailModal({
 }: {
   record:
     ConsumableRecord;
+
+  showCost: boolean;
 
   canSign:
     boolean;
@@ -2738,6 +2752,9 @@ function RecordDetailModal({
                     item.quantity
                   }
                 </span>
+
+                {showCost && <span>單位成本：{formatCost(item.unitCost)}</span>}
+                {showCost && <span>使用成本：{formatCost(item.totalCost)}</span>}
               </div>
             ),
           )}
