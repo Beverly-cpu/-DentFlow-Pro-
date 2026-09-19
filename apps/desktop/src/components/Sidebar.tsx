@@ -185,6 +185,13 @@ const sidebarItems:
     },
 
     {
+      label: "大型機台",
+      path: "/machines",
+      icon: "▧",
+      module: "machines",
+    },
+
+    {
       label:
         "系統設定",
 
@@ -196,13 +203,6 @@ const sidebarItems:
 
       module:
         "settings",
-    },
-
-    {
-      label: "大型機台",
-      path: "/machines",
-      icon: "▧",
-      module: "machines",
     },
   ];
 
