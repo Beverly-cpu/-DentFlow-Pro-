@@ -103,6 +103,7 @@ import {
 import {
   createMachine, createMachineReservation, createMachineUsage, ensureMachineSchema,
   getMachineUsageCredits, listMachineReservations, listMachineUsageRecords, listMachines,
+  listMachineMovers, listMachineScans, updateMachineReservation, cancelMachineReservation,
   purchaseMachineUsageCredits, scanMachine, setMachineActive, signMachineUsage,
   updateMachine, updateMachineUsageCost,
 } from "./database/machineRepository";
@@ -1655,10 +1656,14 @@ function registerClinicHandlers() {
 function registerIpcHandlers() {
   ipcMain.handle("machines:list", () => listMachines());
   ipcMain.handle("machines:reservations", () => listMachineReservations());
+  ipcMain.handle("machines:movers", (_event,actorUserId:number) => listMachineMovers(actorUserId));
+  ipcMain.handle("machines:scans", (_event,actorUserId:number) => listMachineScans(actorUserId));
   ipcMain.handle("machines:create", (_event, input, actorUserId:number) => createMachine(input, actorUserId));
   ipcMain.handle("machines:set-active", (_event, id:number, active:boolean, actorUserId:number) => setMachineActive(id,active,actorUserId));
   ipcMain.handle("machines:update", (_event, id:number, input, actorUserId:number) => updateMachine(id,input,actorUserId));
   ipcMain.handle("machines:reserve", (_event, input, actorUserId:number) => createMachineReservation(input,actorUserId));
+  ipcMain.handle("machines:update-reservation", (_event,id:number,input,actorUserId:number) => updateMachineReservation(id,input,actorUserId));
+  ipcMain.handle("machines:cancel-reservation", (_event,id:number,reason:string,actorUserId:number) => cancelMachineReservation(id,reason,actorUserId));
   ipcMain.handle("machines:scan", (_event, token:string,reservationId:number,clinicId:number,action:"搬出"|"到院",actorUserId:number) => scanMachine(token,reservationId,clinicId,action,actorUserId));
   ipcMain.handle("machines:usage-credits", (_event,machineId:number,actorUserId:number) => getMachineUsageCredits(machineId,actorUserId));
   ipcMain.handle("machines:purchase-credits", (_event,machineId:number,quantity:number,actorUserId:number) => purchaseMachineUsageCredits(machineId,quantity,actorUserId));
