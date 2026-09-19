@@ -1976,7 +1976,11 @@ export default function Implants() {
 
   async function handleCancelCase(implant: Implant) {
     if (!requireCurrentClinic(implant)) return;
-    const reason = window.prompt("請輸入取消原因：")?.trim();
+    const reason = window.prompt(
+      implant.status === "已取出待手術"
+        ? "此個案已取出待手術。取消後系統會將全部植體與套件歸回並解除保留。\n\n請輸入取消原因："
+        : "請輸入取消原因：",
+    )?.trim();
     if (!reason) return;
     try {
       setActiveId(implant.id);
