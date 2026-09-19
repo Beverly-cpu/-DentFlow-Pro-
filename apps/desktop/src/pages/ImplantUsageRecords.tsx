@@ -24,14 +24,14 @@ export default function ImplantUsageRecords() {
 
   useEffect(() => {
     let active = true;
-    window.dentflow.implants.list(clinicId)
+    window.dentflow.implants.list(clinicId, session.userId)
       .then((result) => { if (active) { setRecords(result); setError(""); } })
       .catch((reason: unknown) => {
         if (active) setError(reason instanceof Error ? reason.message : String(reason));
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [clinicId]);
+  }, [clinicId, session.userId]);
 
   const usageRecords = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("zh-TW");
