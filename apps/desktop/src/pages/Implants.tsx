@@ -388,8 +388,15 @@ function InstrumentCameraModal({
   useEffect(() => {
     let cancelled = false;
     if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraError("此裝置無法直接開啟相機，請改用選擇照片。");
-      return;
+      const unavailableNotice = window.setTimeout(() => {
+        if (!cancelled) {
+          setCameraError("此裝置無法直接開啟相機，請改用選擇照片。");
+        }
+      }, 0);
+      return () => {
+        cancelled = true;
+        window.clearTimeout(unavailableNotice);
+      };
     }
     void navigator.mediaDevices
       .getUserMedia({video: {facingMode: {ideal: "environment"}}, audio: false})
@@ -797,6 +804,7 @@ export default function Implants() {
 
           window.dentflow.inventory.list(
             activeClinicId,
+            session.userId,
           ),
 
           window.dentflow.inventory.instrumentsAll(),
@@ -871,6 +879,7 @@ export default function Implants() {
                     await window.dentflow.implants.byDoctor(
                       doctor.id,
                       membership.clinicId,
+                      session.userId,
                     );
 
                   return records.map(
@@ -907,6 +916,7 @@ export default function Implants() {
           await window.dentflow.implants.byDoctor(
             doctor.id,
             activeClinicId,
+            session.userId,
           );
 
         setImplants(
@@ -937,6 +947,7 @@ export default function Implants() {
       const implantRecords =
         await window.dentflow.implants.list(
           activeClinicId,
+          session.userId,
         );
 
       setImplants(
@@ -3644,7 +3655,10 @@ export default function Implants() {
 
                       {implant.status === "已取消" && (
                         <div style={{marginTop: 6, color: "#985163", fontSize: 12}}>
-                          取消：{formatTimestamp(implant.cancelledAt)}（#{implant.cancelledByUserId ?? "—"}） ｜ 原因：{implant.cancelReason}
+                          <div>取消：{formatTimestamp(implant.cancelledAt)}（#{implant.cancelledByUserId ?? "—"}） ｜ 原因：{implant.cancelReason}</div>
+                          {implant.returnAudits.map((audit) => <div key={audit.id} style={{marginTop:4}}>
+                            歸回：{audit.category}｜{audit.itemName}｜{[audit.brand,audit.model,audit.specification].filter(Boolean).join(" / ")||"—"}｜取出 {audit.pickedQuantity}／歸回 {audit.returnedQuantity}｜{audit.actorName}｜{formatTimestamp(audit.returnedAt)}
+                          </div>)}
                         </div>
                       )}
                     </div>
