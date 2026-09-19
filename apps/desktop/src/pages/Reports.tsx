@@ -27,6 +27,7 @@ const PRINT_STYLE_ID =
 
 type ReportTab =
   | "植體使用紀錄"
+  | "導航機使用紀錄"
   | "連針帶線使用紀錄"
   | "牙周藥膏使用紀錄"
   | "冷光藥劑使用紀錄"
@@ -38,6 +39,7 @@ type ReportTab =
 const REPORT_TABS:
   ReportTab[] = [
     "植體使用紀錄",
+    "導航機使用紀錄",
     "連針帶線使用紀錄",
     "牙周藥膏使用紀錄",
     "冷光藥劑使用紀錄",
@@ -144,6 +146,26 @@ type ConsumableReportRow = {
 
   cancelReason:
     string;
+};
+
+type MachineUsageReportRow = {
+  id: number;
+  machineName: string;
+  clinicName: string;
+  clinicCode: string;
+  patientNameSnapshot: string;
+  patientBirthDateSnapshot: string;
+  usageDate: string;
+  toothPositions: string[];
+  doctorName: string;
+  createdByName: string | null;
+  status: string;
+  signature: string;
+  signedAt: string | null;
+  cancelledByName: string | null;
+  cancelledAt: string | null;
+  cancellationReason: string;
+  unitCost?: number;
 };
 
 /* =========================================================
@@ -405,6 +427,9 @@ export default function Reports() {
       ConsumableWithClinic[]
     >([]);
 
+  const [machineUsageRecords, setMachineUsageRecords] =
+    useState<MachineUsageReportRow[]>([]);
+
   const [
     loading,
     setLoading,
@@ -459,6 +484,8 @@ export default function Reports() {
   const isImplantTab =
     activeTab ===
     "植體使用紀錄";
+
+  const isMachineTab = activeTab === "導航機使用紀錄";
 
   const isDoctor =
     session.role ===
@@ -642,6 +669,8 @@ export default function Reports() {
         ConsumableWithClinic[] =
         [];
 
+      let machineRecords: MachineUsageReportRow[] = [];
+
       if (
         session.role ===
         "Doctor"
@@ -785,6 +814,7 @@ export default function Reports() {
         const [
           clinicImplants,
           clinicConsumables,
+          navigationUsage,
         ] =
           await Promise.all([
             window.dentflow.implants.list(
@@ -797,7 +827,13 @@ export default function Reports() {
               undefined,
               session.userId,
             ),
+
+            window.dentflow.machines.usageRecords(
+              session.userId,
+            ),
           ]);
+
+        machineRecords = navigationUsage;
 
         implantRecords =
           clinicImplants.map(
@@ -829,11 +865,14 @@ export default function Reports() {
       setConsumables(
         consumableRecords,
       );
+
+      setMachineUsageRecords(machineRecords);
     } catch (
       loadError
     ) {
       setImplants([]);
       setConsumables([]);
+      setMachineUsageRecords([]);
 
       setError(
         getErrorMessage(
@@ -1205,22 +1244,51 @@ export default function Reports() {
       session.clinicName,
     ]);
 
+  const filteredMachineRecords = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    return machineUsageRecords
+      .filter((record) => statusFilter === "全部" || record.status === statusFilter)
+      .filter((record) => isDateInRange(record.usageDate, startDate, endDate))
+      .filter((record) => {
+        if (!keyword) return true;
+        return [
+          record.machineName,
+          record.clinicName,
+          record.clinicCode,
+          record.patientNameSnapshot,
+          record.patientBirthDateSnapshot,
+          record.doctorName,
+          record.createdByName,
+          record.usageDate,
+          record.toothPositions.join(" "),
+          record.status,
+          record.cancellationReason,
+        ].join(" ").toLowerCase().includes(keyword);
+      });
+  }, [machineUsageRecords, statusFilter, search, startDate, endDate]);
+
   /* =======================================================
      Statistics
   ======================================================= */
 
   const currentCount =
-    isImplantTab
+    isMachineTab
+      ? filteredMachineRecords.length
+      : isImplantTab
       ? implantRows.length
       : filteredConsumableRecords.length;
 
   const currentItemRowCount =
-    isImplantTab
+    isMachineTab
+      ? filteredMachineRecords.length
+      : isImplantTab
       ? implantRows.length
       : consumableRows.length;
 
   const currentQuantity =
-    isImplantTab
+    isMachineTab
+      ? filteredMachineRecords.filter(record => record.status !== "已取消").length
+      : isImplantTab
       ? implantRows.reduce(
           (
             total,
@@ -1247,7 +1315,11 @@ export default function Reports() {
           );
 
   const currentCost =
-    isImplantTab
+    isMachineTab
+      ? filteredMachineRecords
+          .filter(record => record.status !== "已取消")
+          .reduce((total, record) => total + Number(record.unitCost ?? 0), 0)
+      : isImplantTab
       ? implantRows.reduce(
           (
             total,
@@ -1274,21 +1346,21 @@ export default function Reports() {
           );
 
   const pendingCount =
-    filteredConsumableRecords.filter(
+    (isMachineTab ? filteredMachineRecords : filteredConsumableRecords).filter(
       (record) =>
         record.status ===
         "待醫師簽名",
     ).length;
 
   const signedCount =
-    filteredConsumableRecords.filter(
+    (isMachineTab ? filteredMachineRecords : filteredConsumableRecords).filter(
       (record) =>
         record.status ===
         "已簽名",
     ).length;
 
   const cancelledCount =
-    filteredConsumableRecords.filter(
+    (isMachineTab ? filteredMachineRecords : filteredConsumableRecords).filter(
       (record) =>
         record.status ===
         "已取消",
@@ -1300,6 +1372,25 @@ export default function Reports() {
 
   function exportCurrentReport() {
     setError("");
+
+    if (isMachineTab) {
+      const rows: Array<Array<string | number>> = [[
+        "院所", "院所代碼", "使用日期", "機台", "病患", "生日", "牙位", "醫師",
+        "助理紀錄者", "狀態", "簽名狀態", "簽名時間", "單次成本", "有效成本",
+        "取消人", "取消時間", "取消原因",
+      ]];
+      filteredMachineRecords.forEach(record => rows.push([
+        record.clinicName, record.clinicCode, record.usageDate, record.machineName,
+        record.patientNameSnapshot, record.patientBirthDateSnapshot,
+        record.toothPositions.join("、"), record.doctorName, record.createdByName ?? "",
+        record.status, record.signature?.startsWith("data:image/") ? "已簽名" : "未簽名",
+        record.signedAt ?? "", Number(record.unitCost ?? 0),
+        record.status === "已取消" ? 0 : Number(record.unitCost ?? 0),
+        record.cancelledByName ?? "", record.cancelledAt ?? "", record.cancellationReason,
+      ]));
+      downloadCsv(`C&C-DENTAL-${activeTab}.csv`, rows);
+      return;
+    }
 
     if (
       isImplantTab
@@ -1715,7 +1806,9 @@ export default function Reports() {
       >
         <StatCard
           label={
-            isImplantTab
+            isMachineTab
+              ? "使用紀錄"
+              : isImplantTab
               ? "使用列數"
               : "使用紀錄"
           }
@@ -1725,7 +1818,7 @@ export default function Reports() {
         />
 
         <StatCard
-          label="有效使用數量"
+          label={isMachineTab ? "有效扣除次數" : "有效使用數量"}
           value={
             currentQuantity
           }
@@ -1733,7 +1826,9 @@ export default function Reports() {
 
         <StatCard
           label={
-            isImplantTab
+            isMachineTab
+              ? "有效使用總成本"
+              : isImplantTab
               ? "篩選後植體總成本"
               : "有效使用總成本"
           }
@@ -1804,6 +1899,8 @@ export default function Reports() {
                   ? isAllClinics
                     ? "院所、病患、醫師、牙位、品項、REF、LOT、規格..."
                     : "病患、醫師、牙位、品項、REF、LOT、規格..."
+                  : isMachineTab
+                    ? "院所、機台、病患、醫師、牙位、紀錄者、取消原因..."
                   : isAllClinics
                     ? "院所、病患、醫師、品項、規格、有效期限、取消原因..."
                     : "病患、醫師、品項、規格、有效期限、取消原因..."
@@ -1909,7 +2006,9 @@ export default function Reports() {
           </strong>
 
           <div style={styles.reportHeadingMeta}>
-            {isImplantTab
+            {isMachineTab
+              ? `共 ${filteredMachineRecords.length} 筆紀錄，有效扣除 ${currentQuantity} 次，有效總成本 ${formatMoney(currentCost)}`
+              : isImplantTab
               ? `共 ${implantRows.length} 列，使用數量 ${currentQuantity}，總成本 ${formatMoney(
                   currentCost,
                 )}`
@@ -1944,6 +2043,8 @@ export default function Reports() {
         <div style={styles.emptyState}>
           報表讀取中...
         </div>
+      ) : isMachineTab ? (
+        <MachineUsageReportTable rows={filteredMachineRecords} />
       ) : isImplantTab ? (
         <ImplantReportTable
           rows={
@@ -1978,6 +2079,42 @@ export default function Reports() {
       </div>
     </div>
   );
+}
+
+/* =========================================================
+   Navigation Machine Usage Report
+========================================================= */
+
+function MachineUsageReportTable({rows}: {rows: MachineUsageReportRow[]}) {
+  if (rows.length === 0) {
+    return <div style={styles.emptyState}>尚無符合條件的導航機使用紀錄。</div>;
+  }
+
+  const totalCost = rows
+    .filter(row => row.status !== "已取消")
+    .reduce((total, row) => total + Number(row.unitCost ?? 0), 0);
+
+  return <div className="reports-print-card" style={styles.tableCard}>
+    <div className="reports-print-scroll" style={styles.tableScroll}>
+      <table className="reports-print-table" style={styles.implantTable}>
+        <thead><tr>{["院所","日期","機台","病患／生日","牙位","醫師","助理紀錄者","狀態","醫師簽名","單次成本","取消稽核"].map(label => <th key={label} style={styles.th}>{label}</th>)}</tr></thead>
+        <tbody>{rows.map(row => <tr key={row.id} className={row.status === "已取消" ? "reports-cancelled-row" : undefined}>
+          <td style={styles.td}><strong>{row.clinicName}</strong><div style={styles.clinicCode}>{row.clinicCode}</div></td>
+          <td style={styles.td}>{row.usageDate}</td>
+          <td style={styles.td}>{row.machineName}</td>
+          <td style={styles.td}><strong>{row.patientNameSnapshot}</strong><div>{row.patientBirthDateSnapshot || "—"}</div></td>
+          <td style={styles.td}>{row.toothPositions.join("、") || "—"}</td>
+          <td style={styles.td}>{row.doctorName}</td>
+          <td style={styles.td}>{row.createdByName || "—"}</td>
+          <td style={styles.td}><strong>{row.status}</strong>{row.signedAt && <div>{formatDateTime(row.signedAt)}</div>}</td>
+          <td style={styles.td}>{row.signature?.startsWith("data:image/") ? <img className="reports-signature-image" src={row.signature} alt={`${row.doctorName} 醫師簽名`} /> : "—"}</td>
+          <td style={styles.td}>{formatMoney(Number(row.unitCost ?? 0))}</td>
+          <td style={styles.noteCell}>{row.status === "已取消" ? <>{row.cancellationReason || "—"}<div>{row.cancelledByName || "—"}｜{formatDateTime(row.cancelledAt)}</div></> : "—"}</td>
+        </tr>)}</tbody>
+      </table>
+    </div>
+    <div style={{display:"flex",justifyContent:"flex-end",padding:"14px 16px",borderTop:"1px solid #e2e9e3",background:"#f7faf7"}}><strong>導航機有效使用成本合計：{formatMoney(totalCost)}</strong></div>
+  </div>;
 }
 
 /* =========================================================
