@@ -907,7 +907,7 @@ function registerDoctorHandlers() {
 
 function actorCanViewCost(actorUserId: number) {
   const row = getDatabase().prepare(`SELECT role FROM users WHERE id = ? AND isActive = 1`).get(actorUserId) as { role: string } | undefined;
-  return row?.role === "Admin" || row?.role === "Accountant";
+  return row?.role === "Admin" || row?.role === "Accountant" || row?.role === "Doctor";
 }
 
 function removeCostFields(value: unknown): unknown {
