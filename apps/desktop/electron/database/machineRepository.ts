@@ -38,7 +38,8 @@ function actor(userId: number, roles: string[]) {
 }
 
 export function ensureMachineSchema() {
-  getDatabase().exec(`
+  const db = getDatabase();
+  db.exec(`
     CREATE TABLE IF NOT EXISTS machines (
       id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, type TEXT NOT NULL,
       serialNumber TEXT NOT NULL DEFAULT '', qrToken TEXT NOT NULL UNIQUE,
@@ -84,6 +85,23 @@ export function ensureMachineSchema() {
     INSERT OR IGNORE INTO machineUsageCredits(machineId)
       SELECT id FROM machines WHERE type LIKE '%導航%';
   `);
+
+  const usageColumns = new Set((db.prepare("PRAGMA table_info(machineUsageRecords)").all() as Array<{name:string}>).map(column => column.name));
+  if (!usageColumns.has("unitCostSnapshot")) db.exec("ALTER TABLE machineUsageRecords ADD COLUMN unitCostSnapshot REAL NOT NULL DEFAULT 0");
+  if (!usageColumns.has("cancelledAt")) db.exec("ALTER TABLE machineUsageRecords ADD COLUMN cancelledAt TEXT");
+  if (!usageColumns.has("cancelledByUserId")) db.exec("ALTER TABLE machineUsageRecords ADD COLUMN cancelledByUserId INTEGER REFERENCES users(id)");
+  if (!usageColumns.has("cancellationReason")) db.exec("ALTER TABLE machineUsageRecords ADD COLUMN cancellationReason TEXT NOT NULL DEFAULT ''");
+  if (!usageColumns.has("creditRestored")) db.exec("ALTER TABLE machineUsageRecords ADD COLUMN creditRestored INTEGER NOT NULL DEFAULT 0");
+
+  const snapshotMigration = "2026-machine-usage-cost-snapshot-v1";
+  if (!db.prepare("SELECT key FROM schemaMigrations WHERE key=?").get(snapshotMigration)) {
+    db.transaction(() => {
+      db.prepare(`UPDATE machineUsageRecords
+        SET unitCostSnapshot=COALESCE((SELECT unitCost FROM machineUsageCredits WHERE machineId=machineUsageRecords.machineId),0)`
+      ).run();
+      db.prepare("INSERT INTO schemaMigrations(key) VALUES(?)").run(snapshotMigration);
+    })();
+  }
 }
 
 const selectMachine = `SELECT m.*, c.name clinicName, c.code clinicCode,
@@ -205,6 +223,15 @@ export function purchaseMachineUsageCredits(machineId:number,quantity:number,act
   })();
 }
 
+export function listMachineUsageCreditPurchases(machineId:number,actorUserId:number){
+  actor(actorUserId,["Admin","Assistant","Accountant"]);
+  return getDatabase().prepare(`SELECT p.id,p.machineId,p.quantity,p.actorUserId,p.createdAt,
+    m.name machineName,u.name actorName
+    FROM machineUsageCreditPurchases p
+    JOIN machines m ON m.id=p.machineId JOIN users u ON u.id=p.actorUserId
+    WHERE p.machineId=? ORDER BY datetime(p.createdAt) DESC,p.id DESC`).all(machineId);
+}
+
 export function updateMachineUsageCost(machineId:number,unitCost:number,actorUserId:number){
   actor(actorUserId,["Admin","Accountant"]);
   if(!Number.isFinite(unitCost)||unitCost<0) throw new Error("每次使用成本不可小於 0");
@@ -217,9 +244,11 @@ export function listMachineUsageRecords(actorUserId:number){
   const currentActor=actor(actorUserId,["Admin","Assistant","Doctor","Accountant"]); const db=getDatabase();
   const doctor=currentActor.role==="Doctor"?db.prepare(`SELECT id FROM doctors WHERE userId=? AND isActive=1`).get(actorUserId) as {id:number}|undefined:undefined;
   if(currentActor.role==="Doctor"&&!doctor) return [];
-  const rows=db.prepare(`SELECT ur.*,m.name machineName,c.name clinicName,c.code clinicCode,d.name doctorName,mc.unitCost
+  const rows=db.prepare(`SELECT ur.*,m.name machineName,c.name clinicName,c.code clinicCode,d.name doctorName,
+    creator.name createdByName,canceller.name cancelledByName,ur.unitCostSnapshot unitCost
     FROM machineUsageRecords ur JOIN machines m ON m.id=ur.machineId JOIN clinics c ON c.id=ur.clinicId
-    JOIN doctors d ON d.id=ur.doctorId JOIN machineUsageCredits mc ON mc.machineId=ur.machineId
+    JOIN doctors d ON d.id=ur.doctorId LEFT JOIN users creator ON creator.id=ur.createdByUserId
+    LEFT JOIN users canceller ON canceller.id=ur.cancelledByUserId
     ${doctor?"WHERE ur.doctorId = ?":""} ORDER BY date(ur.usageDate) DESC,ur.id DESC`).all(...(doctor?[doctor.id]:[])) as Array<Record<string,unknown>&{unitCost:number;toothPositions:string}>;
   return rows.map(row=>{
     const base={...row,toothPositions:JSON.parse(row.toothPositions||"[]")};
@@ -241,9 +270,28 @@ export function createMachineUsage(input:MachineUsageInput,actorUserId:number){
   return db.transaction(()=>{
     const debit=db.prepare(`UPDATE machineUsageCredits SET remainingUses=remainingUses-1,updatedAt=CURRENT_TIMESTAMP WHERE machineId=? AND remainingUses>0`).run(input.machineId);
     if(debit.changes!==1) throw new Error("植牙導航機使用額度不足，請先購買額度");
-    const result=db.prepare(`INSERT INTO machineUsageRecords(machineId,clinicId,patientId,patientNameSnapshot,patientBirthDateSnapshot,usageDate,toothPositions,doctorId,createdByUserId)
-      VALUES(?,?,?,?,?,?,?,?,?)`).run(input.machineId,input.clinicId,input.patientId,patient.name,patient.birthDate,input.usageDate,JSON.stringify(teeth),input.doctorId,actorUserId);
+    const cost=(db.prepare(`SELECT unitCost FROM machineUsageCredits WHERE machineId=?`).get(input.machineId) as {unitCost:number}).unitCost;
+    const result=db.prepare(`INSERT INTO machineUsageRecords(machineId,clinicId,patientId,patientNameSnapshot,patientBirthDateSnapshot,usageDate,toothPositions,doctorId,createdByUserId,unitCostSnapshot)
+      VALUES(?,?,?,?,?,?,?,?,?,?)`).run(input.machineId,input.clinicId,input.patientId,patient.name,patient.birthDate,input.usageDate,JSON.stringify(teeth),input.doctorId,actorUserId,cost);
     return {id:Number(result.lastInsertRowid),remainingUses:(db.prepare(`SELECT remainingUses FROM machineUsageCredits WHERE machineId=?`).get(input.machineId) as {remainingUses:number}).remainingUses};
+  })();
+}
+
+export function cancelMachineUsage(id:number,reason:string,actorUserId:number){
+  actor(actorUserId,["Admin"]);
+  const normalized=String(reason??"").trim();
+  if(!normalized) throw new Error("請輸入取消使用紀錄的原因");
+  const db=getDatabase();
+  return db.transaction(()=>{
+    const current=db.prepare(`SELECT id,machineId,status,creditRestored FROM machineUsageRecords WHERE id=?`).get(id) as {id:number;machineId:number;status:string;creditRestored:number}|undefined;
+    if(!current) throw new Error("找不到導航機使用紀錄");
+    if(current.status!=="待醫師簽名") throw new Error("只有尚未簽名的導航機使用紀錄可以取消");
+    const changed=db.prepare(`UPDATE machineUsageRecords SET status='已取消',cancellationReason=?,cancelledAt=CURRENT_TIMESTAMP,
+      cancelledByUserId=?,creditRestored=1,updatedAt=CURRENT_TIMESTAMP
+      WHERE id=? AND status='待醫師簽名' AND creditRestored=0`).run(normalized,actorUserId,id);
+    if(changed.changes!==1) throw new Error("此紀錄已取消或狀態已變更，請重新整理");
+    db.prepare(`UPDATE machineUsageCredits SET remainingUses=remainingUses+1,updatedAt=CURRENT_TIMESTAMP WHERE machineId=?`).run(current.machineId);
+    return true;
   })();
 }
 
