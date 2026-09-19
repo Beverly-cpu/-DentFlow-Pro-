@@ -24,10 +24,8 @@ export default function ImplantUsageRecords() {
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
-    setError("");
     window.dentflow.implants.list(clinicId)
-      .then((result) => { if (active) setRecords(result); })
+      .then((result) => { if (active) { setRecords(result); setError(""); } })
       .catch((reason: unknown) => {
         if (active) setError(reason instanceof Error ? reason.message : String(reason));
       })
@@ -69,7 +67,7 @@ export default function ImplantUsageRecords() {
         <section key={record.id} style={styles.card}>
           <div style={styles.cardHeader}>
             <div><h2 style={styles.patient}>{record.patientName}</h2><div style={styles.meta}>
-              病歷號：{record.patientChartNumber} ｜ 醫師：{record.doctorName} ｜ 使用日期：{record.implantDate}
+              病歷號：{record.patientChartNumber} ｜ 醫師：{record.doctorName} ｜ 使用日期：{record.implantDate} ｜ 助理紀錄者：{record.createdByName ?? "—"}
             </div></div><span style={styles.status}>{record.status}</span>
           </div>
           <div style={styles.tableWrap}><table style={styles.table}><thead><tr>
