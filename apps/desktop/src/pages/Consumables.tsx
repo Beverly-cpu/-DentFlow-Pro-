@@ -1056,6 +1056,7 @@ export default function Consumables() {
       await window.dentflow.consumables.create(
         activeClinicId,
         input,
+        session.userId,
       );
 
       setCreateOpen(
@@ -2387,6 +2388,8 @@ function UsageRecordCard({
             醫師：
             {record.doctorName}
 
+            {` 助理紀錄者：${record.createdByName ?? "—"}`}
+
             {record.toothPosition
               ? ` 牙位：${record.toothPosition}`
               : ""}
@@ -2633,6 +2636,11 @@ function RecordDetailModal({
           value={
             record.doctorName
           }
+        />
+
+        <DetailItem
+          label="助理紀錄者"
+          value={record.createdByName ?? "—"}
         />
 
         <DetailItem
