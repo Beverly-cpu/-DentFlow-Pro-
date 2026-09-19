@@ -606,6 +606,7 @@ export default function Inventory({
         await Promise.all([
           window.dentflow.inventory.list(
             activeSession.clinicId,
+            activeSession.userId,
           ),
 
           window.dentflow.inventoryTransactions.list(
