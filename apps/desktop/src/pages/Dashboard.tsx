@@ -429,15 +429,19 @@ export default function Dashboard() {
                       window.dentflow.implants.byDoctor(
                         doctor.id,
                         clinicId,
+                        session.userId,
                       ),
 
                       window.dentflow.consumables.byDoctor(
                         doctor.id,
                         clinicId,
+                        undefined,
+                        session.userId,
                       ),
 
                       window.dentflow.inventory.list(
                         clinicId,
+                        session.userId,
                       ),
 
                       window.dentflow.inventoryTransactions.list(
@@ -551,15 +555,19 @@ export default function Dashboard() {
             window.dentflow.implants.byDoctor(
               doctor.id,
               clinicId,
+              session.userId,
             ),
 
             window.dentflow.consumables.byDoctor(
               doctor.id,
               clinicId,
+              undefined,
+              session.userId,
             ),
 
             window.dentflow.inventory.list(
               clinicId,
+              session.userId,
             ),
 
             window.dentflow.inventoryTransactions.list(
@@ -645,6 +653,7 @@ export default function Dashboard() {
         await Promise.all([
           window.dentflow.inventory.list(
             clinicId,
+            session.userId,
           ),
 
           window.dentflow.inventoryTransactions.list(
@@ -691,10 +700,13 @@ export default function Dashboard() {
           await Promise.all([
             window.dentflow.implants.list(
               clinicId,
+              session.userId,
             ),
 
             window.dentflow.consumables.list(
               clinicId,
+              undefined,
+              session.userId,
             ),
           ]);
 
