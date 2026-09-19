@@ -381,13 +381,11 @@ const dentflowApi = {
     create(
       clinicId: number,
       input: unknown,
-      actorUserId: number,
     ) {
       return ipcRenderer.invoke(
         "patients:create",
         clinicId,
         input,
-        actorUserId,
       );
     },
 
@@ -617,11 +615,13 @@ const dentflowApi = {
     create(
       clinicId: number,
       input: unknown,
+      actorUserId: number,
     ) {
       return ipcRenderer.invoke(
         "implants:create",
         clinicId,
         input,
+        actorUserId,
       );
     },
 
@@ -976,11 +976,13 @@ const dentflowApi = {
     create(
       clinicId: number,
       input: unknown,
+      actorUserId: number,
     ) {
       return ipcRenderer.invoke(
         "consumables:create",
         clinicId,
         input,
+        actorUserId,
       );
     },
 

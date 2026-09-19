@@ -963,10 +963,12 @@ function registerImplantHandlers() {
       _event,
       clinicId: number,
       input,
+      actorUserId: number,
     ) => {
       return createImplant(
         clinicId,
         input,
+        actorUserId,
       );
     },
   );
@@ -1369,10 +1371,12 @@ function registerConsumableHandlers() {
       clinicId: number,
       input:
         ConsumableUsageInput,
+      actorUserId: number,
     ) => {
       return createConsumableUsage(
         clinicId,
         input,
+        actorUserId,
       );
     },
   );

@@ -76,9 +76,10 @@ export function listMachines() {
 }
 export function listMachineReservations() {
   return getDatabase().prepare(`SELECT r.*, m.name machineName, m.type machineType,
-    c.name clinicName, c.code clinicCode, u.name moverName
+    c.name clinicName, c.code clinicCode, u.name moverName, creator.name createdByName
     FROM machineReservations r JOIN machines m ON m.id=r.machineId
     JOIN clinics c ON c.id=r.clinicId JOIN users u ON u.id=r.moverUserId
+    LEFT JOIN users creator ON creator.id=r.createdByUserId
     WHERE r.status <> '已取消' ORDER BY r.scheduledStartAt`).all();
 }
 export function createMachine(input: MachineInput, actorUserId: number) {

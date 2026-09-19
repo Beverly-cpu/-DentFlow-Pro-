@@ -1830,7 +1830,7 @@ export default function Purchase({ generalUsage = false }: { generalUsage?: bool
             <table style={styles.table}>
               <thead><tr>
                 <th style={styles.th}>品項</th><th style={styles.th}>叫貨數量</th>
-                <th style={styles.th}>申請人</th><th style={styles.th}>時間</th>
+                <th style={styles.th}>助理紀錄者</th><th style={styles.th}>時間</th>
                 <th style={styles.th}>狀態</th><th style={styles.th}>備註</th><th style={styles.th}>操作</th>
               </tr></thead>
               <tbody>{purchaseRequests.map((request) => (

@@ -269,6 +269,9 @@ export type ImplantRecord = {
   doctorSignedAt: string | null;
   doctorSignature: string;
   doctorSignedByUserId: number | null;
+  createdByUserId: number | null;
+  createdByName: string | null;
+  surgeryCompletedByName: string | null;
   reservations: ImplantReservationRecord[];
 
   teeth:
@@ -327,6 +330,9 @@ type ImplantBaseRow = {
   doctorSignedAt: string | null;
   doctorSignature: string;
   doctorSignedByUserId: number | null;
+  createdByUserId: number | null;
+  createdByName: string | null;
+  surgeryCompletedByName: string | null;
 
   createdAt: string;
 
@@ -481,6 +487,9 @@ const implantBaseSelect = `
     implants.doctorSignedAt,
     implants.doctorSignature,
     implants.doctorSignedByUserId,
+    implants.createdByUserId,
+    creator.name AS createdByName,
+    surgeryRecorder.name AS surgeryCompletedByName,
 
     implants.createdAt,
 
@@ -511,6 +520,12 @@ const implantBaseSelect = `
   LEFT JOIN doctors
     ON doctors.id =
        implants.doctorId
+
+  LEFT JOIN users creator
+    ON creator.id = implants.createdByUserId
+
+  LEFT JOIN users surgeryRecorder
+    ON surgeryRecorder.id = implants.surgeryCompletedByUserId
 `;
 
 /* =========================================================
@@ -1366,11 +1381,14 @@ function getImplantUsageItems(
 export function createImplant(
   clinicId: number,
   input: ImplantInput,
+  actorUserId: number,
 ):
   ImplantRecord {
   ensureActiveClinic(
     clinicId,
   );
+
+  ensureWorkflowActor(actorUserId, clinicId);
 
   validateImplantInput(
     input,
@@ -1432,6 +1450,7 @@ export function createImplant(
                 inventoryDeducted,
 
                 inventoryReturned
+                ,createdByUserId
               )
 
               VALUES (
@@ -1466,6 +1485,7 @@ export function createImplant(
                 0,
 
                 0
+                ,?
               )
             `)
             .run(
@@ -1478,6 +1498,8 @@ export function createImplant(
               input.implantDate,
 
               input.note.trim(),
+
+              actorUserId,
             );
 
         const implantId =

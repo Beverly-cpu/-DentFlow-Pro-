@@ -511,6 +511,8 @@ export function initializeDatabase():
       inventoryReturned INTEGER NOT NULL
         DEFAULT 0,
 
+      createdByUserId INTEGER REFERENCES users(id),
+
       createdAt TEXT NOT NULL
         DEFAULT CURRENT_TIMESTAMP,
 
@@ -1086,6 +1088,7 @@ export function initializeDatabase():
     ["doctorSignedAt", "ALTER TABLE implants ADD COLUMN doctorSignedAt TEXT;"],
     ["doctorSignature", "ALTER TABLE implants ADD COLUMN doctorSignature TEXT NOT NULL DEFAULT '';"],
     ["doctorSignedByUserId", "ALTER TABLE implants ADD COLUMN doctorSignedByUserId INTEGER REFERENCES users(id);"],
+    ["createdByUserId", "ALTER TABLE implants ADD COLUMN createdByUserId INTEGER REFERENCES users(id);"],
   ] as const) {
     ensureColumn(db, "implants", columnName, sql);
   }
