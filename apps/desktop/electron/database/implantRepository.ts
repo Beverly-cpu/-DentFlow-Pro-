@@ -28,6 +28,21 @@ export type ImplantReservationRecord = {
   returnedAt: string | null;
 };
 
+export type ImplantReturnAuditRecord = {
+  id: number;
+  implantPlanItemId: number;
+  itemName: string;
+  category: string;
+  brand: string;
+  model: string;
+  specification: string;
+  pickedQuantity: number;
+  returnedQuantity: number;
+  actorName: string;
+  reason: string;
+  returnedAt: string;
+};
+
 /* =========================================================
    Plan Input
 
@@ -273,6 +288,7 @@ export type ImplantRecord = {
   createdByName: string | null;
   surgeryCompletedByName: string | null;
   reservations: ImplantReservationRecord[];
+  returnAudits: ImplantReturnAuditRecord[];
 
   teeth:
     ImplantToothRecord[];
@@ -1125,12 +1141,24 @@ function buildImplantRecord(
     ...row,
 
     reservations: getImplantReservations(row.id),
+    returnAudits: getImplantReturnAudits(row.id),
 
     teeth:
       getImplantTeeth(
         row.id,
       ),
   };
+}
+
+function getImplantReturnAudits(implantId: number): ImplantReturnAuditRecord[] {
+  return getDatabase().prepare(`
+    SELECT a.id,a.implantPlanItemId,p.name itemName,p.category,p.brand,p.model,p.specification,
+      a.pickedQuantity,a.returnedQuantity,u.name actorName,a.reason,a.returnedAt
+    FROM implantReturnAudits a
+    JOIN implantPlanItems p ON p.id=a.implantPlanItemId
+    JOIN users u ON u.id=a.actorUserId
+    WHERE a.implantId=? ORDER BY a.id ASC
+  `).all(implantId) as ImplantReturnAuditRecord[];
 }
 
 function getImplantReservations(
@@ -3587,6 +3615,16 @@ export function cancelImplantCase(
 
   const database = getDatabase();
   database.transaction(() => {
+    database.prepare(`
+      INSERT INTO implantReturnAudits (
+        implantId, reservationId, implantPlanItemId,
+        pickedQuantity, returnedQuantity, actorUserId, reason
+      )
+      SELECT implantId, id, implantPlanItemId,
+        pickedQuantity, pickedQuantity, ?, ?
+      FROM implantReservations
+      WHERE implantId = ? AND pickedQuantity > 0
+    `).run(actorUserId, normalizedReason, implantId);
     database.prepare(`
       UPDATE implantReservations
       SET returnedQuantity = pickedQuantity,
