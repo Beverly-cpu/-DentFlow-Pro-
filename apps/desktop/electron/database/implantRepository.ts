@@ -3594,6 +3594,14 @@ export function cancelImplantCase(
           updatedAt = CURRENT_TIMESTAMP
       WHERE implantId = ?
     `).run(implantId);
+    const unresolvedReturn = database.prepare(`
+      SELECT COUNT(*) AS count
+      FROM implantReservations
+      WHERE implantId = ? AND returnedQuantity <> pickedQuantity
+    `).get(implantId) as { count: number };
+    if (Number(unresolvedReturn.count) > 0) {
+      throw new Error("取消失敗：仍有植體或套件尚未完整歸回");
+    }
     const result = database.prepare(`
       UPDATE implants SET status = '已取消', cancelledAt = CURRENT_TIMESTAMP,
         cancelledByUserId = ?,
