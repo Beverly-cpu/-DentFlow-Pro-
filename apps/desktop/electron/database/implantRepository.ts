@@ -104,6 +104,8 @@ export type ImplantUsageSelectionInput = {
   inventoryItemId: number;
 
   quantity: number;
+
+  refLotPhotoDataUrl: string;
 };
 
 export type ImplantUsageInput = {
@@ -172,6 +174,8 @@ export type ImplantUsageItemRecord = {
   unitCost: number;
 
   totalCost: number;
+
+  refLotPhotoDataUrl: string;
 
   createdAt: string;
 
@@ -1316,6 +1320,8 @@ function getImplantUsageItems(
 
         implantUsageItems.note,
 
+        implantUsageItems.refLotPhotoDataUrl,
+
         inventory.name
           AS inventoryItemName,
 
@@ -2384,6 +2390,14 @@ export function recordImplantUsage(
         usage.inventoryItemId,
       );
 
+      const refLotPhoto = String(usage.refLotPhotoDataUrl ?? "").trim();
+      if (!refLotPhoto.startsWith("data:image/") || refLotPhoto.length < 200) {
+        throw new Error(`牙位 #${entry.tooth.toothPosition}｜${entry.plan.name} 請先拍攝 REF / LOT 照片`);
+      }
+      if (refLotPhoto.length > 7_000_000) {
+        throw new Error(`牙位 #${entry.tooth.toothPosition}｜${entry.plan.name} 的 REF / LOT 照片過大`);
+      }
+
       /*
        * 同時檢查：
        * Clinic
@@ -2492,10 +2506,13 @@ export function recordImplantUsage(
 
               quantity,
 
-              note
+              note,
+
+              refLotPhotoDataUrl
             )
 
             VALUES (
+              ?,
               ?,
               ?,
               ?,
@@ -2709,6 +2726,8 @@ export function recordImplantUsage(
                 usage.quantity,
 
                 "術後實際使用",
+
+                String(usage.refLotPhotoDataUrl).trim(),
               );
 
             const usageItemId =

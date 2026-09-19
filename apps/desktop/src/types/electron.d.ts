@@ -484,6 +484,8 @@ type DentflowImplantUsageItemRecord = {
 
   totalCost: number;
 
+  refLotPhotoDataUrl: string;
+
   createdAt: string;
 };
 
@@ -644,6 +646,7 @@ type DentflowImplantUsageInput = {
   usages: Array<{
     inventoryItemId: number;
     quantity: number;
+    refLotPhotoDataUrl: string;
   }>;
 
   instrumentPhotoDataUrl?: string;

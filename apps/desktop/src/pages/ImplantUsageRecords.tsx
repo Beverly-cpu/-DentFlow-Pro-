@@ -86,9 +86,16 @@ export default function ImplantUsageRecords() {
           <div style={styles.signature}><div><div style={styles.signatureLabel}>醫師簽名</div>
             <strong>{record.doctorSignedAt ? `${record.doctorName} 醫師` : "尚未簽名"}</strong>
             <div style={styles.sub}>簽名時間：{dateTime(record.doctorSignedAt)}</div></div>
-            {record.doctorSignature?.startsWith("data:image/")
-              ? <img style={styles.signatureImage} src={record.doctorSignature} alt={`${record.doctorName}醫師簽名`} />
-              : <div style={styles.signatureMissing}>等待醫師簽名確認</div>}
+            <div style={styles.evidenceGroup}>
+              {items.filter(({usage}) => usage.refLotPhotoDataUrl?.startsWith("data:image/")).map(({tooth,usage}) =>
+                <figure key={`photo-${usage.id}`} style={styles.evidenceFigure}>
+                  <img style={styles.evidenceImage} src={usage.refLotPhotoDataUrl} alt={`牙位 ${tooth.toothPosition} REF LOT 照片`} />
+                  <figcaption style={styles.evidenceCaption}>#{tooth.toothPosition}｜REF {usage.inventoryRefNumber || "—"}｜LOT {usage.inventoryLotNumber || "—"}</figcaption>
+                </figure>)}
+              {record.doctorSignature?.startsWith("data:image/")
+                ? <img style={styles.signatureImage} src={record.doctorSignature} alt={`${record.doctorName}醫師簽名`} />
+                : <div style={styles.signatureMissing}>等待醫師簽名確認</div>}
+            </div>
           </div>
         </section>)}</div>}
   </div>;
@@ -114,6 +121,10 @@ const styles: Record<string, CSSProperties> = {
   signature: { marginTop: 14, padding: 14, borderRadius: 11, background: "#f3f8f4", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 18 },
   signatureLabel: { color: "#61776f", fontSize: 12, marginBottom: 5 },
   signatureImage: { width: 220, height: 85, objectFit: "contain", background: "#fff", border: "1px solid #d5e1d8", borderRadius: 8 },
+  evidenceGroup: { display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, flexWrap: "wrap" },
+  evidenceFigure: { margin: 0, width: 150 },
+  evidenceImage: { width: 150, height: 90, objectFit: "cover", background: "#fff", border: "1px solid #d5e1d8", borderRadius: 8 },
+  evidenceCaption: { marginTop: 4, color: "#61776f", fontSize: 10, lineHeight: 1.35 },
   signatureMissing: { color: "#8a9a93", fontSize: 13 },
   empty: { background: "#fff", border: "1px solid #d4e1d8", borderRadius: 15, padding: 42, textAlign: "center", color: "#71837c" },
   error: { background: "#fff0ef", border: "1px solid #efc2bd", color: "#a23b32", borderRadius: 10, padding: 12, marginBottom: 16 },

@@ -114,6 +114,8 @@ type UsageRow = {
   inventoryItemId: string;
 
   quantity: string;
+
+  refLotPhotoDataUrl: string;
 };
 
 type UsageDraft = {
@@ -376,11 +378,13 @@ function getErrorMessage(
 
 function InstrumentCameraModal({
   instrumentName,
+  mode = "instrument",
   onCapture,
   onChooseFile,
   onClose,
 }: {
   instrumentName: string;
+  mode?: "instrument" | "refLot";
   onCapture: (photo: string) => void;
   onChooseFile: (file: File) => void;
   onClose: () => void;
@@ -442,7 +446,7 @@ function InstrumentCameraModal({
     <div style={{position: "fixed", inset: 0, zIndex: 1000, background: "rgba(31,50,39,.58)", display: "grid", placeItems: "center", padding: 20}}>
       <div role="dialog" aria-modal="true" style={{width: "min(720px, 100%)", borderRadius: 18, background: "#fff", padding: 20, boxShadow: "0 24px 70px rgba(24,45,31,.28)"}}>
         <div style={{display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 14}}>
-          <div><small style={{color: "#47795e", fontWeight: 800}}>INSTRUMENT PHOTO</small><h2 style={{margin: "4px 0 0"}}>拍攝器械：{instrumentName}</h2></div>
+          <div><small style={{color: "#47795e", fontWeight: 800}}>{mode === "refLot" ? "REF / LOT PHOTO" : "INSTRUMENT PHOTO"}</small><h2 style={{margin: "4px 0 0"}}>{mode === "refLot" ? `拍攝 REF／LOT：${instrumentName}` : `拍攝器械：${instrumentName}`}</h2></div>
           <button type="button" onClick={onClose}>×</button>
         </div>
         <div style={{background: "#102018", borderRadius: 14, overflow: "hidden", aspectRatio: "4 / 3", display: "grid", placeItems: "center"}}>
@@ -551,7 +555,8 @@ function ImplantHandwrittenSignature({onChange}: {onChange: (value: string) => v
 
 function ImplantSignatureModal({implant, doctorName, saving, onClose, onSave}: {implant: Implant; doctorName: string; saving: boolean; onClose: () => void; onSave: (signature: string) => Promise<void>}) {
   const [signature, setSignature] = useState("");
-  return <div className="machine-signature-backdrop"><div className="machine-signature-dialog" role="dialog" aria-modal="true"><div className="machine-signature-title"><div><span>DOCTOR SIGNATURE</span><h2>植體／套件使用簽名確認</h2></div><button type="button" className="machine-signature-close" onClick={onClose}>×</button></div><div className="machine-signature-summary"><div><span>病患</span><strong>{implant.patientName}</strong></div><div><span>手術日期</span><strong>{implant.implantDate}</strong></div><div><span>醫師</span><strong>{doctorName}</strong></div><div><span>院所</span><strong>{implant.clinicName}</strong></div></div><p>請確認實際使用的植體與套件內容正確，再於下方手寫簽名。簽名完成後管理端才可正式結案。</p><ImplantHandwrittenSignature onChange={setSignature}/><div className="machine-signature-actions"><button type="button" className="machine-signature-cancel" onClick={onClose} disabled={saving}>取消</button><button type="button" disabled={saving||!signature.startsWith("data:image/png;base64,")||signature.length<200} onClick={()=>void onSave(signature)}>{saving?"儲存中…":"確認簽名"}</button></div></div></div>;
+  const evidence = implant.teeth.flatMap(tooth => tooth.items.flatMap(plan => plan.usageItems.filter(usage => usage.refLotPhotoDataUrl?.startsWith("data:image/")).map(usage => ({tooth:tooth.toothPosition,usage}))));
+  return <div className="machine-signature-backdrop"><div className="machine-signature-dialog" role="dialog" aria-modal="true"><div className="machine-signature-title"><div><span>DOCTOR SIGNATURE</span><h2>植體／套件使用簽名確認</h2></div><button type="button" className="machine-signature-close" onClick={onClose}>×</button></div><div className="machine-signature-summary"><div><span>病患</span><strong>{implant.patientName}</strong></div><div><span>手術日期</span><strong>{implant.implantDate}</strong></div><div><span>醫師</span><strong>{doctorName}</strong></div><div><span>院所</span><strong>{implant.clinicName}</strong></div></div><p>請核對下方 REF／LOT 照片與實際使用內容，再手寫簽名。簽名完成後管理端才可正式結案。</p>{evidence.length>0&&<div style={{display:"flex",gap:10,overflowX:"auto",padding:"10px 0"}}>{evidence.map(({tooth,usage})=><figure key={usage.id} style={{margin:0,minWidth:150}}><img src={usage.refLotPhotoDataUrl} alt={`牙位 ${tooth} REF LOT 照片`} style={{width:150,height:90,objectFit:"cover",borderRadius:8,border:"1px solid #d5e1d8"}}/><figcaption style={{fontSize:10,color:"#61776f"}}>#{tooth}｜REF {usage.inventoryRefNumber||"—"}｜LOT {usage.inventoryLotNumber||"—"}</figcaption></figure>)}</div>}<ImplantHandwrittenSignature onChange={setSignature}/><div className="machine-signature-actions"><button type="button" className="machine-signature-cancel" onClick={onClose} disabled={saving}>取消</button><button type="button" disabled={saving||!signature.startsWith("data:image/png;base64,")||signature.length<200} onClick={()=>void onSave(signature)}>{saving?"儲存中…":"確認簽名"}</button></div></div></div>;
 }
 
 export default function Implants() {
@@ -652,6 +657,13 @@ export default function Implants() {
     implantId: number;
     planId: number;
     name: string;
+  } | null>(null);
+
+  const [refLotCamera, setRefLotCamera] = useState<{
+    implantId: number;
+    planId: number;
+    rowKey: string;
+    label: string;
   } | null>(null);
 
   const [signingImplant, setSigningImplant] = useState<Implant | null>(null);
@@ -2131,6 +2143,9 @@ export default function Implants() {
 
               quantity:
                 "1",
+
+              refLotPhotoDataUrl:
+                "",
             },
           ],
         },
@@ -2175,12 +2190,40 @@ export default function Implants() {
 
                       [field]:
                         value,
+
+                      ...(field === "inventoryItemId" ? {refLotPhotoDataUrl: ""} : {}),
                     }
                   : row,
             ),
         },
       }),
     );
+  }
+
+  function setRefLotPhoto(implantId: number, planId: number, rowKey: string, photo: string) {
+    setUsageDrafts(previous => ({
+      ...previous,
+      [implantId]: {
+        ...(previous[implantId] ?? {}),
+        [planId]: (previous[implantId]?.[planId] ?? []).map(row =>
+          row.key === rowKey ? {...row, refLotPhotoDataUrl: photo} : row),
+      },
+    }));
+  }
+
+  function recordRefLotPhoto(implantId: number, planId: number, rowKey: string, file: File) {
+    if (!file.type.startsWith("image/") || file.size > 5_000_000) {
+      window.alert(file.size > 5_000_000 ? "照片不可超過 5 MB。" : "請選擇照片檔案。");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const photo = typeof reader.result === "string" ? reader.result : "";
+      if (!photo.startsWith("data:image/")) return window.alert("照片讀取失敗，請重新拍照。");
+      setRefLotPhoto(implantId, planId, rowKey, photo);
+    };
+    reader.onerror = () => window.alert("照片讀取失敗，請重新拍照。");
+    reader.readAsDataURL(file);
   }
 
   function removeUsageRow(
@@ -2279,6 +2322,7 @@ export default function Implants() {
     type PostOpUsageSelection = {
       inventoryItemId: number;
       quantity: number;
+      refLotPhotoDataUrl: string;
     };
 
     type PostOpPlanUsage = {
@@ -2379,6 +2423,11 @@ export default function Implants() {
             return;
           }
 
+          if (!row.refLotPhotoDataUrl.startsWith("data:image/") || row.refLotPhotoDataUrl.length < 200) {
+            window.alert(`牙位 #${tooth.toothPosition}｜${formatPlanItem(plan)} 請先拍攝所選 REF / LOT 照片。`);
+            return;
+          }
+
           total +=
             quantity;
 
@@ -2386,6 +2435,8 @@ export default function Implants() {
             inventoryItemId,
 
             quantity,
+
+            refLotPhotoDataUrl: row.refLotPhotoDataUrl,
           });
         }
 
@@ -2413,7 +2464,7 @@ export default function Implants() {
 
     if (
       !window.confirm(
-        "確定儲存術後紀錄？植體／套件將扣除實際使用庫存，器械照片會留存於個案。",
+        "確定儲存術後紀錄？植體／套件將扣除實際使用庫存，REF／LOT 與器械照片會留存於個案。",
       )
     ) {
       return;
@@ -3998,6 +4049,10 @@ export default function Implants() {
                                                 成本：{formatCost(usage.unitCost)} × {usage.quantity} ＝ <strong>{formatCost(usage.totalCost)}</strong>
                                               </div>
                                             )}
+
+                                            {usage.refLotPhotoDataUrl?.startsWith("data:image/") && (
+                                              <img src={usage.refLotPhotoDataUrl} alt={`REF ${usage.inventoryRefNumber || "—"} LOT ${usage.inventoryLotNumber || "—"} 照片`} style={{display:"block",marginTop:8,width:180,maxHeight:120,objectFit:"cover",borderRadius:8,border:"1px solid #d6e2d8"}} />
+                                            )}
                                           </div>
                                         ),
                                       )}
@@ -4108,7 +4163,7 @@ export default function Implants() {
                                                   "grid",
 
                                                 gridTemplateColumns:
-                                                  "minmax(180px,1fr) 90px auto",
+                                                  "minmax(180px,1fr) 90px auto auto",
 
                                                 gap: 8,
 
@@ -4194,6 +4249,22 @@ export default function Implants() {
 
                                               <button
                                                 type="button"
+                                                disabled={!row.inventoryItemId}
+                                                onClick={() => {
+                                                  const selected = matching.find(item => item.id === Number(row.inventoryItemId));
+                                                  setRefLotCamera({
+                                                    implantId: implant.id,
+                                                    planId: plan.id,
+                                                    rowKey: row.key,
+                                                    label: selected ? `REF ${selected.refNumber || "—"}｜LOT ${selected.lotNumber || "—"}` : plan.name,
+                                                  });
+                                                }}
+                                              >
+                                                {row.refLotPhotoDataUrl ? "重拍 REF／LOT" : "拍攝 REF／LOT"}
+                                              </button>
+
+                                              <button
+                                                type="button"
                                                 onClick={() =>
                                                   removeUsageRow(
                                                     implant.id,
@@ -4204,6 +4275,14 @@ export default function Implants() {
                                               >
                                                 移除
                                               </button>
+
+
+                                              {row.refLotPhotoDataUrl && (
+                                                <div style={{gridColumn: "1 / -1", display: "flex", gap: 10, alignItems: "center", padding: 8, borderRadius: 8, background: "#f3f8f4"}}>
+                                                  <img src={row.refLotPhotoDataUrl} alt="REF／LOT 照片預覽" style={{width: 120, height: 80, objectFit: "cover", borderRadius: 7, border: "1px solid #d6e2d8"}} />
+                                                  <span style={{fontSize: 12, color: "#436852"}}>照片已綁定此列；更換 REF／LOT 時會自動清除，須重新拍攝。</span>
+                                                </div>
+                                              )}
                                             </div>
                                           ),
                                         )}
@@ -4322,6 +4401,21 @@ export default function Implants() {
               },
             }));
             setInstrumentCamera(null);
+          }}
+        />
+      )}
+      {refLotCamera && (
+        <InstrumentCameraModal
+          mode="refLot"
+          instrumentName={refLotCamera.label}
+          onClose={() => setRefLotCamera(null)}
+          onChooseFile={(file) => {
+            recordRefLotPhoto(refLotCamera.implantId, refLotCamera.planId, refLotCamera.rowKey, file);
+            setRefLotCamera(null);
+          }}
+          onCapture={(photo) => {
+            setRefLotPhoto(refLotCamera.implantId, refLotCamera.planId, refLotCamera.rowKey, photo);
+            setRefLotCamera(null);
           }}
         />
       )}
