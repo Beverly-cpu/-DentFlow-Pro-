@@ -110,6 +110,9 @@ export type ConsumableUsageRecord = {
 
   cancelReason: string;
 
+  createdByUserId: number | null;
+  createdByName: string | null;
+
   items:
     ConsumableUsageItemRecord[];
 
@@ -157,6 +160,9 @@ type RawUsageRecord = {
     string | null;
 
   cancelReason: string;
+
+  createdByUserId: number | null;
+  createdByName: string | null;
 
   createdAt: string;
 
@@ -431,6 +437,8 @@ export function ensureConsumableUsageSchema() {
 
       cancelReason TEXT NOT NULL DEFAULT '',
 
+      createdByUserId INTEGER REFERENCES users(id),
+
       createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
       updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -537,6 +545,12 @@ export function ensureConsumableUsageSchema() {
     "consumableUsageRecords",
     "cancelReason",
     "TEXT NOT NULL DEFAULT ''",
+  );
+
+  addColumnIfMissing(
+    "consumableUsageRecords",
+    "createdByUserId",
+    "INTEGER REFERENCES users(id)",
   );
 
   addColumnIfMissing(
@@ -1065,6 +1079,10 @@ const BASE_USAGE_SELECT = `
 
     cur.cancelReason,
 
+    cur.createdByUserId,
+
+    recorder.name AS createdByName,
+
     cur.createdAt,
 
     cur.updatedAt
@@ -1077,6 +1095,9 @@ const BASE_USAGE_SELECT = `
 
   INNER JOIN doctors d
     ON d.id = cur.doctorId
+
+  LEFT JOIN users recorder
+    ON recorder.id = cur.createdByUserId
 `;
 
 /* =========================================================
@@ -1199,11 +1220,23 @@ export function createConsumableUsage(
   clinicId: number,
   input:
     ConsumableUsageInput,
+  actorUserId: number,
 ):
   ConsumableUsageRecord {
   assertActiveClinic(
     clinicId,
   );
+
+  const recorder = getDatabase().prepare(`
+    SELECT users.id
+    FROM users
+    INNER JOIN userClinics ON userClinics.userId = users.id
+    WHERE users.id = ? AND users.isActive = 1
+      AND userClinics.clinicId = ?
+      AND users.role IN ('Assistant', 'Admin')
+    LIMIT 1
+  `).get(actorUserId, clinicId);
+  if (!recorder) throw new Error("只有助理或管理者可以建立耗材使用紀錄。");
 
   assertPatientInClinic(
     input.patientId,
@@ -1359,6 +1392,8 @@ export function createConsumableUsage(
 
                 cancelReason,
 
+                createdByUserId,
+
                 createdAt,
 
                 updatedAt
@@ -1376,6 +1411,7 @@ export function createConsumableUsage(
                 NULL,
                 NULL,
                 '',
+                ?,
                 CURRENT_TIMESTAMP,
                 CURRENT_TIMESTAMP
               )
@@ -1398,6 +1434,8 @@ export function createConsumableUsage(
               normalizeText(
                 input.note,
               ),
+
+              actorUserId,
             );
 
         const usageRecordId =
