@@ -587,32 +587,38 @@ const dentflowApi = {
   implants: {
     list(
       clinicId: number,
+      actorUserId: number,
     ) {
       return ipcRenderer.invoke(
         "implants:list",
         clinicId,
+        actorUserId,
       );
     },
 
     byPatient(
       patientId: number,
       clinicId: number,
+      actorUserId: number,
     ) {
       return ipcRenderer.invoke(
         "implants:by-patient",
         patientId,
         clinicId,
+        actorUserId,
       );
     },
 
     byDoctor(
       doctorId: number,
       clinicId: number,
+      actorUserId: number,
     ) {
       return ipcRenderer.invoke(
         "implants:by-doctor",
         doctorId,
         clinicId,
+        actorUserId,
       );
     },
 
@@ -718,10 +724,12 @@ const dentflowApi = {
 
     list(
       clinicId: number,
+      actorUserId: number,
     ) {
       return ipcRenderer.invoke(
         "inventory:list",
         clinicId,
+        actorUserId,
       );
     },
 
@@ -953,11 +961,13 @@ const dentflowApi = {
     list(
       clinicId: number,
       usageType?: string,
+      actorUserId?: number,
     ) {
       return ipcRenderer.invoke(
         "consumables:list",
         clinicId,
         usageType,
+        actorUserId,
       );
     },
 
@@ -1036,12 +1046,14 @@ const dentflowApi = {
       doctorId: number,
       clinicId: number,
       usageType?: string,
+      actorUserId?: number,
     ) {
       return ipcRenderer.invoke(
         "consumables:by-doctor",
         doctorId,
         clinicId,
         usageType,
+        actorUserId,
       );
     },
 
