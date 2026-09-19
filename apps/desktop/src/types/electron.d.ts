@@ -758,10 +758,14 @@ type DentflowApi = {
   machines: {
     list: () => Promise<Array<{id:number;name:string;type:string;serialNumber:string;qrToken:string;currentClinicId:number;clinicName:string;clinicCode:string;targetClinicName:string|null;status:string;isActive:number;lastConfirmedAt:string|null}>>;
     reservations: () => Promise<Array<{id:number;machineId:number;machineName:string;clinicId:number;clinicName:string;clinicCode:string;scheduledStartAt:string;scheduledEndAt:string;moverUserId:number;moverName:string;createdByUserId:number;createdByName:string|null;status:string;overrideReason:string}>>;
+    movers: (actorUserId: number) => Promise<Array<{id:number;name:string;role:string}>>;
+    scans: (actorUserId: number) => Promise<Array<{id:number;machineId:number;machineName:string;reservationId:number|null;clinicId:number;clinicName:string;actorUserId:number;actorName:string;action:string;scannedAt:string}>>;
     create: (input: unknown, actorUserId: number) => Promise<unknown>;
     setActive: (id: number, active: boolean, actorUserId: number) => Promise<boolean>;
     update: (id: number, input: unknown, actorUserId: number) => Promise<unknown>;
     reserve: (input: unknown, actorUserId: number) => Promise<unknown>;
+    updateReservation: (id: number, input: unknown, actorUserId: number) => Promise<unknown>;
+    cancelReservation: (id: number, reason: string, actorUserId: number) => Promise<boolean>;
     scan: (token: string, reservationId: number, clinicId: number, action: "搬出" | "到院", actorUserId: number) => Promise<unknown>;
     usageCredits: (machineId: number, actorUserId: number) => Promise<{machineId:number;remainingUses:number;unitCost?:number;updatedAt:string}>;
     purchaseCredits: (machineId: number, quantity: number, actorUserId: number) => Promise<unknown>;
