@@ -713,6 +713,9 @@ export function initializeDatabase():
       note TEXT NOT NULL
         DEFAULT '',
 
+      refLotPhotoDataUrl TEXT NOT NULL
+        DEFAULT '',
+
       createdAt TEXT NOT NULL
         DEFAULT CURRENT_TIMESTAMP,
 
@@ -1156,6 +1159,17 @@ export function initializeDatabase():
     `
       ALTER TABLE implantPlanItems
       ADD COLUMN instrumentPhotoDataUrl TEXT
+      NOT NULL DEFAULT '';
+    `,
+  );
+
+  ensureColumn(
+    db,
+    "implantUsageItems",
+    "refLotPhotoDataUrl",
+    `
+      ALTER TABLE implantUsageItems
+      ADD COLUMN refLotPhotoDataUrl TEXT
       NOT NULL DEFAULT '';
     `,
   );
