@@ -175,6 +175,8 @@
 .machine-signature-canvas-wrap .machine-signature-line { position:absolute; left:8%; right:8%; bottom:42px; border-bottom:1px solid #b8c3bd; pointer-events:none; }
 .machine-signature-canvas-wrap .machine-signature-line span { position:static; display:inline-block; padding:0 8px 4px 0; color:#263d31; font-size:13px; font-weight:600; background:#fff; }
 .machines-page .machine-signature-clear { min-height: 32px; margin-top: 8px; padding: 5px 10px; border-color: #cbdacb; background: #fff; color: #47705a; }
+.machine-signature-controls { display:flex; align-items:center; gap:10px; }
+.machine-signature-controls small { margin-top:8px; color:#47795e; font-weight:600; }
 .machine-signature-preview { width: 92px; height: 38px; object-fit: contain; border: 0 !important; border-radius: 0 !important; }
 .machine-signature-note { margin: 10px 0 22px; color: #718077 !important; font-size: 12px !important; }
 .machine-signature-actions { justify-content: flex-end; }

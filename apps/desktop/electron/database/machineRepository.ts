@@ -298,9 +298,20 @@ export function cancelMachineUsage(id:number,reason:string,actorUserId:number){
 export function signMachineUsage(id:number,signature:string,actorUserId:number){
   actor(actorUserId,["Doctor"]); const normalized=String(signature??"").trim();
   if(!normalized.startsWith("data:image/png;base64,")||normalized.length<200) throw new Error("手寫簽名資料格式不正確，請清除後重新簽名");
-  const doctor=getDatabase().prepare(`SELECT id,name FROM doctors WHERE userId=? AND isActive=1`).get(actorUserId) as {id:number;name:string}|undefined;
-  if(!doctor) throw new Error("找不到醫師資料");
-  const result=getDatabase().prepare(`UPDATE machineUsageRecords SET status='已簽名',signature=?,signedAt=CURRENT_TIMESTAMP,signedByUserId=?,updatedAt=CURRENT_TIMESTAMP WHERE id=? AND doctorId=? AND status='待醫師簽名'`).run(normalized,actorUserId,id,doctor.id);
-  if(result.changes!==1) throw new Error("此紀錄無法簽名或已完成簽名");
-  return true;
+  const db=getDatabase();
+  return db.transaction(()=>{
+    const usage=db.prepare(`SELECT mur.id,mur.status,mur.doctorId
+      FROM machineUsageRecords mur
+      JOIN doctors d ON d.id=mur.doctorId
+      WHERE mur.id=? AND d.userId=? AND d.isActive=1`).get(id,actorUserId) as {id:number;status:string;doctorId:number}|undefined;
+    if(!usage) throw new Error("此導航紀錄不屬於目前登入醫師");
+    if(usage.status!=="待醫師簽名") throw new Error("此導航紀錄已完成簽名或無法簽名");
+    const result=db.prepare(`UPDATE machineUsageRecords SET status='已簽名',signature=?,signedAt=CURRENT_TIMESTAMP,
+      signedByUserId=?,updatedAt=CURRENT_TIMESTAMP WHERE id=? AND doctorId=? AND status='待醫師簽名'`)
+      .run(normalized,actorUserId,id,usage.doctorId);
+    if(result.changes!==1) throw new Error("簽名狀態已變更，請重新整理後再試");
+    const saved=db.prepare(`SELECT signature,signedByUserId,signedAt,status FROM machineUsageRecords WHERE id=?`).get(id) as {signature:string;signedByUserId:number|null;signedAt:string|null;status:string}|undefined;
+    if(!saved||saved.signature!==normalized||saved.signedByUserId!==actorUserId||!saved.signedAt||saved.status!=="已簽名") throw new Error("簽名未完整保存，請重新簽名");
+    return true;
+  })();
 }
