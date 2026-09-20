@@ -5,7 +5,7 @@ import type { DentflowMainLayoutContext } from "../layouts/MainLayout";
 import "../styles/machines.css";
 
 type Machine={id:number;name:string;type:string;serialNumber:string;qrToken:string;currentClinicId:number;clinicName:string;targetClinicName:string|null;status:string;isActive:number};
-type Reservation={id:number;machineId:number;clinicId:number;machineName:string;clinicName:string;scheduledStartAt:string;scheduledEndAt:string;moverUserId:number;moverName:string;createdByName:string|null;status:string;note:string;overrideReason:string};
+type Reservation={id:number;machineId:number;clinicId:number;machineName:string;clinicName:string;scheduledStartAt:string;scheduledEndAt:string;moverUserId:number;moverName:string;createdByName:string|null;status:string;note?:string;overrideReason:string};
 type Mover={id:number;name:string;role:string};
 type MachineScan={id:number;machineName:string;clinicName:string;actorName:string;action:string;scannedAt:string};
 type Usage={id:number;machineName:string;clinicName:string;patientNameSnapshot:string;patientBirthDateSnapshot:string;usageDate:string;toothPositions:string[];doctorName:string;status:string;signature:string;signedAt:string|null;createdByName:string|null;cancelledByName:string|null;cancelledAt:string|null;cancellationReason:string;creditRestored:number;unitCost?:number};
@@ -17,15 +17,132 @@ const grid:React.CSSProperties={display:"grid",gridTemplateColumns:"repeat(auto-
 const actions:React.CSSProperties={display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"};
 
 function HandwrittenSignature({onChange}:{onChange:(value:string)=>void}){
- const canvasRef=useRef<HTMLCanvasElement>(null),drawingRef=useRef(false),pointerRef=useRef<number|null>(null),lastPointRef=useRef<{x:number;y:number}|null>(null),hasInkRef=useRef(false),[hasInk,setHasInk]=useState(false);
- const prepareCanvas=useCallback(()=>{const canvas=canvasRef.current;if(!canvas)return;const rect=canvas.getBoundingClientRect();if(rect.width<=0||rect.height<=0)return;const ratio=Math.max(window.devicePixelRatio||1,1);canvas.width=Math.round(rect.width*ratio);canvas.height=Math.round(rect.height*ratio);const context=canvas.getContext("2d");if(!context)return;context.setTransform(1,0,0,1,0,0);context.fillStyle="#fff";context.fillRect(0,0,canvas.width,canvas.height);context.setTransform(ratio,0,0,ratio,0,0);context.lineCap="round";context.lineJoin="round";context.strokeStyle="#18251f";context.fillStyle="#18251f";context.lineWidth=2.2;drawingRef.current=false;pointerRef.current=null;lastPointRef.current=null;hasInkRef.current=false;setHasInk(false);onChange("");},[onChange]);
- useEffect(()=>{const frame=window.requestAnimationFrame(prepareCanvas);return()=>window.cancelAnimationFrame(frame);},[prepareCanvas]);
- function point(event:React.PointerEvent<HTMLCanvasElement>){const canvas=canvasRef.current;if(!canvas)return null;const rect=canvas.getBoundingClientRect();return{x:event.clientX-rect.left,y:event.clientY-rect.top};}
- function start(event:React.PointerEvent<HTMLCanvasElement>){if(event.pointerType==="mouse"&&event.button!==0)return;const canvas=canvasRef.current,current=point(event);if(!canvas||!current)return;event.preventDefault();try{canvas.setPointerCapture(event.pointerId);}catch{/* ignore */}drawingRef.current=true;pointerRef.current=event.pointerId;lastPointRef.current=current;const context=canvas.getContext("2d");if(context){context.beginPath();context.arc(current.x,current.y,1.1,0,Math.PI*2);context.fill();}hasInkRef.current=true;setHasInk(true);}
- function move(event:React.PointerEvent<HTMLCanvasElement>){if(!drawingRef.current||pointerRef.current!==event.pointerId)return;const canvas=canvasRef.current,current=point(event),previous=lastPointRef.current;if(!canvas||!current||!previous)return;event.preventDefault();const context=canvas.getContext("2d");if(!context)return;context.beginPath();context.moveTo(previous.x,previous.y);context.lineTo(current.x,current.y);context.stroke();lastPointRef.current=current;hasInkRef.current=true;setHasInk(true);}
- function finish(event:React.PointerEvent<HTMLCanvasElement>){if(pointerRef.current!==event.pointerId)return;const canvas=canvasRef.current;drawingRef.current=false;pointerRef.current=null;lastPointRef.current=null;if(canvas?.hasPointerCapture(event.pointerId)){try{canvas.releasePointerCapture(event.pointerId);}catch{/* ignore */}}if(canvas&&hasInkRef.current)onChange(canvas.toDataURL("image/png"));}
- function clear(){prepareCanvas();}
- return <div><div className="machine-signature-canvas-wrap healing-signature-style"><canvas ref={canvasRef} onPointerDown={start} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} aria-label="醫師手寫簽名區"/>{!hasInk&&<span>請在此簽名</span>}<div className="machine-signature-line"><span>醫師簽名</span></div></div><button type="button" className="machine-signature-clear" onClick={clear} disabled={!hasInk}>清除重簽</button></div>;
+ const canvasRef=useRef<HTMLCanvasElement>(null);
+ const drawingRef=useRef(false);
+ const pointerRef=useRef<number|null>(null);
+ const lastPointRef=useRef<{x:number;y:number}|null>(null);
+ const hasInkRef=useRef(false);
+ const onChangeRef=useRef(onChange);
+ const [hasInk,setHasInk]=useState(false);
+
+ useEffect(()=>{onChangeRef.current=onChange;},[onChange]);
+
+ const configureContext=useCallback((canvas:HTMLCanvasElement)=>{
+  const context=canvas.getContext("2d");
+  if(!context)return null;
+  const ratio=Math.max(window.devicePixelRatio||1,1);
+  context.setTransform(ratio,0,0,ratio,0,0);
+  context.lineCap="round";
+  context.lineJoin="round";
+  context.strokeStyle="#18251f";
+  context.fillStyle="#18251f";
+  context.lineWidth=2.2;
+  return context;
+ },[]);
+
+ const prepareCanvas=useCallback(()=>{
+  const canvas=canvasRef.current;
+  if(!canvas)return false;
+  const rect=canvas.getBoundingClientRect();
+  if(rect.width<=0||rect.height<=0)return false;
+  const ratio=Math.max(window.devicePixelRatio||1,1);
+  canvas.width=Math.max(1,Math.round(rect.width*ratio));
+  canvas.height=Math.max(1,Math.round(rect.height*ratio));
+  const context=canvas.getContext("2d");
+  if(!context)return false;
+  context.setTransform(1,0,0,1,0,0);
+  context.fillStyle="#fff";
+  context.fillRect(0,0,canvas.width,canvas.height);
+  configureContext(canvas);
+  drawingRef.current=false;
+  pointerRef.current=null;
+  lastPointRef.current=null;
+  hasInkRef.current=false;
+  setHasInk(false);
+  onChangeRef.current("");
+  return true;
+ },[configureContext]);
+
+ useEffect(()=>{
+  let secondFrame=0;
+  const firstFrame=window.requestAnimationFrame(()=>{
+   if(!prepareCanvas())secondFrame=window.requestAnimationFrame(()=>{prepareCanvas();});
+  });
+  return()=>{window.cancelAnimationFrame(firstFrame);if(secondFrame)window.cancelAnimationFrame(secondFrame);};
+ },[prepareCanvas]);
+
+ function point(clientX:number,clientY:number){
+  const canvas=canvasRef.current;
+  if(!canvas)return null;
+  const rect=canvas.getBoundingClientRect();
+  return{x:clientX-rect.left,y:clientY-rect.top};
+ }
+
+ function commit(){
+  const canvas=canvasRef.current;
+  if(canvas&&hasInkRef.current)onChangeRef.current(canvas.toDataURL("image/png"));
+ }
+
+ function start(event:React.PointerEvent<HTMLCanvasElement>){
+  if(event.pointerType==="mouse"&&event.button!==0)return;
+  const canvas=canvasRef.current;
+  const current=point(event.clientX,event.clientY);
+  if(!canvas||!current)return;
+  event.preventDefault();
+  try{canvas.setPointerCapture(event.pointerId);}catch{/* Pointer capture is not available on every device. */}
+  drawingRef.current=true;
+  pointerRef.current=event.pointerId;
+  lastPointRef.current=current;
+  const context=configureContext(canvas);
+  if(context){context.beginPath();context.arc(current.x,current.y,1.1,0,Math.PI*2);context.fill();}
+  hasInkRef.current=true;
+  setHasInk(true);
+ }
+
+ function move(event:React.PointerEvent<HTMLCanvasElement>){
+  if(!drawingRef.current||pointerRef.current!==event.pointerId)return;
+  const canvas=canvasRef.current;
+  const previous=lastPointRef.current;
+  if(!canvas||!previous)return;
+  event.preventDefault();
+  const context=configureContext(canvas);
+  if(!context)return;
+  const samples=event.nativeEvent.getCoalescedEvents?.()??[event.nativeEvent];
+  let last=previous;
+  for(const sample of samples){
+   const current=point(sample.clientX,sample.clientY);
+   if(!current)continue;
+   context.beginPath();
+   context.moveTo(last.x,last.y);
+   context.lineTo(current.x,current.y);
+   context.stroke();
+   last=current;
+  }
+  lastPointRef.current=last;
+  hasInkRef.current=true;
+  setHasInk(true);
+ }
+
+ function finish(event:React.PointerEvent<HTMLCanvasElement>){
+  if(pointerRef.current!==event.pointerId)return;
+  event.preventDefault();
+  const canvas=canvasRef.current;
+  drawingRef.current=false;
+  pointerRef.current=null;
+  lastPointRef.current=null;
+  commit();
+  if(canvas?.hasPointerCapture(event.pointerId)){try{canvas.releasePointerCapture(event.pointerId);}catch{/* Already released. */}}
+ }
+
+ function lostCapture(){
+  if(!drawingRef.current)return;
+  drawingRef.current=false;
+  pointerRef.current=null;
+  lastPointRef.current=null;
+  commit();
+ }
+
+ return <div><div className="machine-signature-canvas-wrap healing-signature-style"><canvas ref={canvasRef} onPointerDown={start} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} onLostPointerCapture={lostCapture} onContextMenu={event=>event.preventDefault()} aria-label="醫師手寫簽名區"/>{!hasInk&&<span>請在此簽名</span>}<div className="machine-signature-line"><span>醫師簽名</span></div></div><div className="machine-signature-controls"><button type="button" className="machine-signature-clear" onClick={()=>prepareCanvas()} disabled={!hasInk}>清除重簽</button>{hasInk&&<small role="status">已完成手寫，可送出簽名</small>}</div></div>;
 }
 
 type BarcodeResult={rawValue:string};
@@ -71,7 +188,7 @@ export default function Machines(){
  return <section className="machines-page"><header className="machines-header"><span>CLINIC EQUIPMENT</span><h1>植牙導航機管理</h1></header>{error&&<div style={{...box,background:"#fff0f0",color:"#a33",marginBottom:14}}>{error}</div>}{notice&&<div style={{...box,background:"#eef8ef",marginBottom:14}}>{notice}</div>}
  {cameraOpen&&<CameraQrScanner onDetected={qrDetected} onClose={()=>setCameraOpen(false)}/>} 
  {editingMachine&&<div className="machine-signature-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!isEditingMachine)setEditingMachine(null);}}><div className="machine-signature-dialog machine-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="machine-edit-title"><div className="machine-signature-title"><div><span>MACHINE SETTINGS</span><h2 id="machine-edit-title">編輯機台資料</h2></div><button type="button" className="machine-signature-close" disabled={isEditingMachine} onClick={()=>setEditingMachine(null)}>×</button></div><div className="machine-edit-fields"><label>機台名稱<input autoFocus value={editForm.name} onChange={e=>setEditForm({...editForm,name:e.target.value})}/></label><label>機台類型<select value={editForm.type} onChange={e=>setEditForm({...editForm,type:e.target.value})}><option value="導航機">導航機</option><option value="水雷射">水雷射</option><option value="其他大型機台">其他大型機台</option></select></label><label>機台序號<input value={editForm.serialNumber} onChange={e=>setEditForm({...editForm,serialNumber:e.target.value})} placeholder="未設定序號"/></label></div><div className="machine-current-location"><small>目前所在院所</small><strong>{editingMachine.status==="搬運中"?`${editingMachine.clinicName} → ${editingMachine.targetClinicName??"目的院所"}`:editingMachine.clinicName}</strong><span>{editingMachine.status}</span></div><div className="machine-signature-actions"><button type="button" className="machine-signature-cancel" disabled={isEditingMachine} onClick={()=>setEditingMachine(null)}>取消</button><button type="button" disabled={isEditingMachine||!editForm.name.trim()||!editForm.type.trim()} onClick={()=>void saveMachine()}>{isEditingMachine?"儲存中…":"儲存修改"}</button></div></div></div>}
- {signingRecord&&<div className="machine-signature-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!isSigning)setSigningRecord(null);}}><div className="machine-signature-dialog" role="dialog" aria-modal="true" aria-labelledby="machine-signature-title"><div className="machine-signature-title"><div><span>DOCTOR SIGNATURE</span><h2 id="machine-signature-title">醫師手寫簽名確認</h2></div><button type="button" className="machine-signature-close" disabled={isSigning} onClick={()=>setSigningRecord(null)}>×</button></div><div className="machine-signature-summary"><div><small>病患</small><strong>{signingRecord.patientNameSnapshot}</strong></div><div><small>使用日期</small><strong>{signingRecord.usageDate}</strong></div><div><small>牙位</small><strong>{signingRecord.toothPositions.join("、")}</strong></div><div><small>院所</small><strong>{signingRecord.clinicName}</strong></div></div><label className="machine-signature-field">醫師手寫簽名<HandwrittenSignature onChange={setSignature}/></label><p className="machine-signature-note">可使用滑鼠、觸控筆或手指簽名。送出後將連同簽名時間保留於紀錄。</p><div className="machine-signature-actions"><button type="button" className="machine-signature-cancel" disabled={isSigning} onClick={()=>setSigningRecord(null)}>取消</button><button type="button" disabled={isSigning||!signature} onClick={()=>void confirmSignature()}>{isSigning?"簽名中…":"確認簽名"}</button></div></div></div>}
+ {signingRecord&&<div className="machine-signature-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!isSigning)setSigningRecord(null);}}><div className="machine-signature-dialog" role="dialog" aria-modal="true" aria-labelledby="machine-signature-title"><div className="machine-signature-title"><div><span>DOCTOR SIGNATURE</span><h2 id="machine-signature-title">醫師手寫簽名確認</h2></div><button type="button" className="machine-signature-close" disabled={isSigning} onClick={()=>setSigningRecord(null)}>×</button></div><div className="machine-signature-summary"><div><small>病患</small><strong>{signingRecord.patientNameSnapshot}</strong></div><div><small>使用日期</small><strong>{signingRecord.usageDate}</strong></div><div><small>牙位</small><strong>{signingRecord.toothPositions.join("、")}</strong></div><div><small>院所</small><strong>{signingRecord.clinicName}</strong></div></div><label className="machine-signature-field">醫師手寫簽名<HandwrittenSignature onChange={setSignature}/></label><p className="machine-signature-note">可使用滑鼠、觸控筆或手指簽名。送出後將連同簽名時間保留於紀錄。</p><div className="machine-signature-actions"><button type="button" className="machine-signature-cancel" disabled={isSigning} onClick={()=>setSigningRecord(null)}>取消</button><button type="button" disabled={isSigning||!signature.startsWith("data:image/png;base64,")||signature.length<200} onClick={()=>void confirmSignature()}>{isSigning?"簽名中…":"確認簽名"}</button></div></div></div>}
  {credit&&credit.remainingUses<5&&<div style={{...box,background:"#fff3d7",borderColor:"#dfad39",marginBottom:14}}><strong>購買額度提醒：</strong>導航機僅剩 {credit.remainingUses} 次可用，請助理儘速購買額度。</div>}
  <div style={{...grid,marginBottom:16}}><div style={box}><h2 style={{marginTop:0}}>全院所共用額度</h2><div style={{fontSize:42,fontWeight:800}}>{credit?.remainingUses??"—"}<small style={{fontSize:16}}> 次</small></div><p>每位病患每次使用固定扣除 1 次，多顆牙位不重複扣除。</p>{(admin||assistant)&&<div style={actions}><input style={{...field,width:150,margin:0}} type="number" min="1" step="1" placeholder="購買次數" value={creditQty} onChange={e=>setCreditQty(e.target.value)}/><button onClick={()=>void run(()=>window.dentflow.machines.purchaseCredits(Number(credit?.machineId),Number(creditQty),session.userId),"額度已加入")}>加入購買額度</button></div>}{canCost&&<div style={{...actions,marginTop:12}}><input style={{...field,width:150,margin:0}} type="number" min="0" placeholder="每次成本" value={unitCost} onChange={e=>setUnitCost(e.target.value)}/><button onClick={()=>void run(()=>window.dentflow.machines.updateUsageCost(Number(credit?.machineId),Number(unitCost),session.userId),"每次使用成本已更新")}>儲存成本</button></div>}</div>
  {canLogistics&&<div style={box}><h2 style={{marginTop:0}}>登記病患使用</h2><select style={field} value={usage.patientId} onChange={e=>setUsage({...usage,patientId:e.target.value})}><option value="">選擇病患</option>{patients.map(p=><option key={p.id} value={p.id}>{p.chartNumber}｜{p.name}</option>)}</select>{selectedPatient&&<div style={{marginBottom:10}}>生日：{selectedPatient.birthDate||"未填寫"}</div>}<select style={field} value={usage.doctorId} onChange={e=>setUsage({...usage,doctorId:e.target.value})}><option value="">選擇醫師</option>{doctors.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select><input style={field} type="date" value={usage.usageDate} onChange={e=>setUsage({...usage,usageDate:e.target.value})}/><input style={field} placeholder="牙位，例如：11、12、21" value={usage.teeth} onChange={e=>setUsage({...usage,teeth:e.target.value})}/><button onClick={()=>void run(()=>window.dentflow.machines.createUsage({machineId:Number(usage.machineId),clinicId:session.clinicId,patientId:Number(usage.patientId),usageDate:usage.usageDate,toothPositions:usage.teeth.split(/[、,，\s]+/),doctorId:Number(usage.doctorId)},session.userId),"使用紀錄已建立並扣除 1 次額度")}>建立紀錄並扣 1 次</button></div>}</div>
