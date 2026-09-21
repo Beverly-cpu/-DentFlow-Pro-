@@ -806,6 +806,10 @@ export default function Implants() {
     session.role ===
     "Admin";
 
+  const canEditOrderDetails =
+    !isAssistant ||
+    isDoctorOrderOpen;
+
   /* =======================================================
      Load
   ======================================================= */
@@ -1824,6 +1828,11 @@ export default function Implants() {
     const requestedInstruments = form.instrumentIds
       .map((id) => instruments.find((instrument) => instrument.id === Number(id)))
       .filter((instrument): instrument is InstrumentItem => Boolean(instrument));
+
+    if (isDoctorOrderOpen && isAssistant && requestedInstruments.length === 0) {
+      setErrorMessage("助理協助叫貨時，請至少選擇一項需使用的器械。");
+      return;
+    }
 
     if (requestedInstruments.length > 0 && teethPayload.length > 0) {
       teethPayload[0].items.push(...requestedInstruments.map((instrument) => ({
@@ -3242,7 +3251,7 @@ export default function Implants() {
                           display:
                             "grid",
 
-                          gridTemplateColumns: session.role === "Assistant"
+                          gridTemplateColumns: !canEditOrderDetails
                             ? "minmax(240px,1fr)"
                             : "minmax(150px,0.8fr) minmax(170px,1fr) minmax(230px,1.4fr) auto",
 
@@ -3293,7 +3302,7 @@ export default function Implants() {
                           </select>
                         </label>
 
-                        <label style={{display: session.role === "Assistant" ? "none" : "block"}}>
+                        <label style={{display: canEditOrderDetails ? "block" : "none"}}>
                           型號 / 系列
 
                           <select
@@ -3339,7 +3348,7 @@ export default function Implants() {
                           </select>
                         </label>
 
-                        <label style={{display: session.role === "Assistant" ? "none" : "block"}}>
+                        <label style={{display: canEditOrderDetails ? "block" : "none"}}>
                           植體規格
 
                           <select
@@ -3406,7 +3415,7 @@ export default function Implants() {
                             tooth.items.length <=
                             1
                           }
-                          style={{display: session.role === "Assistant" ? "none" : "block"}}
+                          style={{display: canEditOrderDetails ? "block" : "none"}}
                         >
                           移除
                         </button>
@@ -3414,7 +3423,7 @@ export default function Implants() {
                     ),
                   )}
 
-                  {session.role !== "Assistant" && (
+                  {canEditOrderDetails && (
                     <button
                       type="button"
                       onClick={() => addPlanItem(tooth.key)}
@@ -3428,7 +3437,7 @@ export default function Implants() {
             )}
           </div>
 
-          {session.role !== "Assistant" && (
+          {canEditOrderDetails && (
             <div style={{...subPanelStyle, marginTop: 20}}>
               <h3 style={{margin: "0 0 6px"}}>器械叫貨</h3>
               <small style={{color: "#78817a"}}>
