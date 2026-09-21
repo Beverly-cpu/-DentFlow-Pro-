@@ -784,6 +784,10 @@ export default function Implants() {
     session.role ===
     "Doctor";
 
+  const isAssistant =
+    session.role ===
+    "Assistant";
+
   const canCreate =
     session.role ===
       "Assistant" ||
@@ -2935,7 +2939,9 @@ export default function Implants() {
               <strong>{patientSearch}</strong>
               <span style={{marginLeft: 16}}>手術日期：{form.implantDate || "未設定"}</span>
               <div style={{marginTop: 6, color: "#68766d"}}>
-                請選擇型號、規格及需要搬運的器械；送出後將直接完成醫師叫貨。
+                {isAssistant
+                  ? "請依醫師需求選擇型號、規格及搬運器械；送出後會記錄您為協助叫貨助理。"
+                  : "請選擇型號、規格及需要搬運的器械；送出後將直接完成醫師叫貨。"}
               </div>
             </div>
           )}
@@ -3537,7 +3543,9 @@ export default function Implants() {
               {isSaving
                 ? "儲存中…"
                 : isDoctorOrderOpen
-                  ? "確認叫貨"
+                  ? isAssistant
+                    ? "確認代醫師叫貨"
+                    : "確認叫貨"
                   : editingId !==
                     null
                   ? "儲存修改"
@@ -3749,7 +3757,7 @@ export default function Implants() {
                       )}
 
                       <div style={{marginTop: 10, color: "#728078", fontSize: 12, lineHeight: 1.8}}>
-                        助理紀錄者：{implant.createdByName ?? "—"} ｜ 叫貨：{formatTimestamp(implant.orderedAt)}（#{implant.orderedByUserId ?? "—"}） ｜ 取出：{formatTimestamp(implant.pickedAt)}（#{implant.pickedByUserId ?? "—"}） ｜ 術後／器械照片紀錄者：{implant.surgeryCompletedByName ?? "—"} ｜ 手術完成：{formatTimestamp(implant.surgeryCompletedAt)} ｜ 歸回：{formatTimestamp(implant.returnedAt)}（#{implant.returnedByUserId ?? "—"}） ｜ 結案：{formatTimestamp(implant.closedAt)}（#{implant.closedByUserId ?? "—"}）
+                        助理紀錄者：{implant.createdByName ?? "—"} ｜ 叫貨：{formatTimestamp(implant.orderedAt)}（{implant.orderedByRole === "Assistant" ? `協助叫貨助理：${implant.orderedByName ?? "—"}` : `醫師：${implant.orderedByName ?? "—"}`}） ｜ 取出：{formatTimestamp(implant.pickedAt)}（#{implant.pickedByUserId ?? "—"}） ｜ 術後／器械照片紀錄者：{implant.surgeryCompletedByName ?? "—"} ｜ 手術完成：{formatTimestamp(implant.surgeryCompletedAt)} ｜ 歸回：{formatTimestamp(implant.returnedAt)}（#{implant.returnedByUserId ?? "—"}） ｜ 結案：{formatTimestamp(implant.closedAt)}（#{implant.closedByUserId ?? "—"}）
                       </div>
 
                       {implant.doctorSignedAt && (
@@ -3848,14 +3856,14 @@ export default function Implants() {
                         </button>
                       )}
 
-                      {canUpdate && isDoctor && currentClinic && implant.status === "待醫師叫貨" && (
+                      {canUpdate && (isDoctor || isAssistant) && currentClinic && implant.status === "待醫師叫貨" && (
                         <button
                           type="button"
                           className="primary-button"
                           disabled={busy}
                           onClick={() => handleEdit(implant, "doctor-order")}
                         >
-                          選擇規格並叫貨
+                          {isAssistant ? "協助醫師選擇規格並叫貨" : "選擇規格並叫貨"}
                         </button>
                       )}
 
