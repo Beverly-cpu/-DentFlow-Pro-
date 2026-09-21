@@ -202,6 +202,67 @@
   margin-bottom: 18px;
 }
 
+.dashboard-metrics-doctor {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.dashboard-machine-reminders {
+  margin-bottom: 18px;
+  border-color: #e5c678;
+  background: linear-gradient(135deg, #fffaf0 0%, #fffdf8 100%);
+}
+
+.dashboard-machine-reminder-list {
+  display: grid;
+  gap: 10px;
+  padding: 0 18px 18px;
+}
+
+.dashboard-machine-reminder-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #ead9a7;
+  border-radius: 14px;
+  background: #fff;
+  color: #173d31;
+  text-align: left;
+}
+
+.dashboard-machine-reminder-row:hover {
+  border-color: #caa64d;
+  background: #fffdf6;
+}
+
+.dashboard-machine-reminder-row > span:nth-child(2) {
+  display: grid;
+  gap: 3px;
+}
+
+.dashboard-machine-reminder-row small {
+  color: #66776f;
+}
+
+.dashboard-machine-reminder-row time {
+  color: #805f11;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.dashboard-machine-reminder-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 12px;
+  background: #fff3cf;
+  color: #8b6714;
+  font-size: 20px;
+}
+
 .dashboard-stat-card {
   min-width: 0;
   min-height: 154px;
@@ -741,6 +802,7 @@
 ========================================================= */
 
 @media (max-width: 1380px) {
+  .dashboard-metrics-doctor,
   .dashboard-metrics {
     grid-template-columns:
       repeat(3, minmax(0, 1fr));
@@ -789,6 +851,7 @@
     display: none;
   }
 
+  .dashboard-metrics-doctor,
   .dashboard-metrics {
     grid-template-columns:
       repeat(2, minmax(0, 1fr));
@@ -818,6 +881,7 @@
     opacity: 0.28;
   }
 
+  .dashboard-metrics-doctor,
   .dashboard-metrics,
   .dashboard-inventory-overview,
   .dashboard-quick-grid {
@@ -826,5 +890,14 @@
 
   .dashboard-stat-card {
     min-height: 132px;
+  }
+
+  .dashboard-machine-reminder-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .dashboard-machine-reminder-row time {
+    grid-column: 2;
+    white-space: normal;
   }
 }
