@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -209,23 +210,7 @@ export default function Patients() {
      Load
   ======================================================= */
 
-  useEffect(
-    () => {
-      void loadData();
-    },
-    [
-      session.userId,
-      session.clinicId,
-      session.role,
-      clinicScope.mode,
-      clinicScope.mode ===
-        "clinic"
-        ? clinicScope.clinicId
-        : 0,
-    ],
-  );
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -315,7 +300,11 @@ export default function Patients() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [activeClinicId, isAllClinics, isDoctor, session.clinicCode, session.clinicName, session.userId]);
+
+  useEffect(() => {
+    queueMicrotask(() => void loadData());
+  }, [loadData]);
 
   async function refresh() {
     await loadData();
