@@ -442,19 +442,7 @@ export default function Consumables() {
      Load
   ======================================================= */
 
-  useEffect(() => {
-    void loadData();
-  }, [
-    session.userId,
-    session.role,
-    session.clinicId,
-    clinicScope.mode,
-    clinicScope.mode === "clinic"
-      ? clinicScope.clinicId
-      : null,
-  ]);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -606,7 +594,11 @@ export default function Consumables() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [activeClinicId, isAllClinics, session.clinicCode, session.clinicId, session.clinicName, session.role, session.userId]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
   async function refresh() {
     await loadData();
