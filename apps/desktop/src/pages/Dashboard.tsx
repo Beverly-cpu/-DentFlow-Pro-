@@ -66,6 +66,16 @@ type DashboardTransaction = {
     string;
 };
 
+type DashboardMachineReminder = {
+  id: number;
+  machineName: string;
+  clinicName: string;
+  scheduledStartAt: string;
+  scheduledEndAt: string;
+  moverName: string;
+  status: string;
+};
+
 /* =========================================================
    Helpers
 ========================================================= */
@@ -257,6 +267,11 @@ export default function Dashboard() {
     >([]);
 
   const [
+    machineReminders,
+    setMachineReminders,
+  ] = useState<DashboardMachineReminder[]>([]);
+
+  const [
     clinicCount,
     setClinicCount,
   ] =
@@ -312,7 +327,6 @@ export default function Dashboard() {
     isAdmin;
 
   const canViewInventory =
-    isDoctor ||
     isAssistant ||
     isAdmin ||
     isProcurement;
@@ -340,6 +354,7 @@ export default function Dashboard() {
       setConsumables([]);
       setInventory([]);
       setTransactions([]);
+      setMachineReminders([]);
 
       /*
        * =====================================================
@@ -365,6 +380,12 @@ export default function Dashboard() {
 
         setDoctorIdentity(
           doctor,
+        );
+
+        setMachineReminders(
+          await window.dentflow.machines.reservationReminders(
+            session.userId,
+          ),
         );
 
         /*
@@ -728,6 +749,7 @@ export default function Dashboard() {
       setConsumables([]);
       setInventory([]);
       setTransactions([]);
+      setMachineReminders([]);
 
       setError(
         getErrorMessage(
@@ -753,6 +775,29 @@ export default function Dashboard() {
 
   const today =
     getTodayString();
+
+  const [reminderNow, setReminderNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const refreshReminderClock = () => setReminderNow(Date.now());
+    const timer = window.setInterval(refreshReminderClock, 60_000);
+    window.addEventListener("focus", refreshReminderClock);
+    document.addEventListener("visibilitychange", refreshReminderClock);
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshReminderClock);
+      document.removeEventListener("visibilitychange", refreshReminderClock);
+    };
+  }, []);
+
+  const upcomingMachineReminders = useMemo(
+    () => machineReminders.filter((reminder) => {
+      const startAt = new Date(reminder.scheduledStartAt).getTime();
+      return reminder.status === "已預約" && startAt > reminderNow && startAt - reminderNow <= 86_400_000;
+    }),
+    [machineReminders, reminderNow],
+  );
 
   /* =======================================================
      Implant Statistics
@@ -1406,7 +1451,38 @@ export default function Dashboard() {
         </div>
       ) : (
         <>
-          <section className="dashboard-metrics">
+          {isDoctor && upcomingMachineReminders.length > 0 && (
+            <section className="dashboard-panel dashboard-machine-reminders">
+              <div className="dashboard-panel-header">
+                <div>
+                  <h2>大型機台搬運提醒</h2>
+                  <p>以下機台將於 24 小時內搬運，並已指定由您負責</p>
+                </div>
+                <button type="button" className="dashboard-text-button" onClick={() => navigate("/machines")}>
+                  查看大型機台 →
+                </button>
+              </div>
+              <div className="dashboard-machine-reminder-list">
+                {upcomingMachineReminders.map((reminder) => (
+                  <button
+                    key={reminder.id}
+                    type="button"
+                    className="dashboard-machine-reminder-row"
+                    onClick={() => navigate("/machines")}
+                  >
+                    <span className="dashboard-machine-reminder-icon" aria-hidden="true">▣</span>
+                    <span>
+                      <strong>{reminder.machineName}</strong>
+                      <small>搬運至 {reminder.clinicName}</small>
+                    </span>
+                    <time>{new Date(reminder.scheduledStartAt).toLocaleString("zh-TW")}</time>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className={`dashboard-metrics${isDoctor ? " dashboard-metrics-doctor" : ""}`}>
             {canViewImplants && (
               <>
                 <DashboardStat
@@ -1428,19 +1504,21 @@ export default function Dashboard() {
                   }
                 />
 
-                <DashboardStat
-                  icon="▤"
-                  label="醫師已叫貨"
-                  value={orderedCount}
-                  suffix="個案"
-                  hint="查看清單 →"
-                  kind="normal"
-                  onClick={() =>
-                    navigate(
-                      "/implants",
-                    )
-                  }
-                />
+                {!isDoctor && (
+                  <DashboardStat
+                    icon="▤"
+                    label="醫師已叫貨"
+                    value={orderedCount}
+                    suffix="個案"
+                    hint="查看清單 →"
+                    kind="normal"
+                    onClick={() =>
+                      navigate(
+                        "/implants",
+                      )
+                    }
+                  />
+                )}
 
                 <DashboardStat
                   icon="▣"
