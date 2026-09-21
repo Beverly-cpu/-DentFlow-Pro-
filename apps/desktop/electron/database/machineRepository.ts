@@ -16,9 +16,10 @@ function validateReservationWindow(input: ReservationInput, excludeId?: number) 
     throw new Error("機台目前停用或維修中");
   }
   const mover = getDatabase().prepare(`
-    SELECT id FROM users WHERE id = ? AND isActive = 1 AND role IN ('Admin','Assistant')
+    SELECT id FROM users
+    WHERE id = ? AND isActive = 1 AND role IN ('Doctor','Assistant') AND TRIM(account) <> ''
   `).get(input.moverUserId);
-  if (!mover) throw new Error("請指定有效的搬運負責人");
+  if (!mover) throw new Error("搬運者必須是已啟用帳號的醫師或助理");
   const start = new Date(input.scheduledStartAt).getTime() - 60 * 60 * 1000;
   const end = new Date(input.scheduledEndAt).getTime() + 60 * 60 * 1000;
   return getDatabase().prepare(`SELECT id FROM machineReservations
@@ -124,7 +125,18 @@ export function listMachineMovers(actorUserId:number) {
   actor(actorUserId,["Admin","Assistant"]);
   return getDatabase().prepare(`SELECT DISTINCT u.id,u.name,u.role
     FROM users u JOIN userClinics uc ON uc.userId=u.id
-    WHERE u.isActive=1 AND u.role IN ('Admin','Assistant') ORDER BY u.name`).all();
+    WHERE u.isActive=1 AND u.role IN ('Doctor','Assistant') AND TRIM(u.account)<>''
+    ORDER BY CASE u.role WHEN 'Doctor' THEN 0 ELSE 1 END,u.name`).all();
+}
+export function listMachineReservationReminders(actorUserId:number) {
+  const currentActor=actor(actorUserId,["Admin","Assistant","Doctor","Accountant"]);
+  return getDatabase().prepare(`SELECT r.*,m.name machineName,m.type machineType,
+    c.name clinicName,c.code clinicCode,u.name moverName,creator.name createdByName
+    FROM machineReservations r JOIN machines m ON m.id=r.machineId
+    JOIN clinics c ON c.id=r.clinicId JOIN users u ON u.id=r.moverUserId
+    LEFT JOIN users creator ON creator.id=r.createdByUserId
+    WHERE r.status<>'已取消' AND (r.moverUserId=? OR ?='Assistant')
+    ORDER BY r.scheduledStartAt`).all(actorUserId,currentActor.role);
 }
 export function listMachineScans(actorUserId:number) {
   actor(actorUserId,["Admin","Assistant"]);
