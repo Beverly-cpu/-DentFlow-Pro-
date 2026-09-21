@@ -103,7 +103,7 @@ import {
 import {
   cancelMachineUsage, createMachine, createMachineReservation, createMachineUsage, ensureMachineSchema,
   getMachineUsageCredits, listMachineReservations, listMachineUsageRecords, listMachines,
-  listMachineMovers, listMachineScans, listMachineUsageCreditPurchases, updateMachineReservation, cancelMachineReservation,
+  listMachineMovers, listMachineReservationReminders, listMachineScans, listMachineUsageCreditPurchases, updateMachineReservation, cancelMachineReservation,
   purchaseMachineUsageCredits, scanMachine, setMachineActive, signMachineUsage,
   updateMachine, updateMachineUsageCost,
 } from "./database/machineRepository";
@@ -1691,6 +1691,7 @@ function registerClinicHandlers() {
 function registerIpcHandlers() {
   ipcMain.handle("machines:list", () => listMachines());
   ipcMain.handle("machines:reservations", () => listMachineReservations());
+  ipcMain.handle("machines:reservation-reminders", (_event,actorUserId:number) => listMachineReservationReminders(actorUserId));
   ipcMain.handle("machines:movers", (_event,actorUserId:number) => listMachineMovers(actorUserId));
   ipcMain.handle("machines:scans", (_event,actorUserId:number) => listMachineScans(actorUserId));
   ipcMain.handle("machines:create", (_event, input, actorUserId:number) => createMachine(input, actorUserId));
