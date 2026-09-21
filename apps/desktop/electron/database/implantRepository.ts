@@ -280,6 +280,8 @@ export type ImplantRecord = {
   cancelledAt: string | null;
   cancelReason: string;
   orderedByUserId: number | null;
+  orderedByName: string | null;
+  orderedByRole: string | null;
   pickedByUserId: number | null;
   surgeryCompletedByUserId: number | null;
   returnedByUserId: number | null;
@@ -342,6 +344,8 @@ type ImplantBaseRow = {
   cancelledAt: string | null;
   cancelReason: string;
   orderedByUserId: number | null;
+  orderedByName: string | null;
+  orderedByRole: string | null;
   pickedByUserId: number | null;
   surgeryCompletedByUserId: number | null;
   returnedByUserId: number | null;
@@ -499,6 +503,8 @@ const implantBaseSelect = `
     implants.cancelledAt,
     implants.cancelReason,
     implants.orderedByUserId,
+    orderRecorder.name AS orderedByName,
+    orderRecorder.role AS orderedByRole,
     implants.pickedByUserId,
     implants.surgeryCompletedByUserId,
     implants.returnedByUserId,
@@ -543,6 +549,9 @@ const implantBaseSelect = `
 
   LEFT JOIN users creator
     ON creator.id = implants.createdByUserId
+
+  LEFT JOIN users orderRecorder
+    ON orderRecorder.id = implants.orderedByUserId
 
   LEFT JOIN users surgeryRecorder
     ON surgeryRecorder.id = implants.surgeryCompletedByUserId
@@ -1887,6 +1896,15 @@ export function updateImplantStatus(
       "醫師已叫貨"
   ) {
     const database = getDatabase();
+    const orderingActor = database.prepare(`
+      SELECT users.role
+      FROM users
+      INNER JOIN userClinics ON userClinics.userId = users.id
+      WHERE users.id = ? AND users.isActive = 1 AND userClinics.clinicId = ?
+        AND users.role IN ('Doctor','Assistant')
+      LIMIT 1
+    `).get(actorUserId, clinicId) as {role:string}|undefined;
+    if (!orderingActor) throw new Error("只有本院所的醫師或助理可以完成植體／套件叫貨");
     database.transaction(() => {
       database.prepare(`
         INSERT INTO implantReservations (
