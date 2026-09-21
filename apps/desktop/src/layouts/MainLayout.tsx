@@ -4,6 +4,7 @@ import {
 } from "react-router-dom";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -325,10 +326,10 @@ export default function MainLayout({
      Scope Change
   ======================================================= */
 
-  function handleScopeChange(
+  const handleScopeChange = useCallback((
     scope:
       DentflowClinicScope,
-  ) {
+  ) => {
     /*
      * 非 Doctor 不允許切到全部院所。
      */
@@ -348,7 +349,7 @@ export default function MainLayout({
     saveClinicScope(
       scope,
     );
-  }
+  }, [session.role]);
 
   /* =======================================================
      Clinic Switch
