@@ -1770,7 +1770,7 @@ export default function Implants() {
           return;
         }
 
-        if (session.role === "Assistant") {
+        if (isAssistant && !isDoctorOrderOpen) {
           planItems.push({
             name: item.category === "植體" ? "待醫師選擇植體" : "待醫師選擇套件",
             category: item.category,
