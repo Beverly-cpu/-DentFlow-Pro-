@@ -559,6 +559,8 @@ type DentflowImplantRecord = {
   cancelReason: string;
 
   orderedByUserId: number | null;
+  orderedByName: string | null;
+  orderedByRole: string | null;
   pickedByUserId: number | null;
   surgeryCompletedByUserId: number | null;
   returnedByUserId: number | null;
