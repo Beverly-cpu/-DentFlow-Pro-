@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { loadConfig } from "../src/config.js";
+import { assertPassword, isRole, normalizeAccount } from "../src/auth.js";
 
 test("loadConfig requires a database URL", () => {
   assert.throws(() => loadConfig({ NODE_ENV: "test" }), /DATABASE_URL/);
@@ -26,4 +27,12 @@ test("loadConfig accepts explicit local database settings", () => {
   });
   assert.equal(config.databaseSsl, false);
   assert.equal(config.port, 9000);
+});
+
+test("authentication input helpers normalize and validate", () => {
+  assert.equal(normalizeAccount("  Admin@Clinic  "), "admin@clinic");
+  assert.equal(isRole("Doctor"), true);
+  assert.equal(isRole("Owner"), false);
+  assert.doesNotThrow(() => assertPassword("12345678"));
+  assert.throws(() => assertPassword("short"), /8/);
 });
