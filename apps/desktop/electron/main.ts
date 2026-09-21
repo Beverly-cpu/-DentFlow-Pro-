@@ -20,6 +20,15 @@ import {
   initializeDatabase,
 } from "./database/db";
 
+import {
+  checkServerConnection,
+  getDeploymentConfig,
+} from "./remote/serverConnection";
+
+import {
+  centralApi,
+} from "./remote/centralApiClient";
+
 /* =========================================================
    Patients
 ========================================================= */
@@ -319,6 +328,10 @@ function validateAdminRecoveryToken(
 ========================================================= */
 
 function registerAuthHandlers() {
+  if (getDeploymentConfig().mode === "remote") {
+    registerRemoteAuthHandlers();
+    return;
+  }
   ipcMain.handle(
     "auth:active-clinics",
     () => {
@@ -639,6 +652,43 @@ function registerAuthHandlers() {
       };
     },
   );
+}
+
+function registerRemoteAuthHandlers() {
+  ipcMain.handle("auth:active-clinics", () => centralApi.get("/v1/auth/active-clinics"));
+  ipcMain.handle("auth:clinics-for-account", (_event, account: string) =>
+    centralApi.get(`/v1/auth/clinics-for-account?account=${encodeURIComponent(account)}`));
+  ipcMain.handle("auth:has-users", async () => {
+    const result = await centralApi.get<{ hasUsers: boolean }>("/v1/setup/status");
+    return result.hasUsers;
+  });
+  ipcMain.handle("auth:login", (_event, input: LoginInput) => centralApi.login(input));
+  ipcMain.handle("auth:create-initial-admin", (_event, input: CreateInitialAdminInput) =>
+    centralApi.post("/v1/setup/initial-admin", input));
+  ipcMain.handle("auth:users", () => centralApi.get("/v1/auth/users"));
+  ipcMain.handle("auth:user", (_event, userId: number) => centralApi.get(`/v1/auth/users/${userId}`));
+  ipcMain.handle("auth:create-user", (_event, input: CreateUserInput) => centralApi.post("/v1/auth/users", input));
+  ipcMain.handle("auth:update-user", (_event, userId: number, input: UpdateUserInput) =>
+    centralApi.put(`/v1/auth/users/${userId}`, input));
+  ipcMain.handle("auth:change-password", (_event, input: ChangePasswordInput) =>
+    centralApi.post("/v1/auth/change-password", input));
+  ipcMain.handle("auth:reset-password", (_event, input: ResetPasswordInput) =>
+    centralApi.post("/v1/auth/reset-password", input));
+  ipcMain.handle("auth:set-user-clinics", (_event, userId: number, clinicIds: number[], primaryClinicId: number | null) =>
+    centralApi.put(`/v1/auth/users/${userId}/clinics`, { clinicIds, primaryClinicId }));
+  ipcMain.handle("auth:validate-clinic-access", (_event, _userId: number, clinicId: number) =>
+    centralApi.get(`/v1/auth/clinic-access/${clinicId}`));
+  ipcMain.handle("auth:delete-user", (_event, userId: number) => centralApi.delete(`/v1/auth/users/${userId}`));
+  ipcMain.handle("auth:local-admin-accounts", () => {
+    throw new Error("中央伺服器模式不提供本機管理者復原，請由其他管理者重設密碼");
+  });
+  ipcMain.handle("auth:begin-local-admin-recovery", () => {
+    throw new Error("中央伺服器模式不提供本機管理者復原");
+  });
+  ipcMain.handle("auth:complete-local-admin-recovery", () => {
+    throw new Error("中央伺服器模式不提供本機管理者復原");
+  });
+  ipcMain.handle("auth:cancel-local-admin-recovery", () => ({ success: true }));
 }
 
 /* =========================================================
@@ -1522,6 +1572,10 @@ function registerConsumableHandlers() {
 ========================================================= */
 
 function registerClinicHandlers() {
+  if (getDeploymentConfig().mode === "remote") {
+    registerRemoteClinicHandlers();
+    return;
+  }
   ipcMain.handle(
     "clinics:list",
     () => {
@@ -1684,11 +1738,41 @@ function registerClinicHandlers() {
   );
 }
 
+function registerRemoteClinicHandlers() {
+  ipcMain.handle("clinics:list", () => centralApi.get("/v1/clinics"));
+  ipcMain.handle("clinics:active", () => centralApi.get("/v1/clinics/active"));
+  ipcMain.handle("clinics:by-id", (_event, clinicId: number) => centralApi.get(`/v1/clinics/${clinicId}`));
+  ipcMain.handle("clinics:with-stats", () => centralApi.get("/v1/clinics-with-stats"));
+  ipcMain.handle("clinics:by-id-with-stats", (_event, clinicId: number) => centralApi.get(`/v1/clinics/${clinicId}/with-stats`));
+  ipcMain.handle("clinics:by-user", (_event, userId: number) => centralApi.get(`/v1/users/${userId}/clinics`));
+  ipcMain.handle("clinics:create", (_event, _adminUserId: number, input: ClinicInput) => centralApi.post("/v1/clinics", input));
+  ipcMain.handle("clinics:update", (_event, clinicId: number, _adminUserId: number, input: ClinicUpdateInput) =>
+    centralApi.put(`/v1/clinics/${clinicId}`, input));
+  ipcMain.handle("clinics:set-active", (_event, clinicId: number, _adminUserId: number, isActive: boolean) =>
+    centralApi.put(`/v1/clinics/${clinicId}/active`, { isActive }));
+  ipcMain.handle("clinics:add-user", (_event, userId: number, clinicId: number) =>
+    centralApi.post(`/v1/clinics/${clinicId}/users`, { userId }));
+  ipcMain.handle("clinics:remove-user", (_event, userId: number, clinicId: number) =>
+    centralApi.delete(`/v1/clinics/${clinicId}/users/${userId}`));
+  ipcMain.handle("clinics:set-user-primary", (_event, userId: number, clinicId: number) =>
+    centralApi.put(`/v1/clinics/${clinicId}/users/${userId}/primary`));
+}
+
 /* =========================================================
    Register All IPC
 ========================================================= */
 
 function registerIpcHandlers() {
+  ipcMain.handle(
+    "system:deployment-config",
+    () => getDeploymentConfig(),
+  );
+
+  ipcMain.handle(
+    "system:server-health",
+    () => checkServerConnection(),
+  );
+
   ipcMain.handle("machines:list", () => listMachines());
   ipcMain.handle("machines:reservations", () => listMachineReservations());
   ipcMain.handle("machines:reservation-reminders", (_event,actorUserId:number) => listMachineReservationReminders(actorUserId));
