@@ -1250,7 +1250,10 @@ export default function Implants() {
                   ),
             );
           },
-        );
+        ).sort((a, b) => {
+          const createdDifference = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          return createdDifference || b.id - a.id;
+        });
       },
       [
         implants,
