@@ -597,7 +597,7 @@ export default function Consumables() {
   }, [activeClinicId, isAllClinics, session.clinicCode, session.clinicId, session.clinicName, session.role, session.userId]);
 
   useEffect(() => {
-    void loadData();
+    queueMicrotask(() => void loadData());
   }, [loadData]);
 
   async function refresh() {
