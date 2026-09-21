@@ -2336,12 +2336,6 @@ export default function Implants() {
     return inventory.filter(
       (item) =>
         normalize(
-          item.name,
-        ) ===
-          normalize(
-            plan.name,
-          ) &&
-        normalize(
           item.category,
         ) ===
           normalize(
