@@ -739,7 +739,7 @@ export function getImplants(
           implants.clinicId = ?
 
         ORDER BY
-          implants.implantDate DESC,
+          datetime(implants.createdAt) DESC,
           implants.id DESC
       `)
       .all(
@@ -858,7 +858,7 @@ export function getImplantsByPatient(
           AND implants.clinicId = ?
 
         ORDER BY
-          implants.implantDate DESC,
+          datetime(implants.createdAt) DESC,
           implants.id DESC
       `)
       .all(
@@ -909,7 +909,7 @@ export function getImplantsByDoctor(
           AND implants.clinicId = ?
 
         ORDER BY
-          implants.implantDate DESC,
+          datetime(implants.createdAt) DESC,
           implants.id DESC
       `)
       .all(
@@ -1012,7 +1012,7 @@ export function getImplantsByDoctorAllClinics(
           )
 
         ORDER BY
-          implants.implantDate DESC,
+          datetime(implants.createdAt) DESC,
           implants.id DESC
       `)
       .all(
@@ -1127,7 +1127,7 @@ export function getImplantsByDoctorUserAllClinics(
           )
 
         ORDER BY
-          implants.implantDate DESC,
+          datetime(implants.createdAt) DESC,
           implants.id DESC
       `)
       .all(
