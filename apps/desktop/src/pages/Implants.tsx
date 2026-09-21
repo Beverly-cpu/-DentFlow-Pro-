@@ -559,6 +559,67 @@ function ImplantSignatureModal({implant, doctorName, saving, onClose, onSave}: {
   return <div className="machine-signature-backdrop"><div className="machine-signature-dialog" role="dialog" aria-modal="true"><div className="machine-signature-title"><div><span>DOCTOR SIGNATURE</span><h2>植體／套件使用簽名確認</h2></div><button type="button" className="machine-signature-close" onClick={onClose}>×</button></div><div className="machine-signature-summary"><div><span>病患</span><strong>{implant.patientName}</strong></div><div><span>手術日期</span><strong>{implant.implantDate}</strong></div><div><span>醫師</span><strong>{doctorName}</strong></div><div><span>院所</span><strong>{implant.clinicName}</strong></div></div><p>請核對下方 REF／LOT 照片與實際使用內容，再手寫簽名。簽名完成後管理端才可正式結案。</p>{evidence.length>0&&<div style={{display:"flex",gap:10,overflowX:"auto",padding:"10px 0"}}>{evidence.map(({tooth,usage})=><figure key={usage.id} style={{margin:0,minWidth:150}}><img src={usage.refLotPhotoDataUrl} alt={`牙位 ${tooth} REF LOT 照片`} style={{width:150,height:90,objectFit:"cover",borderRadius:8,border:"1px solid #d5e1d8"}}/><figcaption style={{fontSize:10,color:"#61776f"}}>#{tooth}｜REF {usage.inventoryRefNumber||"—"}｜LOT {usage.inventoryLotNumber||"—"}</figcaption></figure>)}</div>}<ImplantHandwrittenSignature onChange={setSignature}/><div className="machine-signature-actions"><button type="button" className="machine-signature-cancel" onClick={onClose} disabled={saving}>取消</button><button type="button" disabled={saving||!signature.startsWith("data:image/png;base64,")||signature.length<200} onClick={()=>void onSave(signature)}>{saving?"儲存中…":"確認簽名"}</button></div></div></div>;
 }
 
+function CancelCaseModal({implant, saving, onClose, onConfirm}: {implant: Implant; saving: boolean; onClose: () => void; onConfirm: (reason: string) => Promise<void>}) {
+  const [reason, setReason] = useState("");
+  const [confirmedPlanIds, setConfirmedPlanIds] = useState<number[]>([]);
+  const returnRows = implant.teeth.flatMap((tooth) =>
+    tooth.items.flatMap((plan) => {
+      const reservation = implant.reservations.find((item) => item.implantPlanItemId === plan.id);
+      const quantity = Math.max(0, (reservation?.pickedQuantity ?? 0) - (reservation?.returnedQuantity ?? 0));
+      return quantity > 0 ? [{plan, toothPosition: tooth.toothPosition, quantity}] : [];
+    }),
+  );
+  const requiresReturnCheck = implant.status === "已取出待手術" && returnRows.length > 0;
+  const allReturnsConfirmed = !requiresReturnCheck || returnRows.every(({plan}) => confirmedPlanIds.includes(plan.id));
+
+  function togglePlan(planId: number) {
+    setConfirmedPlanIds((current) =>
+      current.includes(planId) ? current.filter((id) => id !== planId) : [...current, planId],
+    );
+  }
+
+  return (
+    <div className="machine-signature-backdrop">
+      <div className="machine-signature-dialog" role="dialog" aria-modal="true" aria-labelledby="cancel-case-title">
+        <div className="machine-signature-title">
+          <div><span>CANCEL CASE</span><h2 id="cancel-case-title">取消植體個案</h2></div>
+          <button type="button" className="machine-signature-close" onClick={onClose} disabled={saving}>×</button>
+        </div>
+        <div className="machine-signature-summary">
+          <div><span>病患</span><strong>{implant.patientName}</strong></div>
+          <div><span>手術日期</span><strong>{implant.implantDate}</strong></div>
+          <div><span>院所</span><strong>{implant.clinicName}</strong></div>
+          <div><span>目前狀態</span><strong>{implant.status}</strong></div>
+        </div>
+        {requiresReturnCheck ? (
+          <div style={{marginTop: 16}}>
+            <strong>請逐項核對實體品項已放回庫存位置</strong>
+            <p style={{margin: "6px 0 12px", color: "#6b756e"}}>所有取出品項都必須勾選確認，系統才會執行歸回與取消，並留下逐項稽核紀錄。</p>
+            <div style={{display: "grid", gap: 8}}>
+              {returnRows.map(({plan, toothPosition, quantity}) => (
+                <label key={plan.id} style={{display: "flex", gap: 10, alignItems: "flex-start", padding: 12, border: "1px solid #dce6de", borderRadius: 10, background: confirmedPlanIds.includes(plan.id) ? "#f0f7f1" : "#fff"}}>
+                  <input type="checkbox" checked={confirmedPlanIds.includes(plan.id)} onChange={() => togglePlan(plan.id)} disabled={saving} />
+                  <span><strong>牙位 #{toothPosition}｜{formatPlanItem(plan)}</strong><br/><small>確認歸回數量：{quantity}</small></span>
+                </label>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p style={{marginTop: 16}}>此個案尚無已取出品項；取消後將解除既有保留並留下取消稽核紀錄。</p>
+        )}
+        <label style={{display: "grid", gap: 6, marginTop: 16}}>
+          <strong>取消原因</strong>
+          <textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} maxLength={500} placeholder="請輸入具體原因（必填）" disabled={saving} />
+        </label>
+        <div className="machine-signature-actions">
+          <button type="button" className="machine-signature-cancel" onClick={onClose} disabled={saving}>返回</button>
+          <button type="button" className="danger-action" disabled={saving || !reason.trim() || !allReturnsConfirmed} onClick={() => void onConfirm(reason.trim())}>{saving ? "取消中…" : "確認取消並歸回"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Implants() {
   const {
     session,
@@ -667,6 +728,7 @@ export default function Implants() {
   } | null>(null);
 
   const [signingImplant, setSigningImplant] = useState<Implant | null>(null);
+  const [cancellingImplant, setCancellingImplant] = useState<Implant | null>(null);
 
   const [
     keyword,
@@ -2003,15 +2065,14 @@ export default function Implants() {
 
   async function handleCancelCase(implant: Implant) {
     if (!requireCurrentClinic(implant)) return;
-    const reason = window.prompt(
-      implant.status === "已取出待手術"
-        ? "此個案已取出待手術。取消後系統會將全部植體與套件歸回並解除保留。\n\n請輸入取消原因："
-        : "請輸入取消原因：",
-    )?.trim();
-    if (!reason) return;
+    setCancellingImplant(implant);
+  }
+
+  async function confirmCancelCase(implant: Implant, reason: string) {
     try {
       setActiveId(implant.id);
       await window.dentflow.implants.cancel(implant.id, activeClinicId, reason, session.userId);
+      setCancellingImplant(null);
       await loadAll();
     } catch (error) {
       setErrorMessage(getErrorMessage(error, "取消個案失敗。"));
@@ -2588,6 +2649,14 @@ export default function Implants() {
           "#304437",
       }}
     >
+      {cancellingImplant && (
+        <CancelCaseModal
+          implant={cancellingImplant}
+          saving={activeId === cancellingImplant.id}
+          onClose={() => setCancellingImplant(null)}
+          onConfirm={(reason) => confirmCancelCase(cancellingImplant, reason)}
+        />
+      )}
       {/* ===================================================
           Header
       =================================================== */}
@@ -3909,8 +3978,8 @@ export default function Implants() {
                                 plan.instrumentPhotoDataUrl ??
                                 "";
 
-                              return (
-                                <div
+  return (
+    <div
                                   key={
                                     plan.id
                                   }
@@ -3927,7 +3996,7 @@ export default function Implants() {
                                     background:
                                       "#ffffff",
                                   }}
-                                >
+    >
                                   <strong>
                                     {formatPlanItem(
                                       plan,
