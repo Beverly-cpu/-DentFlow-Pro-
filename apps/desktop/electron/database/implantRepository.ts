@@ -1905,6 +1905,22 @@ export function updateImplantStatus(
       LIMIT 1
     `).get(actorUserId, clinicId) as {role:string}|undefined;
     if (!orderingActor) throw new Error("只有本院所的醫師或助理可以完成植體／套件叫貨");
+    if (orderingActor.role === "Assistant") {
+      const orderDetails = database.prepare(`
+        SELECT
+          SUM(CASE WHEN ipi.category='器械' THEN 1 ELSE 0 END) AS instrumentCount,
+          SUM(CASE WHEN ipi.category<>'器械' AND (TRIM(ipi.model)='' OR TRIM(ipi.specification)='') THEN 1 ELSE 0 END) AS incompleteSpecificationCount
+        FROM implantPlanItems ipi
+        JOIN implantTeeth it ON it.id=ipi.implantToothId
+        WHERE it.implantId=?
+      `).get(id) as {instrumentCount:number|null;incompleteSpecificationCount:number|null};
+      if ((orderDetails.incompleteSpecificationCount ?? 0) > 0) {
+        throw new Error("助理協助叫貨時，每筆植體／套件都必須填寫型號與規格");
+      }
+      if ((orderDetails.instrumentCount ?? 0) < 1) {
+        throw new Error("助理協助叫貨時，請至少選擇一項需使用的器械");
+      }
+    }
     database.transaction(() => {
       database.prepare(`
         INSERT INTO implantReservations (
