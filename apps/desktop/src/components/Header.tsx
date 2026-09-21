@@ -377,13 +377,68 @@ export default function Header({
         >();
 
       /*
-       * 先由 users / userClinics 取得此登入者
-       * 真正被授權的院所。
+       * 以登入帳號的 userClinics 授權為主要來源。
+       *
+       * 登入頁也是使用同一支 API，因此登入後的
+       * 院所選單會與帳號實際可登入的院所保持一致。
+       * user() 則保留為舊資料與舊版本的相容來源。
        */
+      const [
+        accountClinicsResult,
+        userResult,
+      ] =
+        await Promise.allSettled([
+          window.dentflow.auth.clinicsForAccount(
+            activeSession.account,
+          ),
+
+          window.dentflow.auth.user(
+            activeSession.userId,
+          ),
+        ]);
+
+      if (
+        accountClinicsResult.status ===
+        "fulfilled"
+      ) {
+        for (
+          const clinic
+          of accountClinicsResult.value
+        ) {
+          if (
+            clinic.isActive !==
+            1
+          ) {
+            continue;
+          }
+
+          map.set(
+            clinic.id,
+            {
+              id:
+                clinic.id,
+
+              code:
+                clinic.code,
+
+              name:
+                clinic.name,
+
+              isActive:
+                clinic.isActive,
+
+              isPrimary:
+                clinic.isPrimary,
+            },
+          );
+        }
+      }
+
       const user =
-        await window.dentflow.auth.user(
-          activeSession.userId,
-        );
+        userResult.status ===
+        "fulfilled"
+          ? userResult.value
+          : null;
 
       if (
         user?.clinics &&

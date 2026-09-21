@@ -814,7 +814,13 @@ type DentflowApi = {
     clinicsForAccount: (
       account: string,
     ) =>
-      Promise<DentflowClinicRecord[]>;
+      Promise<
+        Array<
+          DentflowClinicRecord & {
+            isPrimary: number;
+          }
+        >
+      >;
 
     hasUsers: () =>
       Promise<boolean>;
