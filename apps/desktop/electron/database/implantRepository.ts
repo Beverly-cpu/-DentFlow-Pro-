@@ -2952,7 +2952,6 @@ export function recordImplantUsage(
    因為術前本來就沒有 REF / LOT。
 
    只比對產品身分：
-   name
    category
    brand
    model
@@ -2981,12 +2980,6 @@ function validateInventoryMatchesPlan(
       string,
     ]
   > = [
-    [
-      "品項名稱",
-      inventory.name,
-      plan.name,
-    ],
-
     [
       "類別",
       inventory.category,
