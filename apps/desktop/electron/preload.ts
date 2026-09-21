@@ -31,6 +31,18 @@ const dentflowApi = {
     signUsage: (id: number, signature: string, actorUserId: number) => ipcRenderer.invoke("machines:sign-usage", id, signature, actorUserId),
   },
   system: {
+    deploymentConfig() {
+      return ipcRenderer.invoke(
+        "system:deployment-config",
+      );
+    },
+
+    serverHealth() {
+      return ipcRenderer.invoke(
+        "system:server-health",
+      );
+    },
+
     backupDatabase() {
       return ipcRenderer.invoke("system:backup-database");
     },

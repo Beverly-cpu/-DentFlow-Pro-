@@ -20,6 +20,11 @@ import {
   initializeDatabase,
 } from "./database/db";
 
+import {
+  checkServerConnection,
+  getDeploymentConfig,
+} from "./remote/serverConnection";
+
 /* =========================================================
    Patients
 ========================================================= */
@@ -1689,6 +1694,16 @@ function registerClinicHandlers() {
 ========================================================= */
 
 function registerIpcHandlers() {
+  ipcMain.handle(
+    "system:deployment-config",
+    () => getDeploymentConfig(),
+  );
+
+  ipcMain.handle(
+    "system:server-health",
+    () => checkServerConnection(),
+  );
+
   ipcMain.handle("machines:list", () => listMachines());
   ipcMain.handle("machines:reservations", () => listMachineReservations());
   ipcMain.handle("machines:reservation-reminders", (_event,actorUserId:number) => listMachineReservationReminders(actorUserId));
