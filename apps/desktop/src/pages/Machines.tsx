@@ -107,7 +107,8 @@ function HandwrittenSignature({onChange}:{onChange:(value:string)=>void}){
   event.preventDefault();
   const context=configureContext(canvas);
   if(!context)return;
-  const samples=event.nativeEvent.getCoalescedEvents?.()??[event.nativeEvent];
+  const coalesced=event.nativeEvent.getCoalescedEvents?.();
+  const samples=coalesced&&coalesced.length>0?coalesced:[event.nativeEvent];
   let last=previous;
   for(const sample of samples){
    const current=point(sample.clientX,sample.clientY);
@@ -127,6 +128,17 @@ function HandwrittenSignature({onChange}:{onChange:(value:string)=>void}){
   if(pointerRef.current!==event.pointerId)return;
   event.preventDefault();
   const canvas=canvasRef.current;
+  const previous=lastPointRef.current;
+  const current=point(event.clientX,event.clientY);
+  if(canvas&&previous&&current){
+   const context=configureContext(canvas);
+   if(context){
+    context.beginPath();
+    context.moveTo(previous.x,previous.y);
+    context.lineTo(current.x,current.y);
+    context.stroke();
+   }
+  }
   drawingRef.current=false;
   pointerRef.current=null;
   lastPointRef.current=null;
