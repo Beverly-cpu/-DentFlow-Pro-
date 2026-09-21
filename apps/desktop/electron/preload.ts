@@ -11,6 +11,7 @@ const dentflowApi = {
   machines: {
     list: () => ipcRenderer.invoke("machines:list"),
     reservations: () => ipcRenderer.invoke("machines:reservations"),
+    reservationReminders: (actorUserId: number) => ipcRenderer.invoke("machines:reservation-reminders", actorUserId),
     movers: (actorUserId: number) => ipcRenderer.invoke("machines:movers", actorUserId),
     scans: (actorUserId: number) => ipcRenderer.invoke("machines:scans", actorUserId),
     create: (input: unknown, actorUserId: number) => ipcRenderer.invoke("machines:create", input, actorUserId),
