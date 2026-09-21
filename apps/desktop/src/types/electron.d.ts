@@ -797,6 +797,17 @@ type DentflowApi = {
     signUsage: (id: number, signature: string, actorUserId: number) => Promise<boolean>;
   };
   system: {
+    deploymentConfig: () => Promise<{
+      mode: "local" | "remote";
+      serverUrl: string | null;
+    }>;
+    serverHealth: () => Promise<{
+      ok: boolean;
+      mode: "local" | "remote";
+      serverUrl: string | null;
+      message: string;
+      checkedAt: string;
+    }>;
     backupDatabase: () => Promise<{
       cancelled: boolean;
       filePath?: string;
