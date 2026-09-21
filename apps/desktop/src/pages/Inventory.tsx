@@ -202,6 +202,12 @@ function isRefLotCategory(
   );
 }
 
+function getInventorySpecificationKey(item: DentflowInventoryRecord) {
+  return [item.category, item.name, item.brand, item.model, item.specification]
+    .map((value) => value.trim().toLowerCase())
+    .join("\u001f");
+}
+
 function formatDateTime(
   value:
     string |
@@ -727,20 +733,30 @@ export default function Inventory({
     return [...brands.values()];
   }, [inventory]);
 
+  const inventorySpecificationGroups = useMemo(() => {
+    const groups = new Map<string, {quantity:number;safetyStock:number;itemCount:number}>();
+
+    inventory.forEach((item) => {
+      const key = getInventorySpecificationKey(item);
+      const current = groups.get(key) ?? {quantity:0,safetyStock:0,itemCount:0};
+      current.quantity += item.quantity;
+      current.safetyStock += item.safetyStock;
+      current.itemCount += 1;
+      groups.set(key, current);
+    });
+
+    return groups;
+  }, [inventory]);
+
   const statistics =
     useMemo(() => {
-      const lowStock =
-        inventory.filter(
-          (item) =>
-            item.quantity <=
-            item.safetyStock,
-        ).length;
+      const lowStock = scope === "implant"
+        ? [...inventorySpecificationGroups.values()].filter((group) => group.quantity <= group.safetyStock).length
+        : inventory.filter((item) => item.quantity <= item.safetyStock).length;
 
-      const zeroStock =
-        inventory.filter(
-          (item) =>
-            item.quantity === 0,
-        ).length;
+      const zeroStock = scope === "implant"
+        ? [...inventorySpecificationGroups.values()].filter((group) => group.quantity === 0).length
+        : inventory.filter((item) => item.quantity === 0).length;
 
       const expired =
         inventory.filter(
@@ -795,6 +811,8 @@ export default function Inventory({
       };
     }, [
       inventory,
+      inventorySpecificationGroups,
+      scope,
     ]);
 
   /* =======================================================
@@ -824,9 +842,12 @@ export default function Inventory({
               stockFilter ===
               "低庫存"
             ) {
+              const stock = scope === "implant"
+                ? inventorySpecificationGroups.get(getInventorySpecificationKey(item))
+                : undefined;
               if (
-                item.quantity >
-                item.safetyStock
+                (stock?.quantity ?? item.quantity) >
+                (stock?.safetyStock ?? item.safetyStock)
               ) {
                 return false;
               }
@@ -836,8 +857,11 @@ export default function Inventory({
               stockFilter ===
               "零庫存"
             ) {
+              const stock = scope === "implant"
+                ? inventorySpecificationGroups.get(getInventorySpecificationKey(item))
+                : undefined;
               if (
-                item.quantity !==
+                (stock?.quantity ?? item.quantity) !==
                 0
               ) {
                 return false;
@@ -920,6 +944,7 @@ export default function Inventory({
         );
     }, [
       inventory,
+      inventorySpecificationGroups,
       search,
       categoryFilter,
       stockFilter,
@@ -1890,9 +1915,17 @@ export default function Inventory({
                         item.expiryDate,
                       );
 
+                    const specificationGroup = scope === "implant"
+                      ? inventorySpecificationGroups.get(getInventorySpecificationKey(item))
+                      : undefined;
+
+                    const groupedQuantity = specificationGroup?.quantity ?? item.quantity;
+                    const groupedSafetyStock = specificationGroup?.safetyStock ?? item.safetyStock;
+                    const hasMultipleLots = (specificationGroup?.itemCount ?? 1) > 1;
+
                     const lowStock =
-                      item.quantity <=
-                      item.safetyStock;
+                      groupedQuantity <=
+                      groupedSafetyStock;
 
                     const refLotEnabled =
                       isRefLotCategory(
@@ -1957,7 +1990,7 @@ export default function Inventory({
                         <td style={styles.td}>
                           <strong
                             style={
-                              item.quantity ===
+                              groupedQuantity ===
                               0
                                 ? styles.zeroStockText
                                 : lowStock
@@ -1965,12 +1998,18 @@ export default function Inventory({
                                   : styles.quantityText
                             }
                           >
-                            {item.quantity}
+                            {hasMultipleLots ? groupedQuantity : item.quantity}
                           </strong>
+                          {hasMultipleLots && (
+                            <div style={styles.subText}>本批 {item.quantity}｜同規格合計</div>
+                          )}
                         </td>
 
                         <td style={styles.td}>
-                          {item.safetyStock}
+                          {hasMultipleLots ? groupedSafetyStock : item.safetyStock}
+                          {hasMultipleLots && (
+                            <div style={styles.subText}>本批 {item.safetyStock}｜同規格合計</div>
+                          )}
                         </td>
 
                         {canViewCost && <td style={styles.td}>
@@ -1978,7 +2017,7 @@ export default function Inventory({
                         </td>}
 
                         <td style={styles.td}>
-                          {item.quantity ===
+                          {groupedQuantity ===
                           0 ? (
                             <StatusPill
                               text="零庫存"
