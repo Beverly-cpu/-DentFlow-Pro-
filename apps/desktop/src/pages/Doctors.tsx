@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -330,18 +331,7 @@ export default function Doctors() {
      Load
   ======================================================= */
 
-  useEffect(
-    () => {
-      void loadDoctors();
-    },
-    [
-      session?.clinicId,
-      session?.userId,
-      session?.role,
-    ],
-  );
-
-  async function loadDoctors() {
+  const loadDoctors = useCallback(async () => {
     const activeSession =
       session;
 
@@ -437,7 +427,11 @@ export default function Doctors() {
         false,
       );
     }
-  }
+  }, [session]);
+
+  useEffect(() => {
+    queueMicrotask(() => void loadDoctors());
+  }, [loadDoctors]);
 
   /* =======================================================
      Summary
@@ -539,8 +533,6 @@ export default function Doctors() {
               doctor.account,
 
               doctor.specialty,
-
-              doctor.phone,
 
               ...memberships.flatMap(
                 (
@@ -1176,9 +1168,6 @@ export default function Doctors() {
             醫師管理
           </h1>
 
-          <p className="doctors-description">
-            管理醫師資料、登入帳號連結與多院所執業設定。
-          </p>
         </div>
 
         {canCreateDoctor && (
@@ -1361,25 +1350,6 @@ export default function Doctors() {
               </label>
 
               <label>
-                電話
-
-                <input
-                  value={
-                    form.phone
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    updateForm(
-                      "phone",
-                      event.target.value,
-                    )
-                  }
-                  placeholder="例如：0912-345-678"
-                />
-              </label>
-
-              <label>
                 登入角色
 
                 <input
@@ -1514,7 +1484,7 @@ export default function Doctors() {
               event.target.value,
             )
           }
-          placeholder="搜尋姓名、帳號、專長、電話、院所..."
+          placeholder="搜尋姓名、帳號、專長、院所..."
         />
 
         <select
@@ -1722,17 +1692,6 @@ export default function Doctors() {
 
                       <strong>
                         {doctor.specialty ||
-                          "—"}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span>
-                        電話
-                      </span>
-
-                      <strong>
-                        {doctor.phone ||
                           "—"}
                       </strong>
                     </div>
