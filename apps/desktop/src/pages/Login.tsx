@@ -204,12 +204,6 @@ export default function Login({
     useState("");
 
   const [
-    initialPhone,
-    setInitialPhone,
-  ] =
-    useState("");
-
-  const [
     initialEmail,
     setInitialEmail,
   ] =
@@ -1452,26 +1446,6 @@ export default function Login({
                       }
                       placeholder="請再次輸入密碼"
                       autoComplete="new-password"
-                    />
-                  </label>
-
-                  <label className="login-field">
-                    <span>
-                      電話
-                    </span>
-
-                    <input
-                      value={
-                        initialPhone
-                      }
-                      onChange={(
-                        event,
-                      ) =>
-                        setInitialPhone(
-                          event.target.value,
-                        )
-                      }
-                      placeholder="選填"
                     />
                   </label>
 

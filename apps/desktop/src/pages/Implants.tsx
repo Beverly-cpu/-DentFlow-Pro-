@@ -806,23 +806,7 @@ export default function Implants() {
      Load
   ======================================================= */
 
-  useEffect(
-    () => {
-      void loadAll();
-    },
-    [
-      session.userId,
-      session.clinicId,
-      session.role,
-      clinicScope.mode,
-      clinicScope.mode ===
-        "clinic"
-        ? clinicScope.clinicId
-        : 0,
-    ],
-  );
-
-  async function loadAll() {
+  const loadAll = useCallback(async () => {
     const activeSession =
       session;
 
@@ -1053,7 +1037,11 @@ export default function Implants() {
         false,
       );
     }
-  }
+  }, [activeClinicId, isAllClinics, session]);
+
+  useEffect(() => {
+    queueMicrotask(() => void loadAll());
+  }, [loadAll]);
 
   /* =======================================================
      Current Clinic Check

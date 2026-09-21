@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -330,23 +331,7 @@ export default function Dashboard() {
      Load Whenever Scope Changes
   ======================================================= */
 
-  useEffect(
-    () => {
-      void loadDashboard();
-    },
-    [
-      session.userId,
-      session.clinicId,
-      session.role,
-      clinicScope.mode,
-      clinicScope.mode ===
-        "clinic"
-        ? clinicScope.clinicId
-        : 0,
-    ],
-  );
-
-  async function loadDashboard() {
+  const loadDashboard = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -752,7 +737,11 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [clinicScope, isAllClinics, session.clinicId, session.clinicName, session.role, session.userId]);
+
+  useEffect(() => {
+    queueMicrotask(() => void loadDashboard());
+  }, [loadDashboard]);
 
   async function refresh() {
     await loadDashboard();

@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -567,33 +568,10 @@ export default function Inventory({
      Load
   ======================================================= */
 
-  useEffect(() => {
-    const activeSession =
-      getStoredSession();
-
-    queueMicrotask(() => setSession(activeSession));
-
-    if (!activeSession) {
-      setLoading(
-        false,
-      );
-
-      setError(
-        "找不到登入資訊，請重新登入。",
-      );
-
-      return;
-    }
-
-    void loadData(
-      activeSession,
-    );
-  }, []);
-
-  async function loadData(
+  const loadData = useCallback(async (
     activeSession:
       DentflowAuthSession,
-  ) {
+  ) => {
     try {
       setLoading(true);
       setError("");
@@ -654,7 +632,18 @@ export default function Inventory({
     } finally {
       setLoading(false);
     }
-  }
+  }, [scope]);
+
+  useEffect(() => {
+    const activeSession = getStoredSession();
+    queueMicrotask(() => setSession(activeSession));
+    if (!activeSession) {
+      setLoading(false);
+      setError("找不到登入資訊，請重新登入。");
+      return;
+    }
+    void loadData(activeSession);
+  }, [loadData]);
 
   async function refresh() {
     if (!session) {
@@ -921,6 +910,7 @@ export default function Inventory({
       search,
       categoryFilter,
       stockFilter,
+      scope,
     ]);
 
   /* =======================================================

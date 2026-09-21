@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -474,36 +475,10 @@ export default function Purchase({ generalUsage = false }: { generalUsage?: bool
      Load
   ======================================================= */
 
-  useEffect(
-    () => {
-      const activeSession =
-        getStoredSession();
-
-      queueMicrotask(() => setSession(activeSession));
-
-      if (!activeSession) {
-        setLoading(
-          false,
-        );
-
-        setError(
-          "找不到登入資訊，請重新登入。",
-        );
-
-        return;
-      }
-
-      void loadData(
-        activeSession,
-      );
-    },
-    [],
-  );
-
-  async function loadData(
+  const loadData = useCallback(async (
     activeSession:
       DentflowAuthSession,
-  ) {
+  ) => {
     try {
       setLoading(
         true,
@@ -564,7 +539,18 @@ export default function Purchase({ generalUsage = false }: { generalUsage?: bool
         false,
       );
     }
-  }
+  }, [generalUsage]);
+
+  useEffect(() => {
+    const activeSession = getStoredSession();
+    queueMicrotask(() => setSession(activeSession));
+    if (!activeSession) {
+      setLoading(false);
+      setError("找不到登入資訊，請重新登入。");
+      return;
+    }
+    void loadData(activeSession);
+  }, [loadData]);
 
   async function refresh() {
     if (!session) {
