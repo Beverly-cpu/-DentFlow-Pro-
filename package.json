@@ -5,7 +5,11 @@
   "packageManager": "pnpm@10.15.0",
   "scripts": {
     "dev": "pnpm --filter desktop dev",
+    "dev:api": "pnpm --filter @dentflow/api dev",
+    "db:migrate": "pnpm --filter @dentflow/api db:migrate",
     "build": "pnpm --filter desktop build",
-    "lint": "pnpm -r lint"
+    "build:all": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test"
   }
 }
