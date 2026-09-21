@@ -714,6 +714,19 @@ export default function Inventory({
      Statistics
   ======================================================= */
 
+  const implantBrandOptions = useMemo(() => {
+    const brands = new Map<string, string>();
+    ["Straumann", "MIS", "Hiossen"].forEach((brand) => brands.set(brand.toLowerCase(), brand));
+
+    inventory.forEach((item) => {
+      const brand = item.brand.trim();
+      const key = brand.toLowerCase();
+      if (brand && !brands.has(key)) brands.set(key, brand);
+    });
+
+    return [...brands.values()];
+  }, [inventory]);
+
   const statistics =
     useMemo(() => {
       const lowStock =
@@ -2194,6 +2207,8 @@ export default function Inventory({
                   <input
                     style={styles.input}
                     value={form.brand}
+                    list={scope === "implant" ? "implant-brand-options" : undefined}
+                    placeholder={scope === "implant" ? "選擇既有品牌或輸入新品牌" : undefined}
                     onChange={
                       (event) =>
                         setForm(
@@ -2208,6 +2223,17 @@ export default function Inventory({
                         )
                     }
                   />
+
+                  {scope === "implant" && (
+                    <>
+                      <datalist id="implant-brand-options">
+                        {implantBrandOptions.map((brand) => (
+                          <option key={brand.toLowerCase()} value={brand} />
+                        ))}
+                      </datalist>
+                      <small style={{color: "#6c7b72"}}>可從清單選擇過去使用的品牌，或直接輸入新品牌名稱。</small>
+                    </>
+                  )}
                 </label>
 
                 <label style={styles.field}>
