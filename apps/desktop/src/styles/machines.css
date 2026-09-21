@@ -182,6 +182,27 @@
 .machine-signature-actions { justify-content: flex-end; }
 .machines-page .machine-signature-cancel { border-color: #cbdacb; background: #fff; color: #365943; }
 
+.machine-medical-signature-dialog { width: min(980px, calc(100vw - 40px)); }
+.machine-medical-signature-dialog .machine-signature-title { padding-bottom: 18px; border-bottom: 1px solid #e4ebe6; }
+.machine-medical-signature-dialog .machine-signature-title h2 { margin: 0; color: #284e3b; font-size: 21px; }
+.machine-signature-identity { display:flex; justify-content:space-between; align-items:center; gap:15px; margin-top:22px; padding:14px 16px; border:1px solid #cfe2d6; border-radius:11px; background:#f4faf6; }
+.machine-signature-identity div { display:grid; gap:4px; }
+.machine-signature-identity small { color:#7a8c82; font-size:11px; }
+.machine-signature-identity strong { color:#28563f; font-size:18px; }
+.machine-signature-identity > span { padding:6px 10px; border-radius:999px; background:#fff3d5; color:#976b18; font-size:12px; }
+.machine-medical-signature-dialog .machine-signature-summary { margin-top:14px; }
+.machine-signature-items { margin-top:16px; overflow:hidden; border:1px solid #e0e8e3; border-radius:10px; }
+.machine-signature-items > div { padding:10px 13px; background:#f5f8f6; color:#536a5d; font-size:12px; font-weight:800; }
+.machine-signature-items section { display:grid; grid-template-columns:minmax(180px,1fr) 180px 120px; gap:12px; align-items:center; padding:11px 13px; border-top:1px solid #edf1ef; color:#607168; font-size:12px; }
+.machine-signature-instruction { margin:16px 0 10px; color:#5c7064; font-size:12px; line-height:1.7; }
+.machine-signature-legal { margin-top:12px; padding:11px 13px; border-radius:9px; background:#f5f7f6; color:#7a8780; font-size:11px; line-height:1.7; }
+.machine-medical-signature-dialog .machine-signature-actions { margin-top:18px; }
+.machine-medical-signature-dialog .machine-signature-clear { margin-top:0; border-color:#dfb95e; background:#fffaf0; color:#8b6112; }
+
+@media (max-width: 720px) {
+  .machine-signature-items section { grid-template-columns:1fr; }
+}
+
 @media (max-width: 560px) {
   .machine-signature-summary { grid-template-columns: 1fr; }
 }
