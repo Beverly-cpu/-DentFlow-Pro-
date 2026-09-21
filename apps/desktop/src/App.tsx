@@ -552,6 +552,7 @@ export default function App() {
       <Route
         element={
           <MainLayout
+            key={`${session.userId}-${session.clinicId}`}
             session={
               session
             }
