@@ -1,5 +1,5 @@
-/* eslint-disable react-hooks/immutability */
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -643,20 +643,7 @@ export default function Reports() {
      Load
   ======================================================= */
 
-  useEffect(() => {
-    queueMicrotask(() => void loadReports());
-  }, [
-    session.userId,
-    session.role,
-    session.clinicId,
-    clinicScope.mode,
-    clinicScope.mode ===
-      "clinic"
-      ? clinicScope.clinicId
-      : 0,
-  ]);
-
-  async function loadReports() {
+  const loadReports = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -882,7 +869,11 @@ export default function Reports() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [activeClinicId, isAllClinics, session.clinicCode, session.clinicName, session.role, session.userId]);
+
+  useEffect(() => {
+    queueMicrotask(() => void loadReports());
+  }, [loadReports]);
 
   /* =======================================================
      Implant Rows
