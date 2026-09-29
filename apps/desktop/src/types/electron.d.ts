@@ -1187,6 +1187,10 @@ type DentflowApi = {
       clinicId: number,
       reason: string,
       actorUserId: number,
+      confirmedReturns: Array<{
+        reservationId: number;
+        pickedQuantity: number;
+      }>,
     ) => Promise<DentflowImplantRecord>;
 
     close: (

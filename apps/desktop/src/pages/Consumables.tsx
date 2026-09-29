@@ -1784,9 +1784,6 @@ export default function Consumables() {
                     使用耗材
                   </strong>
 
-                  <div style={styles.sectionDescription}>
-                    一般耗材不記錄 REF / LOT，只保留品項、規格、有效期限與數量。
-                  </div>
                 </div>
 
                 <button
