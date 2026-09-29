@@ -6,6 +6,7 @@ import type { DatabasePool } from "./database.js";
 import { registerAuthHook } from "./auth.js";
 import { registerAuthRoutes } from "./routes/authRoutes.js";
 import { registerClinicRoutes } from "./routes/clinicRoutes.js";
+import { registerPatientRoutes } from "./routes/patientRoutes.js";
 
 export function buildApp(config: ApiConfig, pool: DatabasePool) {
   const app = Fastify({
@@ -63,6 +64,7 @@ export function buildApp(config: ApiConfig, pool: DatabasePool) {
 
   void registerAuthRoutes(app, pool);
   void registerClinicRoutes(app, pool);
+  void registerPatientRoutes(app, pool);
 
   app.setErrorHandler((error, request, reply) => {
     request.log.error({ err: error }, "request failed");
