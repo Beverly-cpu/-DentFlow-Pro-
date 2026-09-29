@@ -92,9 +92,7 @@ function getErrorMessage(
   return String(error);
 }
 
-function getTodayString() {
-  const date =
-    new Date();
+function getTodayString(date = new Date()) {
 
   const year =
     date.getFullYear();
@@ -773,8 +771,15 @@ export default function Dashboard() {
      Date
   ======================================================= */
 
+  const [reminderRefreshAt, setReminderRefreshAt] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setReminderRefreshAt(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const today =
-    getTodayString();
+    getTodayString(new Date(reminderRefreshAt));
 
   const [reminderNow, setReminderNow] = useState(() => Date.now());
 
@@ -821,24 +826,24 @@ export default function Dashboard() {
     useMemo(
       () => implants.filter((item) => {
         if (item.record.status !== "待醫師叫貨" || !item.record.implantDate) return false;
-        const start = new Date();
+        const start = new Date(reminderRefreshAt);
         start.setHours(0, 0, 0, 0);
         const target = new Date(`${item.record.implantDate}T00:00:00`);
         const days = Math.ceil((target.getTime() - start.getTime()) / 86_400_000);
         return days >= 0 && days <= 7;
       }).length,
-      [implants],
+      [implants, reminderRefreshAt],
     );
 
   const overduePendingOrderCount = useMemo(
     () => implants.filter((item) => {
       if (item.record.status !== "待醫師叫貨" || !item.record.implantDate) return false;
-      const start = new Date();
+      const start = new Date(reminderRefreshAt);
       start.setHours(0, 0, 0, 0);
       const target = new Date(`${item.record.implantDate}T00:00:00`);
       return target.getTime() < start.getTime();
     }).length,
-    [implants],
+    [implants, reminderRefreshAt],
   );
 
   const futurePendingOrderCount = pendingOrderCount - urgentPendingOrderCount - overduePendingOrderCount;

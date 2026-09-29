@@ -1079,8 +1079,8 @@ function registerImplantHandlers() {
 
   ipcMain.handle(
     "implants:cancel",
-    (_event, implantId: number, clinicId: number, reason: string, actorUserId: number) =>
-      cancelImplantCase(implantId, clinicId, reason, actorUserId),
+    (_event, implantId: number, clinicId: number, reason: string, actorUserId: number, confirmedReturns) =>
+      cancelImplantCase(implantId, clinicId, reason, actorUserId, confirmedReturns),
   );
 
   ipcMain.handle(

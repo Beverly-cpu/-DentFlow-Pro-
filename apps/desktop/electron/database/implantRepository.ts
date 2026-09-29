@@ -3650,6 +3650,7 @@ export function cancelImplantCase(
   clinicId: number,
   reason: string,
   actorUserId: number,
+  confirmedReturns: Array<{ reservationId: number; pickedQuantity: number }> = [],
 ): ImplantRecord {
   ensureWorkflowActor(actorUserId, clinicId);
   const current = getImplantById(implantId, clinicId);
@@ -3661,6 +3662,21 @@ export function cancelImplantCase(
 
   const database = getDatabase();
   database.transaction(() => {
+    const returnRows = database.prepare(`
+      SELECT id AS reservationId, pickedQuantity
+      FROM implantReservations
+      WHERE implantId = ? AND pickedQuantity > 0
+      ORDER BY id
+    `).all(implantId) as Array<{ reservationId: number; pickedQuantity: number }>;
+    const normalizedConfirmations = confirmedReturns
+      .map((item) => ({reservationId: Number(item.reservationId), pickedQuantity: Number(item.pickedQuantity)}))
+      .sort((a, b) => a.reservationId - b.reservationId);
+    if (returnRows.length !== normalizedConfirmations.length || returnRows.some((row, index) =>
+      row.reservationId !== normalizedConfirmations[index]?.reservationId ||
+      row.pickedQuantity !== normalizedConfirmations[index]?.pickedQuantity
+    )) {
+      throw new Error("取消失敗：請逐項確認所有已取出的植體與套件歸回數量");
+    }
     database.prepare(`
       INSERT INTO implantReturnAudits (
         implantId, reservationId, implantPlanItemId,

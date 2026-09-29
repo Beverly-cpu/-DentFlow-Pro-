@@ -40,7 +40,6 @@ type PatientForm = {
   chartNumber: string;
   name: string;
   birthDate: string;
-  phone: string;
   doctor: string;
   note: string;
 };
@@ -55,7 +54,6 @@ function createEmptyForm():
     chartNumber: "",
     name: "",
     birthDate: "",
-    phone: "",
     doctor: "",
     note: "",
   };
@@ -411,9 +409,6 @@ export default function Patients() {
       birthDate:
         patient.birthDate,
 
-      phone:
-        patient.phone,
-
       doctor:
         patient.doctor,
 
@@ -489,8 +484,7 @@ export default function Patients() {
       birthDate:
         form.birthDate,
 
-      phone:
-        form.phone.trim(),
+      phone: "",
 
       doctor:
         form.doctor.trim(),
@@ -651,11 +645,6 @@ export default function Patients() {
             病患管理
           </h1>
 
-          <p>
-            {isReadOnlyScope
-              ? "我的全部院所｜跨院所瀏覽模式"
-              : `${session.clinicName}｜病患基本資料與主治醫師管理`}
-          </p>
         </div>
 
         <div className="patients-header-actions">
@@ -757,9 +746,6 @@ export default function Patients() {
                   : "編輯病患"}
               </h2>
 
-              <p>
-                病歷號、姓名與主治醫師會顯示於後續病例及追溯紀錄。
-              </p>
             </div>
 
             <button

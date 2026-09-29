@@ -681,8 +681,8 @@ const dentflowApi = {
       );
     },
 
-    cancel(implantId: number, clinicId: number, reason: string, actorUserId: number) {
-      return ipcRenderer.invoke("implants:cancel", implantId, clinicId, reason, actorUserId);
+    cancel(implantId: number, clinicId: number, reason: string, actorUserId: number, confirmedReturns: Array<{reservationId:number;pickedQuantity:number}>) {
+      return ipcRenderer.invoke("implants:cancel", implantId, clinicId, reason, actorUserId, confirmedReturns);
     },
 
     close(implantId: number, clinicId: number, actorUserId: number) {
