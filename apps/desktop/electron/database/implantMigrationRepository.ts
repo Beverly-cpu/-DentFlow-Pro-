@@ -6,6 +6,25 @@ type Row = Record<string, unknown>;
 type Asset = {
   table: string; legacyId: number; field: string; dataUrlSha256: string; dataUrlBytes: number;
 };
+
+// Fixed queries also prove that the requested child belongs to this case.
+export function getLegacyImplantAsset(implantId: number, asset: Asset): string | null {
+  const db = getDatabase();
+  let row: { value: unknown } | undefined;
+  if (asset.table === "implants" && asset.field === "doctorSignature") {
+    row = db.prepare("SELECT doctorSignature AS value FROM implants WHERE id=? AND id=?").get(asset.legacyId, implantId) as typeof row;
+  } else if (asset.table === "implantPlanItems" && asset.field === "instrumentPhotoDataUrl") {
+    row = db.prepare(`SELECT p.instrumentPhotoDataUrl AS value FROM implantPlanItems p
+      JOIN implantTeeth t ON t.id=p.implantToothId WHERE p.id=? AND t.implantId=?`).get(asset.legacyId, implantId) as typeof row;
+  } else if (asset.table === "implantUsageItems" && asset.field === "refLotPhotoDataUrl") {
+    row = db.prepare(`SELECT u.refLotPhotoDataUrl AS value FROM implantUsageItems u
+      JOIN implantPlanItems p ON p.id=u.implantPlanItemId JOIN implantTeeth t ON t.id=p.implantToothId
+      WHERE u.id=? AND t.implantId=?`).get(asset.legacyId, implantId) as typeof row;
+  }
+  const value = row?.value;
+  return typeof value === "string" && Buffer.byteLength(value, "utf8") === asset.dataUrlBytes
+    && createHash("sha256").update(value, "utf8").digest("hex") === asset.dataUrlSha256 ? value : null;
+}
 export type LegacyImplantMigrationRecord = {
   clinicCode: string;
   snapshot: {

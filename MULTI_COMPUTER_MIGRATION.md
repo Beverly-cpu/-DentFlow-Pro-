@@ -104,14 +104,14 @@ DATABASE_URL=postgresql://dentflow:local-development-only@127.0.0.1:5432/dentflo
 - `legacy_implant_mappings` 以來源裝置＋舊個案 ID 對照中央個案。同來源重試時比對完整快照雜湊，內容或院所改變會回報衝突，不覆寫歷史資料；不同來源的個案不以日期或病患姓名自動合併。
 - `legacy_implant_snapshots` 保存牙位、術前需求、使用量、REF／LOT、歷史成本、預留與歸回稽核及舊品項。快照內所有 ID（包含庫存與操作者）均為來源裝置的舊 ID，不可用於中央扣帳或推定中央操作者。
 - 歷史成本取自最後一筆對應的手術取出交易，不使用目前庫存成本回推；沒有歷史成本時保留 `null`。
-- 照片與簽名本體不進入快照。資產清單包含來源表、舊 ID、欄位、原始 Data URL 的 UTF-8 SHA-256 與位元組長度；原件保留在 SQLite，尚未上傳物件儲存。
+- 照片與簽名本體不進入快照。資產清單包含來源表、舊 ID、欄位、原始 Data URL 的 UTF-8 SHA-256 與位元組長度；原件保留在 SQLite；私有物件搬移流程見 0008。
 - 每一個案及明細在同一 SQLite 讀取交易內擷取。中央每批最多 50 個案，桌面端也限制請求小於 1.8 MB；單案超過 1 MB 時保留本機來源並記錄待處理數量，不妨礙其他個案匯入。
 - 管理者／助理登入後依醫師、病患、植體順序匯入。未完成病患／醫師對照、明細關聯錯誤或缺少院所授權的個案會列為衝突。
 - 中央核心、對照、快照與稽核在同一交易提交；稽核失敗則整批回滾。
 - 管理者／助理可透過 `GET /v1/migrations/implants?clinicId=...&afterId=...` 分頁檢查結果，以及 `GET /v1/migrations/implants/:id?clinicId=...` 核對快照與資產清單；兩者均檢查目前院所權限。
 - 部署時先執行 API migration 0006，再更新桌面端。
 
-匯入的個案固定標為 `legacy_staged`，即使沒有待搬移資產，也不代表完成業務切換。本階段不修改庫存、不切換本機病患／植體 IPC，也不刪除 SQLite。庫存與操作者對照範圍見下節；正式上線仍須完成照片／簽名物件儲存、中央業務交易 API、來源寫入凍結與完整性比對。
+匯入的個案固定標為 `legacy_staged`，即使沒有待搬移資產，也不代表完成業務切換。本階段不修改庫存、不切換本機病患／植體 IPC，也不刪除 SQLite。庫存與操作者對照範圍見下節；正式上線仍須完成私有儲存部署與實際資產核對、中央業務交易 API、來源寫入凍結與完整性比對。
 
 ## 舊庫存與操作者對照（0007）
 
@@ -129,7 +129,7 @@ DATABASE_URL=postgresql://dentflow:local-development-only@127.0.0.1:5432/dentflo
 - `POST /v1/migrations/implants/resolve-references` 每次處理 50 個案，依 nextAfterId 接續；補齊中央對照後可從第一頁重新解析。每批對照、關聯與稽核在同一交易提交，稽核失敗整批回滾。
 - 管理者可使用 `GET /v1/migrations/inventory?clinicId=...&afterId=...` 分頁檢查來源庫存快照。部署時先執行 API migration 0007，再更新桌面端。
 
-下一階段搬移照片／簽名至私有物件儲存。庫存盤點／來源核對、中央業務交易 API 與實機端到端驗證尚未完成；此階段不啟用中央扣帳，也不刪除本機資料。
+照片／簽名私有物件搬移流程見下節。庫存盤點／來源核對、中央業務交易 API 與實機端到端驗證尚未完成；此階段不啟用中央扣帳，也不刪除本機資料。
 
 ## 安全必要條件
 
@@ -138,3 +138,22 @@ DATABASE_URL=postgresql://dentflow:local-development-only@127.0.0.1:5432/dentflo
 - 所有寫入保存操作者、院所、時間與來源裝置。
 - 登入、簽名、庫存異動與取消操作需具備重放防護及交易一致性。
 - 每日自動備份，定期實際演練還原。
+
+
+## 私有照片／簽名搬移（0008）
+
+先執行 API migration 0008，再部署 API 與桌面端。此階段提供程式流程；未建立雲端資源、未搬移真實診所檔案，仍維持 `legacy_staged`，業務 IPC 與 SQLite 原件保留。
+
+伺服器設定 `ASSET_BUCKET`、`ASSET_REGION`、`ASSET_BUCKET_OWNER`（12 位 AWS 帳號 ID）。三者必須一起設定；全部留空時停用資產搬移。可選 `ASSET_KMS_KEY_ID`，預設使用 S3 AES256 伺服器端加密，設定後使用該 KMS key。AWS 憑證使用伺服器 SDK 預設 credential provider／IAM role，不能放入桌面、React 或版本控制。此階段只支援 AWS S3，未提供任意 endpoint。
+
+儲存桶必須啟用全部四項 Block Public Access。每次寫入與讀取都會核對，並指定 ExpectedBucketOwner；核對失敗便拒絕傳輸。伺服器 IAM 至少需要 bucket 上 `s3:GetBucketPublicAccessBlock`，以及 `dentflow/clinics/*` 前綴的 `s3:PutObject`、`s3:GetObject`；KMS 模式另需對指定 key 的 `kms:GenerateDataKey`、`kms:Decrypt`。不需 DeleteObject 或公開 ACL。部署人員應設定 HTTPS、物件版本與備份／保留策略，並讓反向代理允許本路由的 16 MiB JSON body。
+
+管理者登入後，桌面先查 `GET /v1/migrations/assets/status`；未設定或不符合私有設定便保留待搬移清單。準備就緒時，透過 `GET /v1/migrations/assets?sourceId=...&afterId=...` 每頁最多 25 個案取得來源 manifest，逐張讀取同個案的 SQLite 原件，驗證原始 Data URL 雜湊與長度，再 POST `/v1/migrations/assets/upload`。來源 ID 必須等於登入裝置，個案必須位於管理者目前可存取的啟用診所。支援 PNG、JPEG、WebP、GIF，核對格式標頭與標準 Base64，解碼後每張最多 10 MiB；不接受 SVG 或其他主動內容。
+
+上傳先提交帶物件鍵的 `pending` 資產與稽核記錄，才寫入 S3；讀回核對 SHA-256 與大小後，另以交易標記 `uploaded`、重算待搬移數量並記錄稽核。中斷、儲存失敗或完成稽核失敗時，保留已知物件鍵與 pending 狀態；再次登入沿用同一識別碼與原始內容重試。已完成的相同上傳不覆寫物件。內容與來源快照不一致時拒絕搬移，不刪除或修改本機原件。
+
+讀取使用 `GET /v1/assets/:id` 的中央登入授權，而非公開網址或預簽 URL。僅 Admin、Assistant、Doctor 可讀；每次確認目前診所權限，Doctor 另限自己的個案。pending 資產不可讀，讀回仍核對內容完整性並稽核，回應使用 `private, no-store`。沒有把物件鍵、AWS 憑證或原始 Data URL 放入遷移列表。現有桌面臨床畫面仍使用本機照片，中央臨床畫面與交易切換是後續工作。
+
+驗證涵蓋 API 權限、來源 hash、格式與大小限制、私有 bucket 防護、耐久 intent、完成稽核回滾及重試；另使用 PostgreSQL 相容 PGlite 執行全部八份 migration 與真實 SQL，儲存使用測試替身。仍需在正式 PostgreSQL、實際私有 AWS bucket 及兩台桌面執行部署驗收。
+
+AWS 參考：[Block Public Access](https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html)。

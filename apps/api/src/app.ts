@@ -10,8 +10,11 @@ import { registerPatientRoutes } from "./routes/patientRoutes.js";
 import { registerDoctorMigrationRoutes } from "./routes/doctorMigrationRoutes.js";
 import { registerImplantMigrationRoutes } from "./routes/implantMigrationRoutes.js";
 import { registerResourceMigrationRoutes } from "./routes/resourceMigrationRoutes.js";
+import { registerAssetRoutes } from "./routes/assetRoutes.js";
+import { createPrivateObjectStorage } from "./objectStorage.js";
+import type { PrivateObjectStorage } from "./objectStorage.js";
 
-export function buildApp(config: ApiConfig, pool: DatabasePool) {
+export function buildApp(config: ApiConfig, pool: DatabasePool, assetStore: PrivateObjectStorage | undefined = createPrivateObjectStorage(config)) {
   const app = Fastify({
     logger: {
       level: config.nodeEnv === "production" ? "info" : "debug",
@@ -71,6 +74,7 @@ export function buildApp(config: ApiConfig, pool: DatabasePool) {
   void registerDoctorMigrationRoutes(app, pool);
   void registerImplantMigrationRoutes(app, pool);
   void registerResourceMigrationRoutes(app, pool);
+  void registerAssetRoutes(app, pool, assetStore);
 
   app.setErrorHandler((error, request, reply) => {
     request.log.error({ err: error }, "request failed");

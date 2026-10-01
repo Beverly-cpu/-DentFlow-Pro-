@@ -32,6 +32,7 @@ import { getLegacyImplantsForMigration } from "./database/implantMigrationReposi
 import { prepareImplantMigrationBatches } from "./remote/implantMigrationBatches";
 import { getLegacyInventoryForMigration, getLegacyUsersForMigration } from "./database/resourceMigrationRepository";
 import { prepareResourceMigrationBatches } from "./remote/resourceMigrationBatches";
+import { migrateLegacyAssets } from "./remote/assetMigration";
 
 /* =========================================================
    Patients
@@ -727,6 +728,7 @@ function registerRemoteAuthHandlers() {
             }
             afterId = result.nextAfterId;
           } while (afterId !== null);
+          await migrateLegacyAssets();
         }
       } catch (error) {
         console.warn("中央資料匯入未完成，暫時保留本機資料來源", error);
