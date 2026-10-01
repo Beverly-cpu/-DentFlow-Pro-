@@ -33,6 +33,8 @@ import { prepareImplantMigrationBatches } from "./remote/implantMigrationBatches
 import { getLegacyInventoryForMigration, getLegacyUsersForMigration } from "./database/resourceMigrationRepository";
 import { prepareResourceMigrationBatches } from "./remote/resourceMigrationBatches";
 import { createRemotePatientClient } from "./remote/patientClient";
+import { createRemoteInventoryClient } from "./remote/inventoryClient";
+import type { OpeningInput } from "../shared/centralInventory";
 import { localOperation } from "./remote/localOperation";
 import { migrateLegacyAssets } from "./remote/assetMigration";
 
@@ -1201,6 +1203,19 @@ function registerImplantHandlers() {
   );
 }
 
+function registerCentralInventoryHandlers() {
+  const inventory = createRemoteInventoryClient(centralApi);
+  const remote = (callback: Parameters<typeof ipcMain.handle>[1]) => (event: Electron.IpcMainInvokeEvent, ...args: unknown[]) => {
+    if (getDeploymentConfig().mode !== "remote") throw Error("請先連線中央伺服器再操作中央庫存");
+    return callback(event, ...args);
+  };
+  ipcMain.handle("central-inventory:list", remote((_e, clinicId: number, afterId?: number) => inventory.list(clinicId, afterId)));
+  ipcMain.handle("central-inventory:staged", remote((_e, clinicId: number, afterId?: number) => inventory.staged(clinicId, afterId)));
+  ipcMain.handle("central-inventory:sources", remote((_e, id: number, clinicId: number) => inventory.sources(id, clinicId)));
+  ipcMain.handle("central-inventory:opening", remote((_e, id: number, clinicId: number) => inventory.opening(id, clinicId)));
+  ipcMain.handle("central-inventory:activate", remote((_e, id: number, clinicId: number, input: OpeningInput) => inventory.activate(id, clinicId, input)));
+}
+
 function registerInventoryHandlers() {
   registerLocalHandler("inventory:instruments-all", () => getInstrumentsAllClinics());
   registerLocalHandler("purchase-requests:list", (_event, clinicId: number) =>
@@ -1913,6 +1928,7 @@ function registerIpcHandlers() {
 
   registerImplantHandlers();
   registerInventoryHandlers();
+  registerCentralInventoryHandlers();
 
   registerInventoryTransactionHandlers();
 

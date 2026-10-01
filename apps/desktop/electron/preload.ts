@@ -9,6 +9,13 @@ import {
 ========================================================= */
 
 const dentflowApi = {
+  centralInventory: {
+    list: (clinicId: number, afterId?: number) => ipcRenderer.invoke("central-inventory:list", clinicId, afterId),
+    staged: (clinicId: number, afterId?: number) => ipcRenderer.invoke("central-inventory:staged", clinicId, afterId),
+    sources: (id: number, clinicId: number) => ipcRenderer.invoke("central-inventory:sources", id, clinicId),
+    opening: (id: number, clinicId: number) => ipcRenderer.invoke("central-inventory:opening", id, clinicId),
+    activate: (id: number, clinicId: number, input: unknown) => ipcRenderer.invoke("central-inventory:activate", id, clinicId, input),
+  },
   machines: {
     list: () => ipcRenderer.invoke("machines:list"),
     reservations: () => ipcRenderer.invoke("machines:reservations"),
