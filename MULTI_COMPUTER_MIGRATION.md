@@ -237,3 +237,20 @@ Admin／Assistant 可新增、修改及取消，必須有啟用院所的目前�
 中央個案列表與詳情現涵蓋 `central_draft` 及 `central_workflow`；詳情包含 `reservations`（中央規格／批次 ID、quantity、reserved/released 狀態、REF、LOT 與時間），Doctor 仍只讀自己的個案。已叫貨個案不能透過術前草稿 PUT 或草稿 cancel 修改，防止刪除已有庫存預留的規格。桌面業務 IPC 仍未切換；尚無實際取出、術後使用、歸回、補貨及盤點調整 API。
 
 驗證：API 授權、完整分配、數量／格式、規格、效期、重送與稽核回滾；PGlite 執行十二份 migration 及真實 SQL，兩個個案依序爭用同一餘額，第二案不足時拒絕，取消後可重新供另一案預留。在手數量保持不變，庫存事件與 request 不可改寫；驗證事件寫入失敗回滾、Doctor 歸屬及助理完整規格／器械規則。尚需正式 PostgreSQL 的同時請求、死鎖／重試測試，以及兩台桌面驗收。
+
+
+## 中央確認取出與成本快照（0013）
+
+先執行 migration 0013 再部署 API。`central_workflow` 新增「已取出待手術」狀態，預留明細新增 picked 狀態、完整取出數量、取出時間、操作者與當時單價。此階段實作中央庫存扣帳時間為實際取出；術後使用只應分類已取出物品，不能再次扣同份庫存。舊本機流程仍未切換，不可混合兩種扣帳來源。
+
+`POST /v1/implants/:id/withdraw` 必填中央 `clinicId`、最近 `expectedVersion`、UUID v4 `requestId` 與 `confirmations: [{ reservationId, quantity }]`。reservationId 使用中央詳情的 UUID，必須逐項明確確認此個案全部 reserved 紀錄及完整數量；不可省略品項、部分取出、重複 ID、更換批次或指定 unitCost。最多 500 項、每項 1–1000，JSON body 上限 64 KiB。本階段不提供部分取出 API。
+
+僅 Admin／Assistant／Doctor 且具有目前啟用院所權限可確認，Doctor 限自己的個案。個案必須為「醫師已叫貨」且中央病患有效。交易鎖定院所、個案、預留紀錄，再依批次 ID 固定順序鎖定已啟用庫存與 balance；以台北日期重新檢查效期，不能依叫貨時尚未過期就直接取出。任何效期、在手／預留量或確認內容不符均拒絕。
+
+同批次的預留先合計，成功時同時減少 onHand 與 reserved，available 保持原值，不消耗其他個案的預留。預留明細記錄 picked_quantity、picked_at、picked_by_user_id 及伺服器當下單價；依 numeric 精度建立每批次不可變 withdrawal event，包含數量、單價、計算總成本、兩種負異動與提交後餘額。全部扣帳、明細、個案狀態／版本、request 結果、庫存事件及稽核於同一交易提交，任一步失敗完全回滾。
+
+重送沿用同 requestId、原版本及原確認內容，回傳首次提交結果與 `unchanged: true`，不再次扣庫存；更換內容回應 409 `request_conflict`。個案舊版本回應 409 `version_conflict`，非叫貨狀態回應 409 `workflow_conflict`；確認不完整或使用其他個案明細回應 400 `confirmation_mismatch`，批次過期或數量異常回應 409 `stock_conflict`。取出後不能用 cancel-order 釋放預留或草稿取消；需要後續實作逐項歸回，而非重新增加期初數量。
+
+臨床詳情的 reservations 帶 `pickedQuantity`、`pickedAt`、`pickedByUserId`，保留 REF／LOT，但不帶成本。`GET /v1/implants/:id/withdrawal-ledger?clinicId=...` 僅 Admin／Accountant／Procurement 可讀取成本及取出事件，仍核對目前院所權限並稽核讀取。單價與總成本以兩位小數字串回應；後續庫存單價變更不改寫已取出的成本。資料庫 trigger 阻止修改／刪除取出事件及 picked 明細的身分、數量、單價、時間、操作者。
+
+驗證涵蓋逐項確認、舊版本、重送、取出狀態、成本隔離、授權及稽核回滾。PGlite 執行十三份 migration 與真實 SQL：兩個個案合計預留 3，第一案取出 2 後在手 1、仍預留另一案的 1；再取出剩餘案後在手及預留皆為 0。驗證事件失敗回滾、取出前重新檢查效期、病患停用拒絕、不可變成本／明細、重送不再扣庫存，以及當時單價 1200.50 的兩件總成本固定 2401.00，後續單價 9999 不影響歷史記錄。尚需正式 PostgreSQL 同時請求與兩台桌面驗收，術後使用、歸回、照片／簽名業務寫入、報表及桌面 IPC 切換仍待完成。
