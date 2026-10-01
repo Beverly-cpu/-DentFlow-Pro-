@@ -814,7 +814,7 @@ export function updateInventoryItem(
     INNER JOIN userClinics ON userClinics.userId = users.id
     WHERE users.id = ? AND users.isActive = 1 AND userClinics.clinicId = ?
       AND users.role IN ('Admin', 'Accountant', 'Procurement') LIMIT 1
-  `).get(actorUserId, clinicId) as { role: DentflowUserRole } | undefined;
+  `).get(actorUserId, clinicId) as { role: "Admin" | "Accountant" | "Procurement" } | undefined;
   if (!actor) throw new Error("此帳號沒有編輯庫存品項的權限。");
 
   if (actor.role === "Accountant") {

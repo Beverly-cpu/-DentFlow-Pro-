@@ -127,7 +127,8 @@ export async function registerImplantMigrationRoutes(app: FastifyInstance, pool:
         `SELECT i.id::int, i.patient_id::int AS "patientId", i.doctor_user_id::int AS "doctorUserId",
           i.status,i.implant_date AS "implantDate",i.migration_state AS "migrationState",
           m.source_id AS "sourceId", m.legacy_implant_id AS "legacyImplantId",
-          s.pending_asset_count AS "pendingAssets"
+          s.pending_asset_count AS "pendingAssets",s.pending_inventory_refs AS "pendingInventoryRefs",
+          s.pending_user_refs AS "pendingUserRefs"
          FROM implant_cases i JOIN legacy_implant_mappings m ON m.implant_case_id=i.id
          JOIN legacy_implant_snapshots s ON s.implant_case_id=i.id
          WHERE i.clinic_id=$1 AND i.id>$2 ORDER BY i.id LIMIT 100`, [clinicId, afterId],
@@ -146,14 +147,26 @@ export async function registerImplantMigrationRoutes(app: FastifyInstance, pool:
           i.doctor_user_id::int AS "doctorUserId", i.implant_date AS "implantDate",i.status,i.note,
           i.migration_state AS "migrationState",m.source_id AS "sourceId",
           m.legacy_implant_id AS "legacyImplantId",m.snapshot_hash AS "snapshotHash",
-          s.snapshot AS "legacySnapshot",s.assets,s.pending_asset_count AS "pendingAssets"
+          s.snapshot AS "legacySnapshot",s.assets,s.pending_asset_count AS "pendingAssets",
+          s.pending_inventory_refs AS "pendingInventoryRefs",s.pending_user_refs AS "pendingUserRefs"
          FROM implant_cases i JOIN clinics c ON c.id=i.clinic_id AND c.active=true
          JOIN user_clinics uc ON uc.clinic_id=i.clinic_id AND uc.user_id=$3
          JOIN legacy_implant_mappings m ON m.implant_case_id=i.id
          JOIN legacy_implant_snapshots s ON s.implant_case_id=i.id
          WHERE i.id=$1 AND i.clinic_id=$2`, [id, clinicId, request.principal!.userId],
       );
-      return result.rows[0] ?? reply.code(404).send({ error: "not_found", message: "找不到可存取的遷移個案" });
+      if (!result.rows[0]) return reply.code(404).send({ error: "not_found", message: "找不到可存取的遷移個案" });
+      const inventoryLinks = await pool.query(
+        `SELECT legacy_inventory_id AS "legacyInventoryId",inventory_batch_id AS "inventoryBatchId"
+         FROM legacy_implant_inventory_links WHERE implant_case_id=$1 ORDER BY legacy_inventory_id`, [id],
+      );
+      const userLinks = await pool.query(
+        `SELECT l.legacy_user_id AS "legacyUserId",l.user_id AS "userId",m.source_account AS account,m.source_role AS role
+         FROM legacy_implant_user_links l JOIN legacy_user_mappings m
+           ON m.source_id=l.source_id AND m.legacy_user_id=l.legacy_user_id AND m.clinic_id=l.clinic_id
+         WHERE l.implant_case_id=$1 ORDER BY l.legacy_user_id`, [id],
+      );
+      return { ...result.rows[0], inventoryLinks: inventoryLinks.rows, userLinks: userLinks.rows };
     },
   );
 }

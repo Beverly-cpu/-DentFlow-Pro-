@@ -9,6 +9,7 @@ import { registerClinicRoutes } from "./routes/clinicRoutes.js";
 import { registerPatientRoutes } from "./routes/patientRoutes.js";
 import { registerDoctorMigrationRoutes } from "./routes/doctorMigrationRoutes.js";
 import { registerImplantMigrationRoutes } from "./routes/implantMigrationRoutes.js";
+import { registerResourceMigrationRoutes } from "./routes/resourceMigrationRoutes.js";
 
 export function buildApp(config: ApiConfig, pool: DatabasePool) {
   const app = Fastify({
@@ -69,6 +70,7 @@ export function buildApp(config: ApiConfig, pool: DatabasePool) {
   void registerPatientRoutes(app, pool);
   void registerDoctorMigrationRoutes(app, pool);
   void registerImplantMigrationRoutes(app, pool);
+  void registerResourceMigrationRoutes(app, pool);
 
   app.setErrorHandler((error, request, reply) => {
     request.log.error({ err: error }, "request failed");

@@ -265,7 +265,7 @@ export function listMachineUsageRecords(actorUserId:number){
   return rows.map(row=>{
     const base={...row,toothPositions:JSON.parse(row.toothPositions||"[]")};
     if(currentActor.role==="Admin"||currentActor.role==="Accountant") return base;
-    const safe={...base}; delete safe.unitCost; return safe;
+    const safe: Omit<typeof base, "unitCost"> & { unitCost?: number }={...base}; delete safe.unitCost; return safe;
   });
 }
 
