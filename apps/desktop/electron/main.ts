@@ -32,6 +32,8 @@ import { getLegacyImplantsForMigration } from "./database/implantMigrationReposi
 import { prepareImplantMigrationBatches } from "./remote/implantMigrationBatches";
 import { getLegacyInventoryForMigration, getLegacyUsersForMigration } from "./database/resourceMigrationRepository";
 import { prepareResourceMigrationBatches } from "./remote/resourceMigrationBatches";
+import { createRemotePatientClient } from "./remote/patientClient";
+import { localOperation } from "./remote/localOperation";
 import { migrateLegacyAssets } from "./remote/assetMigration";
 
 /* =========================================================
@@ -768,7 +770,30 @@ function registerRemoteAuthHandlers() {
    Patient IPC
 ========================================================= */
 
+function registerLocalHandler(channel: string, listener: Parameters<typeof ipcMain.handle>[1]) {
+  ipcMain.handle(channel, localOperation(getDeploymentConfig().mode, listener));
+}
+function registerRemotePatientHandlers() {
+  const patients = createRemotePatientClient(centralApi);
+  ipcMain.handle("patients:list", (_e, clinicId: number) => patients.list(clinicId));
+  ipcMain.handle("patients:by-id", (_e, id: number, clinicId: number) => patients.byId(id, clinicId));
+  ipcMain.handle("patients:by-doctor", (_e, id: number, clinicId: number) => patients.byDoctor(id, clinicId));
+  ipcMain.handle("patients:by-doctor-all-clinics", (_e, id: number) => patients.byDoctorAllClinics(id));
+  ipcMain.handle("patients:by-doctor-user-all-clinics", (_e, id: number) => patients.byDoctorAllClinics(id));
+  ipcMain.handle("patients:create", (_e, clinicId: number, input: unknown) => patients.create(clinicId, input));
+  ipcMain.handle("patients:update", (_e, id: number, clinicId: number, input: unknown) => patients.update(id, clinicId, input));
+  ipcMain.handle("patients:delete", (_e, id: number, clinicId: number, version: number) => patients.archive(id, clinicId, version));
+}
+function registerRemoteDoctorHandlers() {
+  const patients = createRemotePatientClient(centralApi);
+  for (const channel of ["doctors:list", "doctors:active"]) ipcMain.handle(channel, (_e, clinicId: number) => patients.doctors(clinicId));
+  for (const channel of ["doctors:by-id", "doctors:by-user-id", "doctors:active-by-user-id"]) ipcMain.handle(channel, async (_e, id: number, clinicId: number) => (await patients.doctors(clinicId)).find(d => d.userId === id) ?? null);
+  ipcMain.handle("doctors:by-account", () => { throw Error("請使用中央醫師帳號 ID 選擇醫師"); });
+  for (const channel of ["doctors:create", "doctors:update", "doctors:delete", "doctors:clinics", "doctors:set-clinics", "doctors:add-clinic", "doctors:remove-clinic", "doctors:set-primary-clinic"]) registerLocalHandler(channel, () => undefined);
+}
+
 function registerPatientHandlers() {
+  if (getDeploymentConfig().mode === "remote") { registerRemotePatientHandlers(); return; }
   ipcMain.handle(
     "patients:list",
     (
@@ -887,6 +912,7 @@ function registerPatientHandlers() {
 ========================================================= */
 
 function registerDoctorHandlers() {
+  if (getDeploymentConfig().mode === "remote") { registerRemoteDoctorHandlers(); return; }
   ipcMain.handle(
     "doctors:list",
     (
@@ -1062,7 +1088,7 @@ function redactInventoryCosts<T extends Array<Record<string, unknown>>>(items: T
 }
 
 function registerImplantHandlers() {
-  ipcMain.handle(
+  registerLocalHandler(
     "implants:list",
     (
       _event,
@@ -1073,7 +1099,7 @@ function registerImplantHandlers() {
     },
   );
 
-  ipcMain.handle(
+  registerLocalHandler(
     "implants:by-patient",
     (
       _event,
@@ -1088,7 +1114,7 @@ function registerImplantHandlers() {
     },
   );
 
-  ipcMain.handle(
+  registerLocalHandler(
     "implants:by-doctor",
     (
       _event,
@@ -1115,7 +1141,7 @@ function registerImplantHandlers() {
    *
    * 不在這裡指定 REF / LOT。
    */
-  ipcMain.handle(
+  registerLocalHandler(
     "implants:create",
     (
       _event,
@@ -1131,44 +1157,44 @@ function registerImplantHandlers() {
     },
   );
 
-  ipcMain.handle(
+  registerLocalHandler(
     "implants:update",
 
     (_event, implantId: number, clinicId: number, input) =>
       updateImplant(implantId, clinicId, input),
   );
 
-  ipcMain.handle(
+  registerLocalHandler(
     "implants:update-status",
     (_event, implantId: number, clinicId: number, status, actorUserId: number) =>
       updateImplantStatus(implantId, clinicId, status, actorUserId),
   );
 
-  ipcMain.handle(
+  registerLocalHandler(
     "implants:record-usage",
     (_event, implantId: number, clinicId: number, usageInputs, actorUserId: number) =>
       recordImplantUsage(implantId, clinicId, usageInputs, actorUserId),
   );
 
-  ipcMain.handle(
+  registerLocalHandler(
     "implants:cancel",
     (_event, implantId: number, clinicId: number, reason: string, actorUserId: number, confirmedReturns) =>
       cancelImplantCase(implantId, clinicId, reason, actorUserId, confirmedReturns),
   );
 
-  ipcMain.handle(
+  registerLocalHandler(
     "implants:close",
     (_event, implantId: number, clinicId: number, actorUserId: number) =>
       closeImplantCase(implantId, clinicId, actorUserId),
   );
 
-  ipcMain.handle(
+  registerLocalHandler(
     "implants:sign-usage",
     (_event, implantId: number, clinicId: number, doctorId: number, signature: string, actorUserId: number) =>
       signImplantUsage(implantId, clinicId, doctorId, signature, actorUserId),
   );
 
-  ipcMain.handle(
+  registerLocalHandler(
     "implants:delete",
     (_event, implantId: number, clinicId: number) =>
       deleteImplant(implantId, clinicId),
@@ -1176,28 +1202,28 @@ function registerImplantHandlers() {
 }
 
 function registerInventoryHandlers() {
-  ipcMain.handle("inventory:instruments-all", () => getInstrumentsAllClinics());
-  ipcMain.handle("purchase-requests:list", (_event, clinicId: number) =>
+  registerLocalHandler("inventory:instruments-all", () => getInstrumentsAllClinics());
+  registerLocalHandler("purchase-requests:list", (_event, clinicId: number) =>
     getPurchaseRequests(clinicId));
-  ipcMain.handle("purchase-requests:create", (_event, clinicId: number, inventoryItemId: number, quantity: number, note: string, actorUserId: number) =>
+  registerLocalHandler("purchase-requests:create", (_event, clinicId: number, inventoryItemId: number, quantity: number, note: string, actorUserId: number) =>
     createPurchaseRequest(clinicId, inventoryItemId, quantity, note, actorUserId));
-  ipcMain.handle("purchase-requests:complete", (_event, id: number, clinicId: number, actorUserId: number) =>
+  registerLocalHandler("purchase-requests:complete", (_event, id: number, clinicId: number, actorUserId: number) =>
     completePurchaseRequest(id, clinicId, actorUserId));
 
-  ipcMain.handle(
+  registerLocalHandler(
     "inventory:categories",
     (_event, clinicId: number) => getInventoryCategories(clinicId),
   );
 
-  ipcMain.handle(
+  registerLocalHandler(
     "inventory:create-category",
     (_event, clinicId: number, name: string, actorUserId: number, requiresDoctorSignature?: boolean) =>
       createInventoryCategory(clinicId, name, actorUserId, requiresDoctorSignature),
   );
-  ipcMain.handle("inventory:delete-category", (_event, clinicId: number, name: string, actorUserId: number) =>
+  registerLocalHandler("inventory:delete-category", (_event, clinicId: number, name: string, actorUserId: number) =>
     deleteInventoryCategory(clinicId, name, actorUserId));
 
-  ipcMain.handle(
+  registerLocalHandler(
     "inventory:list",
     (
       _event,
@@ -1208,7 +1234,7 @@ function registerInventoryHandlers() {
     },
   );
 
-  ipcMain.handle(
+  registerLocalHandler(
     "inventory:by-id",
     (
       _event,
@@ -1222,7 +1248,7 @@ function registerInventoryHandlers() {
     },
   );
 
-  ipcMain.handle(
+  registerLocalHandler(
     "inventory:create",
     (
       _event,
@@ -1242,7 +1268,7 @@ function registerInventoryHandlers() {
    * Repository 不會由這個 API
    * 直接修改 quantity。
    */
-  ipcMain.handle(
+  registerLocalHandler(
     "inventory:update",
     (
       _event,
@@ -1266,7 +1292,7 @@ function registerInventoryHandlers() {
    * 新 UI 不應使用此 API。
    * 正式庫存增減請使用 receive / adjust。
    */
-  ipcMain.handle(
+  registerLocalHandler(
     "inventory:update-quantity",
     (
       _event,
@@ -1288,7 +1314,7 @@ function registerInventoryHandlers() {
    * quantity = 本次收到多少。
    * unitCost = 本批次單位成本。
    */
-  ipcMain.handle(
+  registerLocalHandler(
     "inventory:receive",
     (
       _event,
@@ -1315,7 +1341,7 @@ function registerInventoryHandlers() {
    *
    * quantity = 校正後的絕對庫存總量。
    */
-  ipcMain.handle(
+  registerLocalHandler(
     "inventory:adjust",
     (
       _event,
@@ -1335,7 +1361,7 @@ function registerInventoryHandlers() {
     },
   );
 
-  ipcMain.handle(
+  registerLocalHandler(
     "inventory:low-stock",
     (
       _event,
@@ -1347,7 +1373,7 @@ function registerInventoryHandlers() {
     },
   );
 
-  ipcMain.handle(
+  registerLocalHandler(
     "inventory:delete",
     (
       _event,
@@ -1367,7 +1393,7 @@ function registerInventoryHandlers() {
 ========================================================= */
 
 function registerInventoryTransactionHandlers() {
-  ipcMain.handle(
+  registerLocalHandler(
     "inventory-transactions:list",
     (
       _event,
@@ -1379,7 +1405,7 @@ function registerInventoryTransactionHandlers() {
     },
   );
 
-  ipcMain.handle(
+  registerLocalHandler(
     "inventory-transactions:by-item",
     (
       _event,
@@ -1393,7 +1419,7 @@ function registerInventoryTransactionHandlers() {
     },
   );
 
-  ipcMain.handle(
+  registerLocalHandler(
     "inventory-transactions:by-implant",
     (
       _event,
@@ -1407,7 +1433,7 @@ function registerInventoryTransactionHandlers() {
     },
   );
 
-  ipcMain.handle(
+  registerLocalHandler(
     "inventory-transactions:by-implant-tooth",
     (
       _event,
@@ -1421,7 +1447,7 @@ function registerInventoryTransactionHandlers() {
     },
   );
 
-  ipcMain.handle(
+  registerLocalHandler(
     "inventory-transactions:by-implant-plan-item",
     (
       _event,
@@ -1435,7 +1461,7 @@ function registerInventoryTransactionHandlers() {
     },
   );
 
-  ipcMain.handle(
+  registerLocalHandler(
     "inventory-transactions:by-implant-usage-item",
     (
       _event,
@@ -1452,7 +1478,7 @@ function registerInventoryTransactionHandlers() {
   /*
    * Legacy implantItem query。
    */
-  ipcMain.handle(
+  registerLocalHandler(
     "inventory-transactions:by-implant-item",
     (
       _event,
@@ -1475,7 +1501,7 @@ function registerConsumableHandlers() {
   /*
    * 目前院所一般耗材使用紀錄。
    */
-  ipcMain.handle(
+  registerLocalHandler(
     "consumables:list",
     (
       _event,
@@ -1494,7 +1520,7 @@ function registerConsumableHandlers() {
   /*
    * 單筆紀錄。
    */
-  ipcMain.handle(
+  registerLocalHandler(
     "consumables:by-id",
     (
       _event,
@@ -1522,7 +1548,7 @@ function registerConsumableHandlers() {
    * 7. 建立「耗材使用」庫存異動
    * 8. 狀態變成「待醫師簽名」
    */
-  ipcMain.handle(
+  registerLocalHandler(
     "consumables:create",
     (
       _event,
@@ -1550,7 +1576,7 @@ function registerConsumableHandlers() {
    * - status === 待醫師簽名
    * - 不可重複簽名
    */
-  ipcMain.handle(
+  registerLocalHandler(
     "consumables:sign",
     (
       _event,
@@ -1581,7 +1607,7 @@ function registerConsumableHandlers() {
    * - 建立「耗材取消歸回」庫存異動
    * - 狀態改為「已取消」
    */
-  ipcMain.handle(
+  registerLocalHandler(
     "consumables:cancel",
     (
       _event,
@@ -1600,7 +1626,7 @@ function registerConsumableHandlers() {
   /*
    * 指定醫師目前院所紀錄。
    */
-  ipcMain.handle(
+  registerLocalHandler(
     "consumables:by-doctor",
     (
       _event,
@@ -1621,7 +1647,7 @@ function registerConsumableHandlers() {
   /*
    * 指定病患目前院所紀錄。
    */
-  ipcMain.handle(
+  registerLocalHandler(
     "consumables:by-patient",
     (
       _event,
@@ -1846,27 +1872,27 @@ function registerIpcHandlers() {
     () => checkServerConnection(),
   );
 
-  ipcMain.handle("machines:list", () => listMachines());
-  ipcMain.handle("machines:reservations", () => listMachineReservations());
-  ipcMain.handle("machines:reservation-reminders", (_event,actorUserId:number) => listMachineReservationReminders(actorUserId));
-  ipcMain.handle("machines:movers", (_event,actorUserId:number) => listMachineMovers(actorUserId));
-  ipcMain.handle("machines:scans", (_event,actorUserId:number) => listMachineScans(actorUserId));
-  ipcMain.handle("machines:create", (_event, input, actorUserId:number) => createMachine(input, actorUserId));
-  ipcMain.handle("machines:set-active", (_event, id:number, active:boolean, actorUserId:number) => setMachineActive(id,active,actorUserId));
-  ipcMain.handle("machines:update", (_event, id:number, input, actorUserId:number) => updateMachine(id,input,actorUserId));
-  ipcMain.handle("machines:reserve", (_event, input, actorUserId:number) => createMachineReservation(input,actorUserId));
-  ipcMain.handle("machines:update-reservation", (_event,id:number,input,actorUserId:number) => updateMachineReservation(id,input,actorUserId));
-  ipcMain.handle("machines:cancel-reservation", (_event,id:number,reason:string,actorUserId:number) => cancelMachineReservation(id,reason,actorUserId));
-  ipcMain.handle("machines:scan", (_event, token:string,reservationId:number,clinicId:number,action:"搬出"|"到院",actorUserId:number) => scanMachine(token,reservationId,clinicId,action,actorUserId));
-  ipcMain.handle("machines:usage-credits", (_event,machineId:number,actorUserId:number) => getMachineUsageCredits(machineId,actorUserId));
-  ipcMain.handle("machines:purchase-credits", (_event,machineId:number,quantity:number,actorUserId:number) => purchaseMachineUsageCredits(machineId,quantity,actorUserId));
-  ipcMain.handle("machines:credit-purchases", (_event,machineId:number,actorUserId:number) => listMachineUsageCreditPurchases(machineId,actorUserId));
-  ipcMain.handle("machines:update-usage-cost", (_event,machineId:number,unitCost:number,actorUserId:number) => updateMachineUsageCost(machineId,unitCost,actorUserId));
-  ipcMain.handle("machines:usage-records", (_event,actorUserId:number) => listMachineUsageRecords(actorUserId));
-  ipcMain.handle("machines:create-usage", (_event,input,actorUserId:number) => createMachineUsage(input,actorUserId));
-  ipcMain.handle("machines:cancel-usage", (_event,id:number,reason:string,actorUserId:number) => cancelMachineUsage(id,reason,actorUserId));
-  ipcMain.handle("machines:sign-usage", (_event,id:number,signature:string,actorUserId:number) => signMachineUsage(id,signature,actorUserId));
-  ipcMain.handle("system:backup-database", async () => {
+  registerLocalHandler("machines:list", () => listMachines());
+  registerLocalHandler("machines:reservations", () => listMachineReservations());
+  registerLocalHandler("machines:reservation-reminders", (_event,actorUserId:number) => listMachineReservationReminders(actorUserId));
+  registerLocalHandler("machines:movers", (_event,actorUserId:number) => listMachineMovers(actorUserId));
+  registerLocalHandler("machines:scans", (_event,actorUserId:number) => listMachineScans(actorUserId));
+  registerLocalHandler("machines:create", (_event, input, actorUserId:number) => createMachine(input, actorUserId));
+  registerLocalHandler("machines:set-active", (_event, id:number, active:boolean, actorUserId:number) => setMachineActive(id,active,actorUserId));
+  registerLocalHandler("machines:update", (_event, id:number, input, actorUserId:number) => updateMachine(id,input,actorUserId));
+  registerLocalHandler("machines:reserve", (_event, input, actorUserId:number) => createMachineReservation(input,actorUserId));
+  registerLocalHandler("machines:update-reservation", (_event,id:number,input,actorUserId:number) => updateMachineReservation(id,input,actorUserId));
+  registerLocalHandler("machines:cancel-reservation", (_event,id:number,reason:string,actorUserId:number) => cancelMachineReservation(id,reason,actorUserId));
+  registerLocalHandler("machines:scan", (_event, token:string,reservationId:number,clinicId:number,action:"搬出"|"到院",actorUserId:number) => scanMachine(token,reservationId,clinicId,action,actorUserId));
+  registerLocalHandler("machines:usage-credits", (_event,machineId:number,actorUserId:number) => getMachineUsageCredits(machineId,actorUserId));
+  registerLocalHandler("machines:purchase-credits", (_event,machineId:number,quantity:number,actorUserId:number) => purchaseMachineUsageCredits(machineId,quantity,actorUserId));
+  registerLocalHandler("machines:credit-purchases", (_event,machineId:number,actorUserId:number) => listMachineUsageCreditPurchases(machineId,actorUserId));
+  registerLocalHandler("machines:update-usage-cost", (_event,machineId:number,unitCost:number,actorUserId:number) => updateMachineUsageCost(machineId,unitCost,actorUserId));
+  registerLocalHandler("machines:usage-records", (_event,actorUserId:number) => listMachineUsageRecords(actorUserId));
+  registerLocalHandler("machines:create-usage", (_event,input,actorUserId:number) => createMachineUsage(input,actorUserId));
+  registerLocalHandler("machines:cancel-usage", (_event,id:number,reason:string,actorUserId:number) => cancelMachineUsage(id,reason,actorUserId));
+  registerLocalHandler("machines:sign-usage", (_event,id:number,signature:string,actorUserId:number) => signMachineUsage(id,signature,actorUserId));
+  registerLocalHandler("system:backup-database", async () => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const result = await dialog.showSaveDialog({
       title: "備份 DentFlow 資料庫",

@@ -21,6 +21,8 @@ import { registerImplantDispositionRoutes } from "./routes/implantDispositionRou
 
 import { registerImplantClosureRoutes } from "./routes/implantClosureRoutes.js";
 
+import { registerDoctorDirectoryRoutes } from "./routes/doctorDirectoryRoutes.js";
+
 export function buildApp(config: ApiConfig, pool: DatabasePool, assetStore: PrivateObjectStorage | undefined = createPrivateObjectStorage(config)) {
   const app = Fastify({
     logger: {
@@ -78,6 +80,7 @@ export function buildApp(config: ApiConfig, pool: DatabasePool, assetStore: Priv
   void registerAuthRoutes(app, pool);
   void registerClinicRoutes(app, pool);
   void registerPatientRoutes(app, pool);
+  void registerDoctorDirectoryRoutes(app, pool);
   void registerDoctorMigrationRoutes(app, pool);
   void registerImplantMigrationRoutes(app, pool);
   void registerResourceMigrationRoutes(app, pool);

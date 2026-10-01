@@ -183,6 +183,8 @@ type DentflowClinicWithStatsRecord =
 ========================================================= */
 
 type DentflowPatientRecord = {
+  version?: number;
+  doctorUserId?: number | null;
   id: number;
 
   clinicId: number;
@@ -210,6 +212,8 @@ type DentflowPatientWithClinicRecord =
   };
 
 type DentflowPatientInput = {
+  expectedVersion?: number;
+  doctorUserId?: number | null;
   chartNumber: string;
 
   name: string;
@@ -797,6 +801,7 @@ type DentflowApi = {
     signUsage: (id: number, signature: string, actorUserId: number) => Promise<boolean>;
   };
   system: {
+    deploymentConfig: () => Promise<{ mode: "local" | "remote"; serverUrl: string | null }>;
     backupDatabase: () => Promise<{
       cancelled: boolean;
       filePath?: string;
@@ -1034,6 +1039,7 @@ type DentflowApi = {
     delete: (
       patientId: number,
       clinicId: number,
+      expectedVersion?: number,
     ) =>
       Promise<boolean>;
   };

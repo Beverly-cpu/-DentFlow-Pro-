@@ -1,3 +1,4 @@
+import type { PatientRecord, PatientInput } from "./database/patientRepository";
 import {
   contextBridge,
   ipcRenderer,
@@ -31,6 +32,7 @@ const dentflowApi = {
     signUsage: (id: number, signature: string, actorUserId: number) => ipcRenderer.invoke("machines:sign-usage", id, signature, actorUserId),
   },
   system: {
+    deploymentConfig: () => ipcRenderer.invoke("system:deployment-config"),
     backupDatabase() {
       return ipcRenderer.invoke("system:backup-database");
     },
@@ -412,11 +414,13 @@ const dentflowApi = {
     delete(
       patientId: number,
       clinicId: number,
+      expectedVersion?: number,
     ) {
       return ipcRenderer.invoke(
         "patients:delete",
         patientId,
         clinicId,
+        expectedVersion,
       );
     },
   },
