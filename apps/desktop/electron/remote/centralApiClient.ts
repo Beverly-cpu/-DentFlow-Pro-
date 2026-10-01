@@ -1,4 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
+
+import { app } from "electron";
 
 import { getDeploymentConfig } from "./serverConnection";
 
@@ -6,14 +10,31 @@ type JsonRecord = Record<string, unknown>;
 
 class CentralApiClient {
   private token: string | null = null;
-  private readonly deviceId = randomUUID();
+  private deviceId: string | null = null;
+
+  getDeviceId() {
+    if (this.deviceId) return this.deviceId;
+    const filePath = path.join(app.getPath("userData"), "dentflow-device-id");
+    if (existsSync(filePath)) {
+      const saved = readFileSync(filePath, "utf8").trim();
+      if (saved) return (this.deviceId = saved);
+    }
+    const created = randomUUID();
+    try {
+      writeFileSync(filePath, created, { encoding: "utf8", flag: "wx" });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      return (this.deviceId = readFileSync(filePath, "utf8").trim());
+    }
+    return (this.deviceId = created);
+  }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const config = getDeploymentConfig();
     if (!config.serverUrl) throw new Error("尚未設定中央伺服器網址");
     const headers = new Headers(init.headers);
     headers.set("accept", "application/json");
-    headers.set("x-device-id", this.deviceId);
+    headers.set("x-device-id", this.getDeviceId());
     if (init.body !== undefined) headers.set("content-type", "application/json");
     if (this.token) headers.set("authorization", `Bearer ${this.token}`);
 

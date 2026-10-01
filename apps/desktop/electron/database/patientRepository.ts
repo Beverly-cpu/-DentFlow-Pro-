@@ -55,6 +55,16 @@ export type PatientInput = {
   note: string;
 };
 
+export type LegacyPatientMigrationRecord = {
+  legacyId: number;
+  clinicCode: string;
+  chartNumber: string;
+  name: string;
+  birthDate: string;
+  doctor: string;
+  note: string;
+};
+
 /* =========================================================
    Internal Types
 ========================================================= */
@@ -436,6 +446,18 @@ const patientWithClinicSelect = `
     ON clinics.id =
        patients.clinicId
 `;
+
+export function getLegacyPatientsForMigration(): LegacyPatientMigrationRecord[] {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT patients.id AS legacyId, clinics.code AS clinicCode,
+           patients.chartNumber, patients.name, patients.birthDate,
+           patients.doctor, patients.note
+    FROM patients
+    INNER JOIN clinics ON clinics.id = patients.clinicId
+    ORDER BY patients.id
+  `).all() as LegacyPatientMigrationRecord[];
+}
 
 /* =========================================================
    List - Current Clinic
