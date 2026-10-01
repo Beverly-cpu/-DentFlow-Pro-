@@ -9,6 +9,8 @@ type Body = Record<string, unknown>;
 
 type LegacyPatient = {
   legacyId?: unknown;
+  legacyDoctorId?: unknown;
+  doctorMatchCount?: unknown;
   clinicCode?: unknown;
   chartNumber?: unknown;
   name?: unknown;
@@ -76,6 +78,21 @@ async function resolveDoctor(pool: Queryable, clinicId: number, doctorName: stri
   return result.rows.length === 1 ? Number(result.rows[0]!.id) : null;
 }
 
+async function linkImportedDoctor(client: Queryable, patientId: number, doctorUserId: number | null, doctorName: string) {
+  if (doctorUserId === null) return true;
+  const result = await client.query<{ doctorUserId: string | null; doctorName: string }>(
+    `SELECT doctor_user_id AS "doctorUserId", doctor_name AS "doctorName"
+     FROM patients WHERE id=$1 FOR UPDATE`, [patientId],
+  );
+  const patient = result.rows[0];
+  if (!patient) return false;
+  if (patient.doctorUserId !== null) return Number(patient.doctorUserId) === doctorUserId;
+  // Repair only an unassigned legacy row with the same stored doctor name.
+  if (patient.doctorName.trim() !== doctorName) return false;
+  await client.query("UPDATE patients SET doctor_user_id=$2 WHERE id=$1", [patientId, doctorUserId]);
+  return true;
+}
+
 export async function registerPatientRoutes(app: FastifyInstance, pool: DatabasePool) {
   app.post<{ Body: { sourceId?: unknown; patients?: LegacyPatient[] } }>(
     "/v1/migrations/patients/import",
@@ -84,7 +101,10 @@ export async function registerPatientRoutes(app: FastifyInstance, pool: Database
       assertClinicalRole(request);
       if (request.principal!.role === "Doctor") throw new Error("醫師不可執行病患資料匯入");
 
-      const sourceId = requiredText(request.body.sourceId, "來源電腦").slice(0, 200);
+      const sourceId = requiredText(request.body.sourceId, "來源電腦");
+      if (sourceId.length > 200 || sourceId !== request.principal!.deviceId) {
+        throw new Error("來源電腦必須與登入裝置相同");
+      }
       const patients = request.body.patients;
       if (!Array.isArray(patients)) throw new Error("病患匯入資料格式錯誤");
       if (patients.length > 5_000) throw new Error("單次最多匯入 5000 筆病患資料");
@@ -95,6 +115,7 @@ export async function registerPatientRoutes(app: FastifyInstance, pool: Database
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
+        await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [sourceId]);
         for (const row of patients) {
           const legacyId = asId(row.legacyId, "舊病患 ID");
           const clinicCode = requiredText(row.clinicCode, "院所代碼").toUpperCase();
@@ -111,6 +132,27 @@ export async function registerPatientRoutes(app: FastifyInstance, pool: Database
             continue;
           }
           const clinicId = Number(clinic.rows[0].id);
+          const doctorName = optionalText(row.doctor);
+          let doctorUserId: number | null = null;
+          if (doctorName) {
+            if (Number(row.doctorMatchCount) !== 1 || row.legacyDoctorId == null) {
+              summary.conflicts.push({ legacyId, chartNumber, reason: "舊醫師姓名缺少唯一對照，請先確認醫師資料" });
+              continue;
+            }
+            const doctor = await client.query<{ id: string }>(
+              `SELECT u.id FROM legacy_doctor_mappings m
+               JOIN users u ON u.id=m.doctor_user_id
+               JOIN user_clinics uc ON uc.user_id=u.id AND uc.clinic_id=m.clinic_id
+               WHERE m.source_id=$1 AND m.legacy_doctor_id=$2 AND m.clinic_id=$3
+                 AND u.active=true AND u.role='Doctor'`,
+              [sourceId, asId(row.legacyDoctorId, "舊醫師 ID"), clinicId],
+            );
+            if (doctor.rows.length !== 1) {
+              summary.conflicts.push({ legacyId, chartNumber, reason: "醫師中央帳號對照尚未完成" });
+              continue;
+            }
+            doctorUserId = Number(doctor.rows[0]!.id);
+          }
           const mapped = await client.query<{ patientId: string; clinicId: string }>(
             `SELECT patient_id AS "patientId", clinic_id AS "clinicId"
              FROM legacy_patient_mappings WHERE source_id=$1 AND legacy_patient_id=$2`,
@@ -120,7 +162,9 @@ export async function registerPatientRoutes(app: FastifyInstance, pool: Database
             if (Number(mapped.rows[0].clinicId) !== clinicId) {
               summary.conflicts.push({ legacyId, chartNumber, reason: "舊 ID 已對應至其他院所" });
             } else {
-              summary.unchanged += 1;
+              const linked = await linkImportedDoctor(client, Number(mapped.rows[0].patientId), doctorUserId, doctorName);
+              if (!linked) summary.conflicts.push({ legacyId, chartNumber, reason: "中央病患已連結其他醫師" });
+              else summary.unchanged += 1;
             }
             continue;
           }
@@ -136,15 +180,18 @@ export async function registerPatientRoutes(app: FastifyInstance, pool: Database
               continue;
             }
             patientId = Number(existing.rows[0].id);
+            if (!await linkImportedDoctor(client, patientId, doctorUserId, doctorName)) {
+              summary.conflicts.push({ legacyId, chartNumber, reason: "中央病患已連結其他醫師" });
+              continue;
+            }
             summary.mapped += 1;
           } else {
-            const doctorName = optionalText(row.doctor);
             const inserted = await client.query<{ id: string }>(
               `INSERT INTO patients
                 (clinic_id,chart_number,name,birth_date,doctor_user_id,doctor_name,note)
                VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
               [clinicId, chartNumber, name, birthDate(row.birthDate),
-                await resolveDoctor(client, clinicId, doctorName), doctorName, optionalText(row.note)],
+                doctorUserId, doctorName, optionalText(row.note)],
             );
             patientId = Number(inserted.rows[0]!.id);
             summary.imported += 1;
@@ -156,6 +203,10 @@ export async function registerPatientRoutes(app: FastifyInstance, pool: Database
             [sourceId, legacyId, patientId, clinicId, request.principal!.userId],
           );
         }
+        await audit(client, request, "legacy_patients_imported", "patient_import", sourceId, {
+          imported: summary.imported, mapped: summary.mapped,
+          unchanged: summary.unchanged, conflicts: summary.conflicts.length,
+        });
         await client.query("COMMIT");
       } catch (error) {
         await client.query("ROLLBACK");
@@ -163,10 +214,6 @@ export async function registerPatientRoutes(app: FastifyInstance, pool: Database
       } finally {
         client.release();
       }
-      await audit(pool, request, "legacy_patients_imported", "patient_import", sourceId, {
-        imported: summary.imported, mapped: summary.mapped,
-        unchanged: summary.unchanged, conflicts: summary.conflicts.length,
-      });
       return summary;
     },
   );

@@ -14,6 +14,18 @@ const PASSWORD_MIN_LENGTH =
 const BCRYPT_ROUNDS =
   12;
 
+export function getLegacyDoctorsForMigration(): Array<{
+  legacyId: number; clinicCode: string; account: string;
+}> {
+  return getDatabase().prepare(`
+    SELECT DISTINCT d.id AS legacyId, c.code AS clinicCode, d.account
+    FROM doctors d
+    JOIN clinics c ON c.id=d.clinicId
+      OR EXISTS (SELECT 1 FROM doctorClinics dc WHERE dc.doctorId=d.id AND dc.clinicId=c.id)
+    ORDER BY d.id, c.code
+  `).all() as Array<{ legacyId: number; clinicCode: string; account: string }>;
+}
+
 /* =========================================================
    Public Types
 ========================================================= */

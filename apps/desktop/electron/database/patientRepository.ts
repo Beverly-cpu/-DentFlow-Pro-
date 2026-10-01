@@ -57,6 +57,8 @@ export type PatientInput = {
 
 export type LegacyPatientMigrationRecord = {
   legacyId: number;
+  legacyDoctorId: number | null;
+  doctorMatchCount: number;
   clinicCode: string;
   chartNumber: string;
   name: string;
@@ -452,7 +454,14 @@ export function getLegacyPatientsForMigration(): LegacyPatientMigrationRecord[] 
   return db.prepare(`
     SELECT patients.id AS legacyId, clinics.code AS clinicCode,
            patients.chartNumber, patients.name, patients.birthDate,
-           patients.doctor, patients.note
+           patients.doctor, patients.note,
+           (SELECT COUNT(*) FROM doctors d WHERE trim(d.name)=trim(patients.doctor)
+            AND (d.clinicId=patients.clinicId OR EXISTS
+              (SELECT 1 FROM doctorClinics dc WHERE dc.doctorId=d.id AND dc.clinicId=patients.clinicId))) AS doctorMatchCount,
+           (SELECT CASE WHEN COUNT(*)=1 THEN MIN(d.id) ELSE NULL END
+            FROM doctors d WHERE trim(d.name)=trim(patients.doctor)
+            AND (d.clinicId=patients.clinicId OR EXISTS
+              (SELECT 1 FROM doctorClinics dc WHERE dc.doctorId=d.id AND dc.clinicId=patients.clinicId))) AS legacyDoctorId
     FROM patients
     INNER JOIN clinics ON clinics.id = patients.clinicId
     ORDER BY patients.id

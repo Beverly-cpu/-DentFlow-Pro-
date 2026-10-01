@@ -113,7 +113,7 @@ export async function requireAdmin(request: FastifyRequest, reply: FastifyReply)
 }
 
 export async function audit(
-  pool: DatabasePool,
+  pool: Pick<DatabasePool, "query">,
   request: FastifyRequest,
   eventType: string,
   entityType?: string,
