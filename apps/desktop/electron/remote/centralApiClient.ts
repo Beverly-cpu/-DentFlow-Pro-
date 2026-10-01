@@ -6,6 +6,8 @@ import { app } from "electron";
 
 import { getDeploymentConfig } from "./serverConnection";
 
+import { CentralApiError } from "./centralApiError";
+
 type JsonRecord = Record<string, unknown>;
 
 class CentralApiClient {
@@ -42,7 +44,8 @@ class CentralApiClient {
     const payload = await response.json().catch(() => null) as JsonRecord | null;
     if (!response.ok) {
       if (response.status === 401) this.token = null;
-      throw new Error(typeof payload?.message === "string" ? payload.message : `中央伺服器回應 ${response.status}`);
+      throw new CentralApiError(response.status, typeof payload?.error === "string" ? payload.error : "request_failed",
+        typeof payload?.message === "string" ? payload.message : `中央伺服器回應 ${response.status}`);
     }
     return payload as T;
   }

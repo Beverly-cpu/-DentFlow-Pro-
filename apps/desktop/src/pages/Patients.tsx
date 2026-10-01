@@ -41,6 +41,8 @@ type PatientForm = {
   name: string;
   birthDate: string;
   doctor: string;
+  doctorId: string;
+  expectedVersion?: number;
   note: string;
 };
 
@@ -55,6 +57,7 @@ function createEmptyForm():
     name: "",
     birthDate: "",
     doctor: "",
+    doctorId: "",
     note: "",
   };
 }
@@ -399,7 +402,10 @@ export default function Patients() {
       patient.id,
     );
 
+    const matches = doctors.filter(d => patient.doctorUserId !== undefined ? d.userId === patient.doctorUserId && patient.doctorUserId !== null : d.name === patient.doctor);
     setForm({
+      doctorId: matches.length === 1 ? String(matches[0].id) : patient.doctor ? "unmapped" : "",
+      expectedVersion: patient.version,
       chartNumber:
         patient.chartNumber,
 
@@ -477,7 +483,12 @@ export default function Patients() {
       return;
     }
 
+    const selectedDoctor = doctors.find(d => String(d.id) === form.doctorId);
+    if (form.doctorId && !selectedDoctor) { setError("主治醫師名單已更新，請重新選擇。"); return; }
+    if (!form.doctorId && form.doctor) { setError("原主治醫師無法對應目前名單，請重新選擇醫師或明確選擇未指定。"); return; }
     const input = {
+      expectedVersion: form.expectedVersion,
+      doctorUserId: selectedDoctor?.userId ?? null,
       chartNumber,
       name,
 
@@ -486,8 +497,7 @@ export default function Patients() {
 
       phone: "",
 
-      doctor:
-        form.doctor.trim(),
+      doctor: selectedDoctor?.name ?? "",
 
       note:
         form.note.trim(),
@@ -573,7 +583,9 @@ export default function Patients() {
 
     const confirmed =
       window.confirm(
-        `確定要刪除病患「${patient.name}」嗎？\n\n若病患已有植體或其他使用紀錄，系統可能會拒絕刪除。`,
+        patient.version !== undefined
+          ? `確定要封存病患「${patient.name}」嗎？\n\n封存後會從病患名單隱藏，既有紀錄仍保留。`
+          : `確定要刪除病患「${patient.name}」嗎？\n\n若病患已有植體或其他使用紀錄，系統可能會拒絕刪除。`,
       );
 
     if (!confirmed) {
@@ -589,6 +601,7 @@ export default function Patients() {
         await window.dentflow.patients.delete(
           patient.id,
           activeClinicId,
+          patient.version,
         );
 
       if (!deleted) {
@@ -598,7 +611,7 @@ export default function Patients() {
       }
 
       setSuccess(
-        "病患資料已刪除。",
+        patient.version !== undefined ? "病患資料已封存。" : "病患資料已刪除。",
       );
 
       await loadData();
@@ -858,7 +871,7 @@ export default function Patients() {
 
                 <select
                   value={
-                    form.doctor
+                    form.doctorId
                   }
                   onChange={
                     (event) =>
@@ -868,10 +881,8 @@ export default function Patients() {
                         ) => ({
                           ...current,
 
-                          doctor:
-                            event
-                              .target
-                              .value,
+                          doctorId: event.target.value,
+                          doctor: doctors.find(d => String(d.id) === event.target.value)?.name ?? "",
                         }),
                       )
                   }
@@ -880,6 +891,7 @@ export default function Patients() {
                     未指定
                   </option>
 
+                  {form.doctorId === "unmapped" && <option value="unmapped" disabled>{form.doctor}（請重新選擇）</option>}
                   {doctors.map(
                     (doctor) => (
                       <option
@@ -887,10 +899,10 @@ export default function Patients() {
                           doctor.id
                         }
                         value={
-                          doctor.name
+                          String(doctor.id)
                         }
                       >
-                        {doctor.name}
+                        {doctor.name}{doctor.account ? `（${doctor.account}）` : ""}
                       </option>
                     ),
                   )}
@@ -1086,7 +1098,7 @@ export default function Patients() {
                                   )
                                 }
                               >
-                                刪除
+                                {patient.version !== undefined ? "封存" : "刪除"}
                               </button>
                             )}
                           </div>
