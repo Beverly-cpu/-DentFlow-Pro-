@@ -325,3 +325,13 @@ Admin 額外可讀待核對批次及來源快照。新增 sources API 限 Admin�
 明確收到中央 invalid_input、forbidden、not_found、version_conflict、already_active 或 duplicate_batch 的對應拒絕結果時，才提供重新載入核對的操作；不自動更換版本重送或修改原 key。重試成功若 unchanged=true，顯示原請求已完成且沒有重複入帳。期初完成後不可重新設定，後續補貨／盤點調整／停用批次桌面操作尚未實作，畫面不提供本機替代操作。
 
 驗證：113 項測試、API／桌面 TypeScript、Electron 主程序／preload 型別檢查、API／桌面 ESLint、桌面與 Electron production build、API 整體路由註冊與 diff 檢查通過。實際 IPC 註冊測試確認專用中央路由及單機拒絕，既有未切換回呼仍受保護；請求保存測試確認明確零值、空白拒絕、原版本／requestId 重建、內容不可覆寫及不明錯誤不清除。PGlite 執行全部十五份 migration 及桌面 adapter 經真實 SQL：來源量 37 而盤點量 2，提交成功後模擬回應中斷，恢復同一請求只回傳既有結果，期初事件維持一筆且庫存仍為 2；同時驗證舊版本拒絕、角色／院所、1200.50 成本字串、來源不變及 100 筆 cursor 分頁。仍待正式 PostgreSQL 並行、Electron 實機畫面／儲存恢復與兩台電腦驗收；植體桌面流程及庫存後續交易仍待切換。build 仍有既有前端 bundle 超過 500 kB 提示。
+
+## 桌面中央術前草稿（PR #94）
+
+遠端模式的植牙頁面改用中央個案列表與詳情。Admin／Assistant 可在指定院所新增、編輯及取消尚未叫貨的中央草稿，選擇中央病患與醫師，填寫多牙位及品項規格，送出前核對內容。Doctor 只能讀取自己的個案；其他狀態僅顯示詳情。沿用本機模式原有流程，遠端模式不回退本機 SQLite。
+
+新增前先確認伺服器回傳的當前使用者與院所寫入權限，再將完整請求以 Electron safeStorage 加密保存，依伺服器、使用者與院所隔離。Linux 的 basic_text／unknown backend 或未提供安全儲存時禁止新增，不保存明文；既有個案讀取、編輯不依賴此儲存。回覆中斷後保留原 UUID 與內容，使用者可恢復同一請求；不自動重送或建立第二個請求。只有明確的輸入／病患／醫師錯誤或禁止寫入回覆可清除失敗請求，其他不確定結果繼續保留。
+
+編輯、取消保留開啟時的版本，遇到衝突須重新檢視，不自動覆蓋。草稿只保存規格，不接受本機品項 ID、成本或批號，不扣庫存。取消保留原明細。新增 `/v1/implants/draft-access`，無新 migration；部署時先更新 API，再更新桌面。
+
+驗證：API 120 項測試、API／桌面 lint 與 build、Electron 主程序／preload 型別檢查。PGlite 執行全部 15 個 migrations，驗證提交成功後回覆遺失、同請求恢復不重複建案、兩個 client 的舊版本編輯／取消拒絕、醫師個案與寫入權限、院所隔離及取消不動庫存。測試中的加密替身只驗證 journal 介面與順序，尚未完成真實作業系統安全儲存、兩台 Electron 電腦及正式 PostgreSQL 併發驗收。桌面叫貨、取出、術後、簽署及結案操作仍待下一階段接入；前端 build 仍有既有 bundle 大小警告。

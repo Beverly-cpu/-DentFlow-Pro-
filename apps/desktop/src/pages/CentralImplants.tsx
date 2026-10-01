@@ -1,0 +1,114 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useOutletContext } from "react-router-dom";
+import type { DentflowMainLayoutContext } from "../layouts/MainLayout";
+import { centralDraft, draftCreate } from "../../shared/centralImplants";
+import type { CentralDraft, DraftCreate, DraftPlan, ImplantDetail, ImplantSummary } from "../../shared/centralImplants";
+import "../styles/CentralImplants.css";
+type FormPlan = Omit<DraftPlan, "quantity"> & { quantity: string };
+type Form = { patientId: string; doctorId: string; implantDate: string; note: string; teeth: { toothPosition: string; items: FormPlan[] }[] };
+const plan = (): FormPlan => ({ name: "", category: "植體", brand: "", model: "", specification: "", quantity: "1" });
+const empty = (): Form => ({ patientId: "", doctorId: "", implantDate: new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()), note: "", teeth: [{ toothPosition: "", items: [plan()] }] });
+const message = (e: unknown) => e instanceof Error ? e.message : String(e);
+function editable(record: ImplantSummary) { return record.migrationState === "central_draft" && record.status === "待醫師叫貨"; }
+export default function CentralImplants({ serverUrl }: { serverUrl: string }) {
+  const { session, clinicScope } = useOutletContext<DentflowMainLayoutContext>();
+  if (clinicScope.mode !== "clinic") return <section className="central-implants"><h1>中央植體個案</h1><p>請先切換至單一院所，查看或建立個案。</p></section>;
+  return <ClinicImplants key={`${serverUrl}:${session.userId}:${clinicScope.clinicId}`} session={session} clinicId={clinicScope.clinicId} />;
+}
+function ClinicImplants({ session, clinicId }: { session: DentflowAuthSession; clinicId: number }) {
+  const writer = session.role === "Admin" || session.role === "Assistant";
+  const alive = useRef(true);
+  const [records, setRecords] = useState<ImplantSummary[]>([]);
+  const [next, setNext] = useState<number | null>(null);
+  const [patients, setPatients] = useState<DentflowPatientRecord[]>([]);
+  const [doctors, setDoctors] = useState<DentflowDoctorRecord[]>([]);
+  const [detail, setDetail] = useState<ImplantDetail | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [search, setSearch] = useState("");
+  const [journalProblem, setJournalProblem] = useState("");
+  const [pending, setPending] = useState<DraftCreate | null>(null);
+  const [form, setForm] = useState<Form | null>(null);
+  const [target, setTarget] = useState<{ id: number; version: number } | null>(null);
+  const [prepared, setPrepared] = useState<CentralDraft | DraftCreate | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<ImplantDetail | null>(null);
+  const [reason, setReason] = useState("");
+  const load = useCallback(async () => {
+    setBusy(true); setError("");
+    try {
+      const [page, people, directory] = await Promise.all([window.dentflow.centralImplants.list(clinicId), writer ? window.dentflow.patients.list(clinicId) : Promise.resolve([]), writer ? window.dentflow.doctors.active(clinicId) : Promise.resolve([])]);
+      if (!alive.current) return;
+      setRecords(page.items); setNext(page.nextAfterId); setPatients(people); setDoctors(directory);
+      if (writer) {
+        try { const request = await window.dentflow.centralImplants.pending(clinicId); if (alive.current) { setPending(request); setJournalProblem(""); } }
+        catch (e) { if (alive.current) setJournalProblem(message(e)); }
+      }
+    } catch (e) { if (alive.current) setError(message(e)); }
+    finally { if (alive.current) setBusy(false); }
+  }, [clinicId, writer]);
+  useEffect(() => { alive.current = true; let active = true; queueMicrotask(() => { if (active) void load(); }); return () => { active = false; alive.current = false; }; }, [load]);
+  async function more() {
+    if (next === null || busy) return; setBusy(true); setError("");
+    try { const page = await window.dentflow.centralImplants.list(clinicId, next); if (!alive.current) return; if (page.nextAfterId !== null && page.nextAfterId <= next) throw Error("個案分頁異常，請重新整理。"); setRecords(rows => [...rows, ...page.items.filter(p => !rows.some(r => r.id === p.id))]); setNext(page.nextAfterId); }
+    catch (e) { if (alive.current) setError(message(e)); } finally { if (alive.current) setBusy(false); }
+  }
+  async function open(id: number, action: "view" | "edit" | "cancel" = "view") {
+    setBusy(true); setError(""); setSuccess("");
+    try {
+      const record = await window.dentflow.centralImplants.detail(id, clinicId); if (!alive.current) return; setDetail(record);
+      if (action !== "view" && (!writer || !editable(record))) throw Error("只有尚未叫貨的中央草稿可修改或取消。");
+      if (action === "edit") {
+        setCancelTarget(null); setPrepared(null); setTarget({ id: record.id, version: record.version });
+        setForm({ patientId: String(record.patientId), doctorId: record.doctorUserId === null ? "" : String(record.doctorUserId), implantDate: record.implantDate, note: record.note,
+          teeth: record.teeth.map(t => ({ toothPosition: t.toothPosition, items: t.items.map(p => ({ name: p.name, category: p.category, brand: p.brand, model: p.model, specification: p.specification, quantity: String(p.quantity) })) })) });
+      }
+      if (action === "cancel") { setForm(null); setPrepared(null); setCancelTarget(record); setReason(""); }
+    } catch (e) { if (alive.current) setError(message(e)); } finally { if (alive.current) setBusy(false); }
+  }
+  function review() {
+    if (!form) return;
+    try {
+      const input = centralDraft(clinicId, { patientId: Number(form.patientId), doctorUserId: form.doctorId ? Number(form.doctorId) : null, implantDate: form.implantDate, note: form.note,
+        teeth: form.teeth.map(t => ({ toothPosition: t.toothPosition, items: t.items.map(p => { if (!/^\d+$/.test(p.quantity)) throw Error("預計數量須為整數"); return { ...p, quantity: Number(p.quantity) }; }) })) });
+      setError(""); setPrepared(target ? input : draftCreate({ ...input, requestId: crypto.randomUUID() }));
+    } catch (e) { setError(message(e)); }
+  }
+  async function create(request: DraftCreate) {
+    if (busy || !writer) return; setBusy(true); setError(""); setSuccess("");
+    try {
+      const result = await window.dentflow.centralImplants.create(clinicId, request); if (!alive.current) return;
+      if (!result.ok) {
+        setError(result.error.message);
+        if (result.pending) { setPending(request); setPrepared(null); setForm(null); try { const stored = await window.dentflow.centralImplants.pending(clinicId); if (alive.current) setPending(stored); } catch (e) { if (alive.current) setJournalProblem(message(e)); } }
+        return;
+      }
+      setPending(null); setPrepared(null); setForm(null); setTarget(null); setDetail(result.record); setSuccess(result.record.unchanged ? "已確認原新增請求，沒有建立第二個個案。" : "中央術前草稿已建立。"); await load();
+    } catch (e) { if (alive.current) { setError(`新增結果尚未確認，請重新整理以恢復原請求：${message(e)}`); setPrepared(null); setForm(null); await load(); } }
+    finally { if (alive.current) setBusy(false); }
+  }
+  async function update() {
+    if (!prepared || !target || busy) return; setBusy(true); setError("");
+    try { const { clinicId: ignored, ...input } = prepared; void ignored; const record = await window.dentflow.centralImplants.update(target.id, clinicId, target.version, input); if (!alive.current) return; setDetail(record); setForm(null); setPrepared(null); setTarget(null); setSuccess("術前草稿已更新。"); await load(); }
+    catch (e) { if (alive.current) setError(`${message(e)} 請核對最新個案後，再重新開啟編輯；目前表單仍保留。`); }
+    finally { if (alive.current) setBusy(false); }
+  }
+  async function cancel() {
+    if (!cancelTarget || busy || !reason.trim()) return; setBusy(true); setError("");
+    try { const record = await window.dentflow.centralImplants.cancel(cancelTarget.id, clinicId, cancelTarget.version, reason); if (!alive.current) return; setDetail(record); setCancelTarget(null); setSuccess("術前草稿已取消，沒有庫存異動。"); await load(); }
+    catch (e) { if (alive.current) setError(`${message(e)} 請重新查看最新狀態，沒有自動重送。`); }
+    finally { if (alive.current) setBusy(false); }
+  }
+  function changePlan(t: number, p: number, field: keyof FormPlan, value: string) { setForm(current => current && ({ ...current, teeth: current.teeth.map((tooth, i) => i !== t ? tooth : { ...tooth, items: tooth.items.map((item, j) => j !== p ? item : { ...item, [field]: value }) }) })); }
+  const preview = (request: CentralDraft) => <><p>病患：{patients.find(p => p.id === request.patientId)?.name ?? `#${request.patientId}`}｜醫師：{doctors.find(d => d.userId === request.doctorUserId)?.name ?? (request.doctorUserId ? `#${request.doctorUserId}` : "未指定")}｜手術日期：{request.implantDate}</p><ul>{request.teeth.map(t => <li key={t.toothPosition}>牙位 {t.toothPosition}：{t.items.map(p => `${p.name}／${p.category}／${p.brand} ${p.model} ${p.specification} × ${p.quantity}`).join("；")}</li>)}</ul><p>{request.note}</p></>;
+  return <section className="central-implants"><header><div><h1>中央植體個案</h1><p>術前草稿使用中央病患及醫師資料，預計規格尚未綁定庫存批次。</p></div><div><button disabled={busy} onClick={() => void load()}>重新整理</button>{writer && <button disabled={busy || Boolean(pending) || Boolean(journalProblem)} onClick={() => { setForm(empty()); setTarget(null); setPrepared(null); setCancelTarget(null); setError(""); }}>新增術前草稿</button>}</div></header>
+    {error && <p role="alert" className="implant-error">{error}</p>}{success && <p role="status" className="implant-success">{success}</p>}{journalProblem && <p role="alert" className="implant-error">{journalProblem}</p>}
+    {pending && writer && <article className="implant-panel"><h2>待確認的新增請求</h2>{preview(pending)}<p>已保存原內容，請沿用原請求確認結果。</p><button disabled={busy || Boolean(journalProblem)} onClick={() => void create(pending)}>沿用原請求確認</button></article>}
+    <label>搜尋已載入的病歷號、姓名或狀態<input value={search} onChange={e => setSearch(e.target.value)} /></label><div className="implant-scroll"><table><thead><tr><th>病患</th><th>指定醫師</th><th>手術日期</th><th>狀態</th><th>操作</th></tr></thead><tbody>{records.filter(r => [r.chartNumber, r.patientName, r.status, r.doctorName].join(" ").toLocaleLowerCase().includes(search.toLocaleLowerCase().trim())).map(r => <tr key={r.id}><td>{r.chartNumber}<small>{r.patientName}</small></td><td>{r.doctorName || "未指定"}</td><td>{r.implantDate}</td><td>{r.status}</td><td><button disabled={busy} onClick={() => void open(r.id)}>查看</button>{writer && editable(r) && <><button disabled={busy || Boolean(pending)} onClick={() => void open(r.id, "edit")}>編輯</button><button disabled={busy || Boolean(pending)} onClick={() => void open(r.id, "cancel")}>取消草稿</button></>}</td></tr>)}</tbody></table></div>{!records.length && !busy && <p>目前沒有可讀取的中央個案。</p>}{next !== null && <button disabled={busy} onClick={() => void more()}>載入更多個案</button>}
+    {detail && <article className="implant-panel"><h2>個案 #{detail.id}｜{detail.status}</h2><p>{detail.chartNumber}｜{detail.patientName}｜{detail.doctorName || "未指定醫師"}｜{detail.implantDate}</p>{preview(detail)}{detail.cancellationReason && <p>取消原因：{detail.cancellationReason}</p>}{detail.reservations.length > 0 && <div className="implant-scroll"><table><thead><tr><th>REF／LOT</th><th>狀態</th><th>原分配量</th><th>取出</th><th>使用</th><th>待歸回</th><th>已歸回</th></tr></thead><tbody>{detail.reservations.map(r => <tr key={r.id}><td>{r.refNumber || "—"}／{r.lotNumber || "—"}</td><td>{r.state}</td><td>{r.quantity}</td><td>{r.pickedQuantity}</td><td>{r.usedQuantity}</td><td>{r.expectedReturnQuantity === null ? "未分類" : r.expectedReturnQuantity - r.returnedQuantity}</td><td>{r.returnedQuantity}</td></tr>)}</tbody></table></div>}<p>照片／簽名紀錄：{detail.assets.length}｜醫師簽名：{detail.doctorSignedAt ? new Date(detail.doctorSignedAt).toLocaleString("zh-TW") : "尚未簽名"}｜結案：{detail.closedAt ? new Date(detail.closedAt).toLocaleString("zh-TW") : "尚未結案"}</p>{detail.closure && <p>結案紀錄 #{detail.closure.id}</p>}<button onClick={() => setDetail(null)}>關閉詳情</button></article>}
+    {cancelTarget && <article className="implant-panel"><h2>取消個案 #{cancelTarget.id} 的術前草稿</h2><p>僅適用尚未叫貨的草稿。</p><label>取消原因<textarea value={reason} onChange={e => setReason(e.target.value)} /></label><button disabled={busy || !reason.trim()} onClick={() => void cancel()}>確認取消草稿</button><button disabled={busy} onClick={() => setCancelTarget(null)}>返回</button></article>}
+    {form && !pending && <article className="implant-panel"><h2>{target ? `編輯個案 #${target.id}` : "新增術前草稿"}</h2>{prepared ? <><h3>確認術前內容</h3>{preview(prepared)}<button disabled={busy} onClick={() => target ? void update() : void create(prepared as DraftCreate)}>確認{target ? "更新" : "新增"}</button><button disabled={busy} onClick={() => setPrepared(null)}>返回修改</button></> : <form onSubmit={e => { e.preventDefault(); review(); }}><div className="implant-fields"><label>中央病患<select required value={form.patientId} onChange={e => setForm({ ...form, patientId: e.target.value })}><option value="">選擇病患</option>{form.patientId && !patients.some(p => String(p.id) === form.patientId) && <option value={form.patientId} disabled>原病患 #{form.patientId}（請核對）</option>}{patients.map(p => <option key={p.id} value={p.id}>{p.chartNumber}｜{p.name}</option>)}</select></label><label>指定醫師<select value={form.doctorId} onChange={e => setForm({ ...form, doctorId: e.target.value })}><option value="">未指定</option>{form.doctorId && !doctors.some(d => String(d.userId) === form.doctorId) && <option value={form.doctorId} disabled>原醫師 #{form.doctorId}（請核對）</option>}{doctors.filter(d => d.userId !== null).map(d => <option key={d.id} value={d.userId!}>{d.name}（{d.account}）</option>)}</select></label><label>手術日期<input required type="date" value={form.implantDate} onChange={e => setForm({ ...form, implantDate: e.target.value })} /></label></div><label>備註<textarea value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} /></label>
+      {form.teeth.map((tooth, t) => <fieldset key={t}><legend>牙位 {t + 1}</legend><label>FDI 牙位<input required maxLength={2} inputMode="numeric" value={tooth.toothPosition} onChange={e => setForm({ ...form, teeth: form.teeth.map((row, i) => i === t ? { ...row, toothPosition: e.target.value } : row) })} /></label>{tooth.items.map((item, p) => <div className="implant-plan" key={p}><div className="implant-fields"><label>名稱<input required value={item.name} onChange={e => changePlan(t, p, "name", e.target.value)} /></label><label>類別<select value={item.category} onChange={e => changePlan(t, p, "category", e.target.value)}><option>植體</option><option>植體套件</option><option>器械</option></select></label>{(["brand", "model", "specification"] as const).map((field, i) => <label key={field}>{["品牌", "型號", "規格"][i]}<input value={item[field]} onChange={e => changePlan(t, p, field, e.target.value)} /></label>)}<label>預計數量<input required inputMode="numeric" value={item.quantity} onChange={e => changePlan(t, p, "quantity", e.target.value)} /></label></div><button type="button" disabled={tooth.items.length <= 1} onClick={() => setForm({ ...form, teeth: form.teeth.map((row, i) => i === t ? { ...row, items: row.items.filter((_, j) => j !== p) } : row) })}>移除此規格</button></div>)}<button type="button" disabled={tooth.items.length >= 100} onClick={() => setForm({ ...form, teeth: form.teeth.map((row, i) => i === t ? { ...row, items: [...row.items, plan()] } : row) })}>新增規格</button><button type="button" disabled={form.teeth.length <= 1} onClick={() => setForm({ ...form, teeth: form.teeth.filter((_, i) => i !== t) })}>移除牙位</button></fieldset>)}<button type="button" disabled={form.teeth.length >= 52} onClick={() => setForm({ ...form, teeth: [...form.teeth, { toothPosition: "", items: [plan()] }] })}>新增牙位</button><button disabled={busy}>檢查術前內容</button><button type="button" disabled={busy} onClick={() => { setForm(null); setPrepared(null); setTarget(null); }}>取消編輯</button></form>}</article>}
+    {busy && <p role="status">處理中…</p>}
+  </section>;
+}

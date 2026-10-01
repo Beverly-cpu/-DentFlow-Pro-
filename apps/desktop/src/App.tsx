@@ -30,6 +30,7 @@ import Patients from "./pages/Patients";
 import Doctors from "./pages/Doctors";
 import Implants from "./pages/Implants";
 import Consumables from "./pages/Consumables";
+import CentralImplants from "./pages/CentralImplants";
 import CentralInventory from "./pages/CentralInventory";
 import Inventory from "./pages/Inventory";
 import Purchase from "./pages/Purchase";
@@ -177,8 +178,9 @@ function DeploymentAccess({ module, children }: { module: DentflowModule; childr
   }, []);
   if (error) return <p role="alert">{error}</p>;
   if (!config) return <p>載入中…</p>;
+  if (config.mode === "remote" && module === "implants") return <CentralImplants serverUrl={config.serverUrl!} />;
   if (config.mode === "remote" && module === "inventory") return <CentralInventory serverUrl={config.serverUrl!} />;
-  if (config.mode === "remote" && module !== "patients" && module !== "settings") return <section style={{ padding: 24 }}><h2>{module === "dashboard" ? "中央連線模式" : "此功能尚未開放"}</h2><p>目前已開放病患資料、中央庫存、帳號與院所管理。其他功能將陸續開放。</p></section>;
+  if (config.mode === "remote" && module !== "patients" && module !== "settings") return <section style={{ padding: 24 }}><h2>{module === "dashboard" ? "中央連線模式" : "此功能尚未開放"}</h2><p>目前已開放病患資料、中央植體草稿、中央庫存、帳號與院所管理。其他功能將陸續開放。</p></section>;
   return <>{children}</>;
 }
 

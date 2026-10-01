@@ -110,6 +110,12 @@ async function read(pool: DatabasePool, request: FastifyRequest, reply: FastifyR
   } finally { client.release(); }
 }
 export async function registerImplantDraftRoutes(app: FastifyInstance, pool: DatabasePool) {
+  app.get<{ Querystring: { clinicId?: string } }>("/v1/implants/draft-access", { preHandler: requireSession }, async (request, reply) => {
+    if (!["Admin", "Assistant", "Doctor"].includes(request.principal!.role)) return reply.code(403).send({ error: "forbidden" });
+    const clinicId = draftId(Number(request.query.clinicId), "院所");
+    try { await clinicAccess(pool, request, clinicId); return { canWrite: ["Admin", "Assistant"].includes(request.principal!.role), actorUserId: request.principal!.userId }; }
+    catch (error) { if (error instanceof DraftError) return reply.code(error.status).send({ error: error.code, message: error.message }); throw error; }
+  });
   app.post<{ Body: Body }>("/v1/implants", { preHandler: requireSession, bodyLimit: 64 * 1024 }, async (request, reply) => {
     const input = validateImplantDraft(request.body); const requestId = draftRequestId(request.body.requestId); const hash = implantDraftHash(input);
     return transaction(pool, request, reply, input.clinicId, async (client) => {

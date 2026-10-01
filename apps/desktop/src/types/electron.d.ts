@@ -1224,6 +1224,15 @@ type DentflowApi = {
      Inventory
   ======================================================= */
 
+  centralImplants: {
+    list: (clinicId: number, afterId?: number) => Promise<{ items: import("../../shared/centralImplants").ImplantSummary[]; nextAfterId: number | null }>;
+    detail: (id: number, clinicId: number) => Promise<import("../../shared/centralImplants").ImplantDetail>;
+    pending: (clinicId: number) => Promise<import("../../shared/centralImplants").DraftCreate | null>;
+    create: (clinicId: number, input: import("../../shared/centralImplants").DraftCreate) => Promise<import("../../shared/centralImplants").DraftCreationResult>;
+    update: (id: number, clinicId: number, version: number, input: Omit<import("../../shared/centralImplants").CentralDraft, "clinicId">) => Promise<import("../../shared/centralImplants").ImplantDetail>;
+    cancel: (id: number, clinicId: number, version: number, reason: string) => Promise<import("../../shared/centralImplants").ImplantDetail>;
+  };
+
   centralInventory: {
     list: (clinicId: number, afterId?: number) => Promise<import("../../shared/centralInventory").InventoryPage<import("../../shared/centralInventory").CentralStock>>;
     staged: (clinicId: number, afterId?: number) => Promise<import("../../shared/centralInventory").InventoryPage<import("../../shared/centralInventory").CentralBatch>>;
