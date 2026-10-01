@@ -25,7 +25,8 @@ async function detail(client: Queryable, id: number, clinicId: number) {
      FROM implant_draft_plan_items WHERE implant_case_id=$1 ORDER BY id`, [id],
   );
   const reservations = await client.query(`SELECT r.id,r.plan_item_id::int AS "planItemId",r.inventory_batch_id::int AS "inventoryBatchId",
-    r.quantity,r.state,b.ref_number AS "refNumber",b.lot_number AS "lotNumber",r.created_at AS "createdAt",r.released_at AS "releasedAt"
+    r.quantity,r.state,r.picked_quantity AS "pickedQuantity",r.picked_at AS "pickedAt",r.picked_by_user_id::int AS "pickedByUserId",
+    b.ref_number AS "refNumber",b.lot_number AS "lotNumber",r.created_at AS "createdAt",r.released_at AS "releasedAt"
     FROM implant_stock_reservations r JOIN inventory_batches b ON b.id=r.inventory_batch_id
     WHERE r.implant_case_id=$1 ORDER BY r.created_at,r.id`, [id]);
   return { ...result.rows[0], reservations: reservations.rows, teeth: teeth.rows.map((tooth) => ({ ...tooth, items: plans.rows.filter((plan) => plan.toothId === tooth.id) })) };
