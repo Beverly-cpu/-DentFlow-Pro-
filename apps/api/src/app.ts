@@ -17,6 +17,7 @@ import { registerImplantDraftRoutes } from "./routes/implantDraftRoutes.js";
 import { registerInventoryRoutes } from "./routes/inventoryRoutes.js";
 import { registerImplantOrderRoutes } from "./routes/implantOrderRoutes.js";
 import { registerImplantWithdrawalRoutes } from "./routes/implantWithdrawalRoutes.js";
+import { registerImplantDispositionRoutes } from "./routes/implantDispositionRoutes.js";
 
 export function buildApp(config: ApiConfig, pool: DatabasePool, assetStore: PrivateObjectStorage | undefined = createPrivateObjectStorage(config)) {
   const app = Fastify({
@@ -83,6 +84,7 @@ export function buildApp(config: ApiConfig, pool: DatabasePool, assetStore: Priv
   void registerInventoryRoutes(app, pool);
   void registerImplantOrderRoutes(app, pool);
   void registerImplantWithdrawalRoutes(app, pool);
+  void registerImplantDispositionRoutes(app, pool);
 
   app.setErrorHandler((error, request, reply) => {
     request.log.error({ err: error }, "request failed");

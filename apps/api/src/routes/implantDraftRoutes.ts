@@ -10,7 +10,9 @@ const select = `SELECT i.id::int,i.clinic_id::int AS "clinicId",i.patient_id::in
   p.name AS "patientName",p.chart_number AS "chartNumber",i.doctor_user_id::int AS "doctorUserId",
   u.display_name AS "doctorName",i.implant_date AS "implantDate",i.note,i.status,
   i.migration_state AS "migrationState",i.version,i.cancellation_reason AS "cancellationReason",
-  i.created_at AS "createdAt",i.updated_at AS "updatedAt"
+  i.created_at AS "createdAt",i.updated_at AS "updatedAt",
+  i.surgery_completed_at AS "surgeryCompletedAt",i.surgery_completed_by_user_id::int AS "surgeryCompletedByUserId",
+  i.usage_recorded_at AS "usageRecordedAt",i.usage_recorded_by_user_id::int AS "usageRecordedByUserId"
   FROM implant_cases i JOIN patients p ON p.id=i.patient_id AND p.clinic_id=i.clinic_id
   LEFT JOIN users u ON u.id=i.doctor_user_id`;
 
@@ -26,6 +28,8 @@ async function detail(client: Queryable, id: number, clinicId: number) {
   );
   const reservations = await client.query(`SELECT r.id,r.plan_item_id::int AS "planItemId",r.inventory_batch_id::int AS "inventoryBatchId",
     r.quantity,r.state,r.picked_quantity AS "pickedQuantity",r.picked_at AS "pickedAt",r.picked_by_user_id::int AS "pickedByUserId",
+    r.used_quantity AS "usedQuantity",r.expected_return_quantity AS "expectedReturnQuantity",r.returned_quantity AS "returnedQuantity",
+    r.usage_recorded_at AS "usageRecordedAt",r.last_returned_at AS "lastReturnedAt",r.returned_by_user_id::int AS "returnedByUserId",
     b.ref_number AS "refNumber",b.lot_number AS "lotNumber",r.created_at AS "createdAt",r.released_at AS "releasedAt"
     FROM implant_stock_reservations r JOIN inventory_batches b ON b.id=r.inventory_batch_id
     WHERE r.implant_case_id=$1 ORDER BY r.created_at,r.id`, [id]);

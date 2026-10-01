@@ -254,3 +254,19 @@ Admin／Assistant 可新增、修改及取消，必須有啟用院所的目前�
 臨床詳情的 reservations 帶 `pickedQuantity`、`pickedAt`、`pickedByUserId`，保留 REF／LOT，但不帶成本。`GET /v1/implants/:id/withdrawal-ledger?clinicId=...` 僅 Admin／Accountant／Procurement 可讀取成本及取出事件，仍核對目前院所權限並稽核讀取。單價與總成本以兩位小數字串回應；後續庫存單價變更不改寫已取出的成本。資料庫 trigger 阻止修改／刪除取出事件及 picked 明細的身分、數量、單價、時間、操作者。
 
 驗證涵蓋逐項確認、舊版本、重送、取出狀態、成本隔離、授權及稽核回滾。PGlite 執行十三份 migration 與真實 SQL：兩個個案合計預留 3，第一案取出 2 後在手 1、仍預留另一案的 1；再取出剩餘案後在手及預留皆為 0。驗證事件失敗回滾、取出前重新檢查效期、病患停用拒絕、不可變成本／明細、重送不再扣庫存，以及當時單價 1200.50 的兩件總成本固定 2401.00，後續單價 9999 不影響歷史記錄。尚需正式 PostgreSQL 同時請求與兩台桌面驗收，術後使用、歸回、照片／簽名業務寫入、報表及桌面 IPC 切換仍待完成。
+
+
+## 中央術後使用與實體歸回（0014）
+
+先執行 migration 0014 再部署 API。中央流程新增「待術後紀錄」、「待歸回品項」及「已完成」。已完成表示使用分類及必要歸回已完成，尚不代表完成照片、簽名或正式結案。舊來源快照與 staged 個案仍保持隔離，桌面 IPC 尚未切換。
+
+以下 POST 均必填中央 `clinicId`、最新 `expectedVersion` 與 UUID v4 `requestId`，僅目前院所的 Admin／Assistant／Doctor 可操作，Doctor 限自己的個案。JSON body 上限 64 KiB，明細最多 500 筆，同一 reservationId 不可重複。交易鎖定個案及取出明細；歸回依批次 ID 固定順序鎖定餘額。個案、數量、不可變事件、request 結果及稽核全部成功才提交。相同操作者及 requestId 重送原內容回傳首次結果與 `unchanged: true`，不重複分類或回補；換內容／操作回應 409，舊版本或階段不符亦回應 409。
+
+- `POST /v1/implants/:id/surgery-complete`：從「已取出待手術」進入「待術後紀錄」，保存伺服器時間與操作者，無庫存異動。
+- `POST /v1/implants/:id/usage`：必填 `usages: [{ reservationId, usedQuantity }]`，須包含全部已取出明細，數量為 0–1000 且不超過取出量。植體／套件待歸回量為取出量減使用量；可重複使用的器械即使使用過，仍須歸回全部取出量，消耗量記為 0。此操作只分類，不能再次扣庫存。無待歸回量時直接標為已完成，否則進入待歸回品項。
+- `POST /v1/implants/:id/return-items`：必填 `reason` 及 `confirmations: [{ reservationId, quantity, returnCondition }]`。允許逐項分次歸回，數量 1–1000 且不超過該明細剩餘待歸回量；植體／套件須確認 `sealed`（未拆封），器械須確認 `reusable`（可重複使用）。只增加原批次 onHand，不改 reserved 或目前單價，全部歸回後標為已完成。可歸回已過期的原批次，但後續叫貨／取出仍拒絕過期庫存。
+- `POST /v1/implants/:id/cancel-picked`：只允許「已取出待手術」，必填原因及上述歸回確認，須確認全部取出品項的完整數量與適用狀態，完整回補後標為已取消。不能省略實體歸回確認或在手術完成後使用此入口。
+
+臨床詳情新增手術／使用紀錄時間及操作者，reservations 帶 usedQuantity、expectedReturnQuantity、returnedQuantity、usageRecordedAt、lastReturnedAt 與 returnedByUserId，仍不提供成本。`GET /v1/implants/:id/return-ledger?clinicId=...` 僅 Admin／Accountant／Procurement 依目前院所權限讀取歸回原因、狀態、數量、操作者、歸回後餘額及原取出成本，並稽核讀取。單價／總成本以兩位小數字串回應，不因後續庫存單價更動而改寫。資料庫禁止改寫使用分類、減少已歸回量或修改／刪除使用及歸回事件。
+
+驗證：92 項 API 測試、TypeScript、ESLint 及整體路由註冊通過。PGlite 執行全部十四份 migration 與真實 SQL，驗證使用不再次扣帳、器械使用後完整歸回、植體分次歸回、超額／錯誤狀態拒絕、全部品項取消、重送不重複回補及事件／稽核失敗回滾。原單價 1200.50 的兩件歸回成本合計 2401.00，庫存單價改為 9999 後仍保留歷史成本且不覆蓋目前單價。正式 PostgreSQL 同時請求與兩台桌面驗收仍待執行；破損／已拆封且不可回補的品項處置、照片／簽名、正式結案、報表與桌面切換仍待完成。
