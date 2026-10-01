@@ -197,3 +197,24 @@ Admin／Assistant 可新增、修改及取消，必須有啟用院所的目前�
 每案 `version` 初始 1，任何個案 UPDATE 由資料庫 trigger 遞增。修改／取消須帶最近 version，舊版回應 409 `version_conflict`；已取消的草稿不可修改或再次取消，回應 409 `workflow_conflict`。一般草稿讀寫入口對舊遷移個案回應 404；舊案仍從 migration review 入口核對。取消只適用尚未進入庫存流程的新草稿，不能替代已取出個案的逐項歸回與稽核。
 
 驗證包括重複新增、改變請求內容、來源欄位拒絕、FDI 與數量限制、中央引用、舊版本衝突、取消限制、醫師／院所權限與全部寫入的稽核回滾。PGlite 執行十份 migration 及真實 SQL，另驗證子項失敗回滾、跨個案明細外鍵、草稿狀態限制、舊案隔離與沒有庫存異動。仍需正式 PostgreSQL 並行壓力及實機驗收；桌面業務 IPC 尚未切換到這些 API。
+
+
+## 中央庫存盤點啟用與期初紀錄（0011）
+
+先執行 migration 0011 再部署 API。來源批次仍以 `legacy_staged` 匯入，每台電腦保留各自不可變的 snapshot；不相加、不自動啟用。管理者選定可代表實體庫存的中央批次，完成來源核對及實際盤點後，才透過 `POST /v1/inventory/:id/activate` 明確輸入期初數量。此階段只提供 API，未執行真實診所盤點或切換桌面庫存 IPC。
+
+請求必填：中央 `clinicId`、批次最近 `expectedVersion`、整數 `countedQuantity`（0–1000000）、非負 `unitCost`（JSON number，最多兩位小數、上限 1000000000）、`reconciliationNote`（盤點與來源核對說明，UTF-8 上限 4000 bytes）及 UUID v4 `requestId`。不允許省略數量／單價，不使用舊 snapshot 的 quantity 或 cost 作預設。單價記錄為 numeric(14,2)，回應用兩位小數字串，避免報表浮點運算。
+
+只有 Admin 且有目前啟用院所權限可啟用。批次鎖定後核對 version 與 staged 狀態，依序設定 active、建立 `inventory_balances`、寫入不可變 `inventory_openings` 與稽核，全部在同一 PostgreSQL 交易提交。任何步驟失敗全部回滾；庫存批次版本由 trigger 遞增。balance 保存 `onHand`、`reserved`、`available`、`balanceVersion` 與期初單價；本階段 reserved 固定初始 0，沒有預留、扣帳、補貨或調整 API。
+
+新增期初請求在同一中央操作者下以 requestId 識別，網路逾時重送須沿用同一值及原內容。相同請求回傳既有餘額並標示 `unchanged: true`，不再次加庫存；改變內容或批次回應 409 `request_conflict`。以新請求再次啟用 active 批次會被版本或 `already_active` 檢查拒絕，不可用重新啟用更正數量；後續更正需另建正式調整交易。
+
+同院所只能啟用一個正規化身份相同的批次：REF 和 LOT 都有值時以其組合識別，忽略別名與效期差異；缺其中一項時以名稱、類別、品牌、型號、規格、REF、LOT 組合識別。字串採 Unicode NFKC、去頭尾空白、合併空白及小寫化。資料庫唯一索引阻止不同來源同時重複啟用，回應 409 `duplicate_batch`。這是保守的重複入帳防護，不是自動合併；不同商品共用 REF／LOT 或來源格式不同，仍需人工核對。不同身份或不同院所不會被自動判為相同實體庫存，管理者必須確認來源範圍與實際盤點。
+
+- `GET /v1/inventory/staged?clinicId=...&afterId=...`：Admin 檢查待核對批次 metadata 與 version，每頁最多 100 筆；來源快照仍從 migrations/inventory 檢查。
+- `GET /v1/inventory?clinicId=...&afterId=...`：目前院所已啟用庫存與餘額，每頁最多 100 筆。Admin／Procurement／Accountant 可見單價，Assistant／Doctor 回應不包含成本欄位。
+- `GET /v1/inventory/:id/opening?clinicId=...`：Admin／Procurement／Accountant 讀取期初盤點數量、成本、核對說明、操作者與時間，並記錄讀取稽核。
+
+期初紀錄由資料庫 trigger 禁止 UPDATE／DELETE。批次的來源對照、snapshot 與舊植體庫存連結保留，不將其他電腦的重複批次改指向新批次，也不自動把舊 staged 個案啟用。剩餘待核對批次仍不可供中央扣帳。
+
+驗證包括明確盤點值、成本精度、重送、舊版本、已啟用狀態、同 REF／LOT 別名、防重複索引、角色／院所、成本欄位隔離及稽核回滾。PGlite 執行十一份 migration 與真實 SQL：來源數量 5 與 99 不加總，期初只寫盤點值 3；確認期初不可修改／刪除、reserved 不超過 onHand、零數量啟用以及來源 snapshot 完全不變。尚需正式 PostgreSQL 並行驗證、實體盤點、中央叫貨／預留／取出／使用／歸回交易，以及兩台桌面切換驗收。
