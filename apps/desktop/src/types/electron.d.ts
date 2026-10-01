@@ -1224,6 +1224,14 @@ type DentflowApi = {
      Inventory
   ======================================================= */
 
+  centralInventory: {
+    list: (clinicId: number, afterId?: number) => Promise<import("../../shared/centralInventory").InventoryPage<import("../../shared/centralInventory").CentralStock>>;
+    staged: (clinicId: number, afterId?: number) => Promise<import("../../shared/centralInventory").InventoryPage<import("../../shared/centralInventory").CentralBatch>>;
+    sources: (id: number, clinicId: number) => Promise<{ items: import("../../shared/centralInventory").InventorySource[] }>;
+    opening: (id: number, clinicId: number) => Promise<import("../../shared/centralInventory").InventoryOpening>;
+    activate: (id: number, clinicId: number, input: import("../../shared/centralInventory").OpeningInput) => Promise<import("../../shared/centralInventory").ActivationResult>;
+  };
+
   inventory: {
     instrumentsAll: () => Promise<Array<DentflowInventoryRecord & {
       clinicCode: string;

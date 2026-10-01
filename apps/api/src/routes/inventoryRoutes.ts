@@ -62,6 +62,17 @@ export async function registerInventoryRoutes(app: FastifyInstance, pool: Databa
       throw error;
     } finally { client.release(); }
   });
+  app.get<{ Params: { id: string }; Querystring: { clinicId?: string } }>("/v1/inventory/:id/sources", { preHandler: requireAdmin }, async (request, reply) => {
+    const clinicId = draftId(Number(request.query.clinicId), "院所"); const batchId = draftId(Number(request.params.id), "中央批次");
+    try {
+      await access(pool, request, clinicId);
+      const batch = await pool.query("SELECT 1 FROM inventory_batches WHERE id=$1 AND clinic_id=$2", [batchId, clinicId]);
+      if (!batch.rows.length) return reply.code(404).send({ error: "not_found" });
+      const result = await pool.query(`SELECT source_id AS "sourceId",legacy_inventory_id::int AS "legacyInventoryId",snapshot,imported_at AS "importedAt"
+        FROM legacy_inventory_mappings WHERE inventory_batch_id=$1 AND clinic_id=$2 ORDER BY source_id,legacy_inventory_id`, [batchId, clinicId]);
+      await audit(pool, request, "inventory_sources_read", "inventory_batch", batchId, { clinicId }); return { items: result.rows };
+    } catch (error) { if (error instanceof DraftError) return reply.code(error.status).send({ error: error.code, message: error.message }); throw error; }
+  });
   app.get<{ Querystring: { clinicId?: string; afterId?: string } }>("/v1/inventory/staged", { preHandler: requireAdmin }, async (request, reply) => {
     const clinicId = draftId(Number(request.query.clinicId), "院所"); const afterId = request.query.afterId === undefined ? 0 : draftId(Number(request.query.afterId), "分頁 ID");
     try {
