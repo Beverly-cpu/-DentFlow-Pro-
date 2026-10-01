@@ -34,6 +34,7 @@ import {
 ========================================================= */
 
 import {
+  getLegacyPatientsForMigration,
   createPatient,
   deletePatient,
   getPatientById,
@@ -662,7 +663,23 @@ function registerRemoteAuthHandlers() {
     const result = await centralApi.get<{ hasUsers: boolean }>("/v1/setup/status");
     return result.hasUsers;
   });
-  ipcMain.handle("auth:login", (_event, input: LoginInput) => centralApi.login(input));
+  ipcMain.handle("auth:login", async (_event, input: LoginInput) => {
+    const session = await centralApi.login(input) as { role?: string };
+    if (session.role === "Admin" || session.role === "Assistant") {
+      try {
+        const patients = getLegacyPatientsForMigration();
+        for (let offset = 0; offset < patients.length; offset += 500) {
+          await centralApi.post("/v1/migrations/patients/import", {
+            sourceId: centralApi.getDeviceId(),
+            patients: patients.slice(offset, offset + 500),
+          });
+        }
+      } catch (error) {
+        console.warn("中央病患資料匯入未完成，暫時保留本機資料來源", error);
+      }
+    }
+    return session;
+  });
   ipcMain.handle("auth:create-initial-admin", (_event, input: CreateInitialAdminInput) =>
     centralApi.post("/v1/setup/initial-admin", input));
   ipcMain.handle("auth:users", () => centralApi.get("/v1/auth/users"));

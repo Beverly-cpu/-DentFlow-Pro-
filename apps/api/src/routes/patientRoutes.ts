@@ -3,7 +3,19 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { audit, requireSession } from "../auth.js";
 import type { DatabasePool } from "../database.js";
 
+type Queryable = Pick<DatabasePool, "query">;
+
 type Body = Record<string, unknown>;
+
+type LegacyPatient = {
+  legacyId?: unknown;
+  clinicCode?: unknown;
+  chartNumber?: unknown;
+  name?: unknown;
+  birthDate?: unknown;
+  doctor?: unknown;
+  note?: unknown;
+};
 
 const patientSelect = `
   SELECT p.id::int, p.clinic_id::int AS "clinicId",
@@ -53,7 +65,7 @@ async function assertClinicAccess(pool: DatabasePool, request: FastifyRequest, c
   if (result.rowCount !== 1) throw new Error("無權存取此院所病患資料");
 }
 
-async function resolveDoctor(pool: DatabasePool, clinicId: number, doctorName: string) {
+async function resolveDoctor(pool: Queryable, clinicId: number, doctorName: string) {
   if (!doctorName) return null;
   const result = await pool.query<{ id: string }>(
     `SELECT u.id FROM users u JOIN user_clinics uc ON uc.user_id=u.id
@@ -65,6 +77,100 @@ async function resolveDoctor(pool: DatabasePool, clinicId: number, doctorName: s
 }
 
 export async function registerPatientRoutes(app: FastifyInstance, pool: DatabasePool) {
+  app.post<{ Body: { sourceId?: unknown; patients?: LegacyPatient[] } }>(
+    "/v1/migrations/patients/import",
+    { preHandler: requireSession },
+    async (request) => {
+      assertClinicalRole(request);
+      if (request.principal!.role === "Doctor") throw new Error("醫師不可執行病患資料匯入");
+
+      const sourceId = requiredText(request.body.sourceId, "來源電腦").slice(0, 200);
+      const patients = request.body.patients;
+      if (!Array.isArray(patients)) throw new Error("病患匯入資料格式錯誤");
+      if (patients.length > 5_000) throw new Error("單次最多匯入 5000 筆病患資料");
+
+      const summary = { imported: 0, mapped: 0, unchanged: 0, conflicts: [] as Array<{
+        legacyId: number; chartNumber: string; reason: string;
+      }> };
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        for (const row of patients) {
+          const legacyId = asId(row.legacyId, "舊病患 ID");
+          const clinicCode = requiredText(row.clinicCode, "院所代碼").toUpperCase();
+          const chartNumber = requiredText(row.chartNumber, "病歷號");
+          const name = requiredText(row.name, "病患姓名");
+
+          const clinic = await client.query<{ id: string }>(
+            `SELECT c.id FROM clinics c JOIN user_clinics uc ON uc.clinic_id=c.id
+             WHERE upper(c.code)=$1 AND c.active=true AND uc.user_id=$2`,
+            [clinicCode, request.principal!.userId],
+          );
+          if (!clinic.rows[0]) {
+            summary.conflicts.push({ legacyId, chartNumber, reason: `無權存取院所 ${clinicCode}` });
+            continue;
+          }
+          const clinicId = Number(clinic.rows[0].id);
+          const mapped = await client.query<{ patientId: string; clinicId: string }>(
+            `SELECT patient_id AS "patientId", clinic_id AS "clinicId"
+             FROM legacy_patient_mappings WHERE source_id=$1 AND legacy_patient_id=$2`,
+            [sourceId, legacyId],
+          );
+          if (mapped.rows[0]) {
+            if (Number(mapped.rows[0].clinicId) !== clinicId) {
+              summary.conflicts.push({ legacyId, chartNumber, reason: "舊 ID 已對應至其他院所" });
+            } else {
+              summary.unchanged += 1;
+            }
+            continue;
+          }
+
+          const existing = await client.query<{ id: string; clinicId: string }>(
+            `SELECT id, clinic_id AS "clinicId" FROM patients WHERE chart_number=$1 LIMIT 1`,
+            [chartNumber],
+          );
+          let patientId: number;
+          if (existing.rows[0]) {
+            if (Number(existing.rows[0].clinicId) !== clinicId) {
+              summary.conflicts.push({ legacyId, chartNumber, reason: "病歷號已屬於其他院所" });
+              continue;
+            }
+            patientId = Number(existing.rows[0].id);
+            summary.mapped += 1;
+          } else {
+            const doctorName = optionalText(row.doctor);
+            const inserted = await client.query<{ id: string }>(
+              `INSERT INTO patients
+                (clinic_id,chart_number,name,birth_date,doctor_user_id,doctor_name,note)
+               VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+              [clinicId, chartNumber, name, birthDate(row.birthDate),
+                await resolveDoctor(client, clinicId, doctorName), doctorName, optionalText(row.note)],
+            );
+            patientId = Number(inserted.rows[0]!.id);
+            summary.imported += 1;
+          }
+          await client.query(
+            `INSERT INTO legacy_patient_mappings
+              (source_id,legacy_patient_id,patient_id,clinic_id,imported_by_user_id)
+             VALUES ($1,$2,$3,$4,$5)`,
+            [sourceId, legacyId, patientId, clinicId, request.principal!.userId],
+          );
+        }
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+      await audit(pool, request, "legacy_patients_imported", "patient_import", sourceId, {
+        imported: summary.imported, mapped: summary.mapped,
+        unchanged: summary.unchanged, conflicts: summary.conflicts.length,
+      });
+      return summary;
+    },
+  );
+
   app.get<{ Querystring: { clinicId?: string } }>("/v1/patients", { preHandler: requireSession }, async (request) => {
     const clinicId = asId(request.query.clinicId, "院所");
     await assertClinicAccess(pool, request, clinicId);
