@@ -7,6 +7,7 @@ export type ApiConfig = {
   databaseUrl: string;
   databaseSsl: boolean;
   trustProxy: boolean;
+  assetStorage?: { bucket: string; region: string; expectedBucketOwner: string; kmsKeyId?: string };
 };
 
 function readBoolean(value: string | undefined, fallback: boolean) {
@@ -30,6 +31,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     throw new Error(`PORT 必須是 1 到 65535 的整數，收到：${env.PORT ?? ""}`);
   }
 
+  let assetStorage: ApiConfig["assetStorage"];
+  if (env.ASSET_BUCKET || env.ASSET_REGION || env.ASSET_BUCKET_OWNER || env.ASSET_KMS_KEY_ID) {
+    const bucket = env.ASSET_BUCKET?.trim() ?? "";
+    const region = env.ASSET_REGION?.trim() ?? "";
+    const expectedBucketOwner = env.ASSET_BUCKET_OWNER?.trim() ?? "";
+    if (!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(bucket) || bucket.includes("..")
+      || !/^[a-z0-9-]+$/.test(region) || !/^\d{12}$/.test(expectedBucketOwner)) {
+      throw new Error("ASSET_BUCKET、ASSET_REGION 與 12 位 ASSET_BUCKET_OWNER 必須一起正確設定");
+    }
+    assetStorage = { bucket, region, expectedBucketOwner, ...(env.ASSET_KMS_KEY_ID?.trim() ? { kmsKeyId: env.ASSET_KMS_KEY_ID.trim() } : {}) };
+  }
+
   return {
     nodeEnv: nodeEnv as ApiConfig["nodeEnv"],
     host: env.HOST?.trim() || "127.0.0.1",
@@ -37,5 +50,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     databaseUrl,
     databaseSsl: readBoolean(env.DATABASE_SSL, nodeEnv === "production"),
     trustProxy: readBoolean(env.TRUST_PROXY, false),
+    ...(assetStorage ? { assetStorage } : {}),
   };
 }
