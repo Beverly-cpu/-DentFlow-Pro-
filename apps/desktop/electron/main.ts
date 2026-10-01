@@ -28,6 +28,8 @@ import {
 import {
   centralApi,
 } from "./remote/centralApiClient";
+import { getLegacyImplantsForMigration } from "./database/implantMigrationRepository";
+import { prepareImplantMigrationBatches } from "./remote/implantMigrationBatches";
 
 /* =========================================================
    Patients
@@ -684,8 +686,18 @@ function registerRemoteAuthHandlers() {
           });
           if (result.conflicts.length) console.warn("中央病患匯入有待處理衝突，筆數：", result.conflicts.length);
         }
+        const sourceId = centralApi.getDeviceId();
+        const { batches, oversizedIds } = prepareImplantMigrationBatches(getLegacyImplantsForMigration(), sourceId);
+        if (oversizedIds.length) console.warn("植體個案超過遷移大小上限，保留本機資料，筆數：", oversizedIds.length);
+        for (const implants of batches) {
+          const result = await centralApi.post<{ conflicts: unknown[]; pendingAssets: number }>(
+            "/v1/migrations/implants/import", { sourceId, implants },
+          );
+          if (result.conflicts.length) console.warn("中央植體個案匯入有待處理衝突，筆數：", result.conflicts.length);
+          if (result.pendingAssets) console.warn("植體照片／簽名尚待搬移，數量：", result.pendingAssets);
+        }
       } catch (error) {
-        console.warn("中央病患資料匯入未完成，暫時保留本機資料來源", error);
+        console.warn("中央資料匯入未完成，暫時保留本機資料來源", error);
       }
     }
     return session;
