@@ -12,7 +12,10 @@ const select = `SELECT i.id::int,i.clinic_id::int AS "clinicId",i.patient_id::in
   i.migration_state AS "migrationState",i.version,i.cancellation_reason AS "cancellationReason",
   i.created_at AS "createdAt",i.updated_at AS "updatedAt",
   i.surgery_completed_at AS "surgeryCompletedAt",i.surgery_completed_by_user_id::int AS "surgeryCompletedByUserId",
-  i.usage_recorded_at AS "usageRecordedAt",i.usage_recorded_by_user_id::int AS "usageRecordedByUserId"
+  i.usage_recorded_at AS "usageRecordedAt",i.usage_recorded_by_user_id::int AS "usageRecordedByUserId",
+  i.doctor_signature_asset_id AS "doctorSignatureAssetId",i.doctor_signed_at AS "doctorSignedAt",
+  i.doctor_signed_by_user_id::int AS "doctorSignedByUserId",i.doctor_signed_version AS "doctorSignedVersion",
+  i.closed_at AS "closedAt",i.closed_by_user_id::int AS "closedByUserId"
   FROM implant_cases i JOIN patients p ON p.id=i.patient_id AND p.clinic_id=i.clinic_id
   LEFT JOIN users u ON u.id=i.doctor_user_id`;
 
@@ -33,7 +36,11 @@ async function detail(client: Queryable, id: number, clinicId: number) {
     b.ref_number AS "refNumber",b.lot_number AS "lotNumber",r.created_at AS "createdAt",r.released_at AS "releasedAt"
     FROM implant_stock_reservations r JOIN inventory_batches b ON b.id=r.inventory_batch_id
     WHERE r.implant_case_id=$1 ORDER BY r.created_at,r.id`, [id]);
-  return { ...result.rows[0], reservations: reservations.rows, teeth: teeth.rows.map((tooth) => ({ ...tooth, items: plans.rows.filter((plan) => plan.toothId === tooth.id) })) };
+  const assets = await client.query(`SELECT id,kind,plan_item_id::int AS "planItemId",reservation_id AS "reservationId",
+    content_sha256 AS "contentSha256",content_type AS "contentType",byte_size AS "byteSize",actor_user_id::int AS "actorUserId",uploaded_at AS "uploadedAt"
+    FROM implant_clinical_assets WHERE implant_case_id=$1 AND upload_state='uploaded' ORDER BY id`, [id]);
+  const closure = await client.query("SELECT id,snapshot,created_at AS \"createdAt\" FROM implant_closures WHERE implant_case_id=$1", [id]);
+  return { ...result.rows[0], assets: assets.rows, closure: closure.rows[0] ?? null, reservations: reservations.rows, teeth: teeth.rows.map((tooth) => ({ ...tooth, items: plans.rows.filter((plan) => plan.toothId === tooth.id) })) };
 }
 async function clinicAccess(client: Queryable, request: FastifyRequest, clinicId: number, locked = false) {
   const principal = request.principal!;

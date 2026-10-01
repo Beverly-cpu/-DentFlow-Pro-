@@ -270,3 +270,28 @@ Admin／Assistant 可新增、修改及取消，必須有啟用院所的目前�
 臨床詳情新增手術／使用紀錄時間及操作者，reservations 帶 usedQuantity、expectedReturnQuantity、returnedQuantity、usageRecordedAt、lastReturnedAt 與 returnedByUserId，仍不提供成本。`GET /v1/implants/:id/return-ledger?clinicId=...` 僅 Admin／Accountant／Procurement 依目前院所權限讀取歸回原因、狀態、數量、操作者、歸回後餘額及原取出成本，並稽核讀取。單價／總成本以兩位小數字串回應，不因後續庫存單價更動而改寫。資料庫禁止改寫使用分類、減少已歸回量或修改／刪除使用及歸回事件。
 
 驗證：92 項 API 測試、TypeScript、ESLint 及整體路由註冊通過。PGlite 執行全部十四份 migration 與真實 SQL，驗證使用不再次扣帳、器械使用後完整歸回、植體分次歸回、超額／錯誤狀態拒絕、全部品項取消、重送不重複回補及事件／稽核失敗回滾。原單價 1200.50 的兩件歸回成本合計 2401.00，庫存單價改為 9999 後仍保留歷史成本且不覆蓋目前單價。正式 PostgreSQL 同時請求與兩台桌面驗收仍待執行；破損／已拆封且不可回補的品項處置、照片／簽名、正式結案、報表與桌面切換仍待完成。
+
+
+## 中央臨床照片、指定醫師簽名與正式結案（0015）
+
+先執行 migration 0015 再部署 API。本階段新增中央新個案的臨床資產表與結案快照，不使用舊來源資產表，也不啟用 legacy_staged 個案。私有物件儲存沿用 0008 的 owner、region、加密與全部 Block Public Access 設定；未設定時上傳／讀取回應 503，不會退回本機儲存。未操作生產資料、建立雲端資源或切換桌面 IPC。
+
+`POST /v1/implants/:id/clinical-assets` 必填 `clinicId`、最新 `expectedVersion`、UUID v4 `requestId`、`kind` 與 `dataUrl`。禁止客戶端指定操作者、物件路徑或來源 ID。圖片支援 PNG／JPEG／WebP／GIF，解碼後最多 10 MB，JSON body 最多 16 MiB；醫師簽名只接受 PNG 且 Data URL 最多 2,000,000 bytes。伺服器檢查格式及雜湊，不辨識筆跡身分或判斷照片內容是否正確，指定醫師仍須親自核對實際使用明細後送出簽名。
+
+| kind | 中央引用 | 操作條件 |
+| --- | --- | --- |
+| instrument_photo | planItemId | 此個案器械規格，可由 Admin／Assistant／指定 Doctor 上傳 |
+| ref_lot_photo | reservationId | 此個案實際使用量大於 0 的植體／套件批次，須提供 REF／LOT 照片 |
+| doctor_signature | 不接受品項引用 | 僅指定 Doctor 本人，個案已完成使用分類及全部歸回，且必要照片均已上傳 |
+
+寫入與完成階段各自鎖定目前啟用院所、帳號及個案，核對目前角色與 Doctor 歸屬。首次請求檢查 expectedVersion，先交易保存不可變的 pending 身分／雜湊／物件 key 與稽核後才寫物件儲存；讀回內容核對 SHA-256 與大小，再以第二個交易標記 uploaded、遞增個案版本並稽核。失敗保留 pending 紀錄及原 key；重試沿用原 requestId、原版本及相同內容。已完成請求回傳首次結果與 unchanged，不再傳送物件或增加版本。同 key 改變個案、內容、引用或原版本回應 409 request_conflict。
+
+照片完成時允許其他照片或流程操作已使版本前進，但仍重新核對引用、階段、帳號／院所權限與未簽名條件。簽名須在開始及完成時維持相同版本，避免上傳期間另一台電腦新增照片而簽署過期紀錄；版本已變更時 pending 簽名不自動套用，需讀取最新個案、重新確認並使用新 requestId。每份 pending 內容保持原樣，不覆寫舊請求。只有 uploaded 的照片計入完整性檢查；器械規格均須有照片，實際使用的非器械每一取出批次須有 REF／LOT 照片。簽名保存 asset ID、指定醫師、伺服器時間與所確認的個案版本。
+
+指定醫師簽名後，只允許正式結案；不能追加照片、改寫個案／牙位／規格／預留明細，資料庫 trigger 同樣限制修改。已上傳資產及身分不可改寫／刪除。本階段不提供撤銷簽名、重開結案、照片刪除或 pending 資產清理 API。
+
+`POST /v1/implants/:id/close` 必填 clinicId、expectedVersion、requestId，僅目前院所 Admin／Assistant／指定 Doctor 可執行。必須為「已完成」，具有指定醫師對目前紀錄版本的已核對簽名；重新檢查使用分類、歸回及必要照片，然後在同一交易標記「已結案」、保存操作者／時間、建立不可變 snapshot 與首次結果、寫入稽核。snapshot 保存中央病患／醫師 ID、手術日期、備註、牙位／規格、批次 REF／LOT、取出／使用／歸回量、時間、資產 ID／雜湊及簽名版本，不包含庫存成本或私有物件路徑。事件或稽核失敗全部回滾，重送不產生第二份結案紀錄。結案後個案及快照不可修改／刪除。
+
+個案詳情新增已上傳 assets、簽名資訊、closedAt／closedByUserId 及 closure 快照；列表包含已結案狀態。`GET /v1/clinical-assets/:id` 僅目前院所 Admin／Assistant／指定 Doctor 可讀取，核對物件內容後經已登入 API 回傳二進位，附 private/no-store、nosniff 與 sandbox 標頭，並稽核讀取。不提供公開 URL，Accountant／Procurement 不可讀取臨床資產或結案快照。
+
+驗證：98 項 API 測試、TypeScript、ESLint 及整體路由註冊通過。PGlite 執行全部十五份 migration 與從草稿、叫貨、取出、使用、歸回、照片到簽名／結案的真實 SQL；驗證錯誤引用／醫師／角色拒絕、損壞內容拒絕、pending 重試沿用原 key、版本變動拒絕簽名、簽名完成及結案稽核失敗回滾、不可變子項／資產／結案快照、私有讀取與重送不增加版本或改動庫存。仍需正式 PostgreSQL 並行、實際私有儲存與兩台桌面驗收；桌面業務切換、報表、不可回補品項處置及簽名／結案更正流程尚待完成。
