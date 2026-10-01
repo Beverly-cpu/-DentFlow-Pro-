@@ -14,6 +14,7 @@ import { registerAssetRoutes } from "./routes/assetRoutes.js";
 import { createPrivateObjectStorage } from "./objectStorage.js";
 import type { PrivateObjectStorage } from "./objectStorage.js";
 import { registerImplantDraftRoutes } from "./routes/implantDraftRoutes.js";
+import { registerInventoryRoutes } from "./routes/inventoryRoutes.js";
 
 export function buildApp(config: ApiConfig, pool: DatabasePool, assetStore: PrivateObjectStorage | undefined = createPrivateObjectStorage(config)) {
   const app = Fastify({
@@ -77,6 +78,7 @@ export function buildApp(config: ApiConfig, pool: DatabasePool, assetStore: Priv
   void registerResourceMigrationRoutes(app, pool);
   void registerAssetRoutes(app, pool, assetStore);
   void registerImplantDraftRoutes(app, pool);
+  void registerInventoryRoutes(app, pool);
 
   app.setErrorHandler((error, request, reply) => {
     request.log.error({ err: error }, "request failed");
