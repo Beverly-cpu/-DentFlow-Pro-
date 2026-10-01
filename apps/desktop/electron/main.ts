@@ -30,6 +30,8 @@ import {
 } from "./remote/centralApiClient";
 import { getLegacyImplantsForMigration } from "./database/implantMigrationRepository";
 import { prepareImplantMigrationBatches } from "./remote/implantMigrationBatches";
+import { getLegacyInventoryForMigration, getLegacyUsersForMigration } from "./database/resourceMigrationRepository";
+import { prepareResourceMigrationBatches } from "./remote/resourceMigrationBatches";
 
 /* =========================================================
    Patients
@@ -670,6 +672,21 @@ function registerRemoteAuthHandlers() {
     const session = await centralApi.login(input) as { role?: string };
     if (session.role === "Admin" || session.role === "Assistant") {
       try {
+        if (session.role === "Admin") {
+          const sourceId = centralApi.getDeviceId();
+          const users = prepareResourceMigrationBatches(getLegacyUsersForMigration(), sourceId, "users", 500);
+          if (users.oversizedIds.length) console.warn("操作者對照資料超過上限，保留本機來源，筆數：", users.oversizedIds.length);
+          for (const batch of users.batches) {
+            const result = await centralApi.post<{ conflicts: unknown[] }>("/v1/migrations/users/import", { sourceId, users: batch });
+            if (result.conflicts.length) console.warn("操作者中央對照尚待處理，筆數：", result.conflicts.length);
+          }
+          const inventory = prepareResourceMigrationBatches(getLegacyInventoryForMigration(), sourceId, "inventory", 100);
+          if (inventory.oversizedIds.length) console.warn("庫存資料超過上限，保留本機來源，筆數：", inventory.oversizedIds.length);
+          for (const batch of inventory.batches) {
+            const result = await centralApi.post<{ conflicts: unknown[] }>("/v1/migrations/inventory/import", { sourceId, inventory: batch });
+            if (result.conflicts.length) console.warn("庫存中央對照尚待處理，筆數：", result.conflicts.length);
+          }
+        }
         const doctors = getLegacyDoctorsForMigration();
         for (let offset = 0; offset < doctors.length; offset += 500) {
           const result = await centralApi.post<{ conflicts: unknown[] }>("/v1/migrations/doctors/import", {
@@ -695,6 +712,21 @@ function registerRemoteAuthHandlers() {
           );
           if (result.conflicts.length) console.warn("中央植體個案匯入有待處理衝突，筆數：", result.conflicts.length);
           if (result.pendingAssets) console.warn("植體照片／簽名尚待搬移，數量：", result.pendingAssets);
+        }
+        if (session.role === "Admin") {
+          let afterId: number | null = null;
+          do {
+            const result: { nextAfterId: number | null; missingInventory: number; missingUsers: number; conflicts: unknown[] } =
+              await centralApi.post("/v1/migrations/implants/resolve-references", {
+                sourceId, ...(afterId === null ? {} : { afterId }),
+              });
+            if (result.missingInventory || result.missingUsers || result.conflicts.length) {
+              console.warn("植體歷史關聯尚未全部對照：", {
+                inventory: result.missingInventory, users: result.missingUsers, conflicts: result.conflicts.length,
+              });
+            }
+            afterId = result.nextAfterId;
+          } while (afterId !== null);
         }
       } catch (error) {
         console.warn("中央資料匯入未完成，暫時保留本機資料來源", error);

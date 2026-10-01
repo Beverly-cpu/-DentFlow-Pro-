@@ -1025,6 +1025,9 @@ function mapUsageRecord(
       row.cancelReason ??
       "",
 
+    createdByUserId: row.createdByUserId,
+    createdByName: row.createdByName,
+
     items:
       getUsageItems(
         row.id,
