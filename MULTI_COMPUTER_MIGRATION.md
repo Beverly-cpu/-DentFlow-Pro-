@@ -176,3 +176,24 @@ AWS 參考：[Block Public Access](https://docs.aws.amazon.com/AmazonS3/latest/u
 此階段只強化中央 API；桌面病患／植體業務 IPC 仍使用本機 ID，尚未切換寫入來源。後續需完成中央植體業務模型、庫存盤點與交易 API，再協調病患及植體畫面使用中央 ID 和衝突提示，避免中央病患 ID 被當成本機植體病患 ID。不可據此宣告多機系統已正式完成。
 
 驗證包含 API 交易、醫師指定、角色與院所權限、稽核失敗回滾、舊版本拒絕及欄位格式；PGlite 執行九份 migration 和真實 SQL，模擬兩台先讀同一版本後依序寫入，以及遷移修補導致版本失效。尚未執行正式 PostgreSQL 上的並行負載或兩台桌面驗收。
+
+
+## 中央植體術前草稿（0010）
+
+先執行 migration 0010 再部署 API。中央新個案標為 `central_draft`，只允許「待醫師叫貨」與「已取消」；原有 `legacy_staged` 個案及來源快照不會自動啟用。0010 新增中央牙位與術前規格表，使用中央病患／醫師／個案 ID；術前規格只含名稱、類別、品牌、型號、規格、預計數量，不含庫存 ID、REF／LOT、取出量、成本或照片。此階段尚未加入庫存預留、叫貨、取出、術後使用及歸回 API。
+
+- `POST /v1/implants`：`clinicId`、`patientId`、可選 `doctorUserId`（中央帳號）、有效 `implantDate`、`note`、`teeth`、UUID v4 `requestId`。
+- `PUT /v1/implants/:id`：完整草稿欄位與 `expectedVersion`；同一版本內交易替換牙位／術前規格，子項 ID 隨草稿修訂重新產生，不能當作已領用的歷史 ID。
+- `POST /v1/implants/:id/cancel`：`clinicId`、`expectedVersion`、必填 `reason`，取消後保留牙位／規格與原因，不執行庫存歸回。
+- `GET /v1/implants?clinicId=...&patientId=...&afterId=...`：僅中央草稿，每頁最多 100 筆，按中央個案 ID 分頁，`patientId` 可省略。
+- `GET /v1/implants/:id?clinicId=...`：中央草稿詳情、牙位與規格，讀取並稽核。
+
+新增與修改的 `teeth` 格式為 `[{ toothPosition: "36", items: [{ name: "植體", category: "植體", brand: "", model: "", specification: "4 x 10", quantity: 1 }] }]`。FDI 牙位接受永久齒 11–48 的有效象限／牙序，以及乳齒 51–85 的有效象限／牙序；同案牙位不能重複。每案最多 52 牙位、500 筆規格，每牙位 1–100 筆，每品項預計數量 1–1000。類別僅「植體」、「植體套件」、「器械」，JSON body 上限 64 KiB，姓名／品牌／型號／規格與備註另有 UTF-8 長度限制。拒絕直接傳入 status、doctorId、庫存關聯、照片或其他非允許欄位。
+
+Admin／Assistant 可新增、修改及取消，必須有啟用院所的目前權限；病患必須為同院所有效中央病患，指定醫師必須為該院所啟用 Doctor。Doctor 只讀自己被指定的草稿，不能寫入；Accountant／Procurement 無草稿讀寫權限。詳情的授權、個案及子項讀取使用同一 repeatable-read 交易，避免讀到不同修訂的牙位或醫師歸屬；寫入鎖定院所關係及個案，明細與稽核全部成功才提交。
+
+`requestId` 在同一中央操作者下識別一次新增，客戶端首次送出前產生並保存，網路逾時重送沿用同值。同內容重送回傳既有個案目前版本並標示 `unchanged: true`，不新增第二案、不還原後續修訂；同 key 更換內容或院所回應 HTTP 409 `request_conflict`。不同操作者的新增請求獨立，不根據同名病患或日期自動合併。
+
+每案 `version` 初始 1，任何個案 UPDATE 由資料庫 trigger 遞增。修改／取消須帶最近 version，舊版回應 409 `version_conflict`；已取消的草稿不可修改或再次取消，回應 409 `workflow_conflict`。一般草稿讀寫入口對舊遷移個案回應 404；舊案仍從 migration review 入口核對。取消只適用尚未進入庫存流程的新草稿，不能替代已取出個案的逐項歸回與稽核。
+
+驗證包括重複新增、改變請求內容、來源欄位拒絕、FDI 與數量限制、中央引用、舊版本衝突、取消限制、醫師／院所權限與全部寫入的稽核回滾。PGlite 執行十份 migration 及真實 SQL，另驗證子項失敗回滾、跨個案明細外鍵、草稿狀態限制、舊案隔離與沒有庫存異動。仍需正式 PostgreSQL 並行壓力及實機驗收；桌面業務 IPC 尚未切換到這些 API。
