@@ -157,3 +157,22 @@ DATABASE_URL=postgresql://dentflow:local-development-only@127.0.0.1:5432/dentflo
 驗證涵蓋 API 權限、來源 hash、格式與大小限制、私有 bucket 防護、耐久 intent、完成稽核回滾及重試；另使用 PostgreSQL 相容 PGlite 執行全部八份 migration 與真實 SQL，儲存使用測試替身。仍需在正式 PostgreSQL、實際私有 AWS bucket 及兩台桌面執行部署驗收。
 
 AWS 參考：[Block Public Access](https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html)。
+
+
+## 中央病患寫入交易與多機版本檢查（0009）
+
+先執行 migration 0009 再部署 API。每筆中央病患新增整數 `version`，預設 1；所有 UPDATE（包含遷移補醫師關聯）由資料庫 trigger 遞增。病患列表、詳情及寫入回應帶 `version` 與 `doctorUserId`。
+
+中央新增、修改、封存均限 Admin／Assistant，並在同一 PostgreSQL 交易中核對及鎖定目前院所權限、修改資料、寫入稽核，全部成功才提交。任何稽核失敗均回滾資料與版本，不會產生「回應失敗但病患已改」的半完成狀態。病歷號重複回應 HTTP 409 `chart_number_conflict`，保留原有全球唯一病歷號規則。
+
+- `POST /v1/patients`：`clinicId`、`chartNumber`、`name`、可選 `birthDate`、`note`、`doctorUserId`。
+- `PUT /v1/patients/:id`：完整欄位及必填整數 `expectedVersion`，使用最近讀取的 `version`。
+- `DELETE /v1/patients/:id?clinicId=...&expectedVersion=...`：封存而非實體刪除，同樣須提供最近版本。
+
+兩台電腦讀到 version 1，第一台成功修改為 2 後，第二台以 version 1 修改或封存會收到 HTTP 409 `version_conflict`；不覆寫、不自動重試、不記錄成功稽核。客戶端應保留尚未送出的編輯，重新載入最新病患並由使用者核對，再以新版本送出。缺少版本或格式錯誤回應 400，找不到目前院所的有效病患回應 404，無寫入角色或院所權限回應 403。
+
+醫師以中央 `doctorUserId` 指定，伺服器核對啟用中 Doctor 及院所關係，名稱以中央帳號為準，不信任客戶端姓名。明確解除醫師請傳 `doctorUserId: null` 且 `doctor` 留空。為相容舊呼叫，僅傳 `doctor` 姓名時須唯一匹配中央啟用醫師；同名、停用或缺少院所關係回應 `invalid_doctor`，不再默默存成無醫師關聯。姓名、病歷號及備註有 UTF-8 長度限制，出生日期核對實際曆日。
+
+此階段只強化中央 API；桌面病患／植體業務 IPC 仍使用本機 ID，尚未切換寫入來源。後續需完成中央植體業務模型、庫存盤點與交易 API，再協調病患及植體畫面使用中央 ID 和衝突提示，避免中央病患 ID 被當成本機植體病患 ID。不可據此宣告多機系統已正式完成。
+
+驗證包含 API 交易、醫師指定、角色與院所權限、稽核失敗回滾、舊版本拒絕及欄位格式；PGlite 執行九份 migration 和真實 SQL，模擬兩台先讀同一版本後依序寫入，以及遷移修補導致版本失效。尚未執行正式 PostgreSQL 上的並行負載或兩台桌面驗收。

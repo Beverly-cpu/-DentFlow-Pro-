@@ -2,10 +2,9 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 
 import { audit, requireSession } from "../auth.js";
 import type { DatabasePool } from "../database.js";
+import { registerPatientWriteRoutes } from "./patientWriteRoutes.js";
 
 type Queryable = Pick<DatabasePool, "query">;
-
-type Body = Record<string, unknown>;
 
 type LegacyPatient = {
   legacyId?: unknown;
@@ -20,7 +19,8 @@ type LegacyPatient = {
 };
 
 const patientSelect = `
-  SELECT p.id::int, p.clinic_id::int AS "clinicId",
+  SELECT p.id::int, p.clinic_id::int AS "clinicId", p.version,
+         p.doctor_user_id::int AS "doctorUserId",
          p.chart_number AS "chartNumber", p.name,
          COALESCE(to_char(p.birth_date, 'YYYY-MM-DD'), '') AS "birthDate",
          ''::text AS phone, p.doctor_name AS doctor, p.note,
@@ -65,17 +65,6 @@ async function assertClinicAccess(pool: DatabasePool, request: FastifyRequest, c
     [request.principal!.userId, clinicId],
   );
   if (result.rowCount !== 1) throw new Error("無權存取此院所病患資料");
-}
-
-async function resolveDoctor(pool: Queryable, clinicId: number, doctorName: string) {
-  if (!doctorName) return null;
-  const result = await pool.query<{ id: string }>(
-    `SELECT u.id FROM users u JOIN user_clinics uc ON uc.user_id=u.id
-     WHERE uc.clinic_id=$1 AND u.role='Doctor' AND u.active=true AND u.display_name=$2
-     ORDER BY u.id LIMIT 2`,
-    [clinicId, doctorName],
-  );
-  return result.rows.length === 1 ? Number(result.rows[0]!.id) : null;
 }
 
 async function linkImportedDoctor(client: Queryable, patientId: number, doctorUserId: number | null, doctorName: string) {
@@ -265,7 +254,7 @@ export async function registerPatientRoutes(app: FastifyInstance, pool: Database
         `${patientSelect}
          JOIN user_clinics doctor_uc ON doctor_uc.clinic_id=p.clinic_id AND doctor_uc.user_id=$1
          JOIN user_clinics actor_uc ON actor_uc.clinic_id=p.clinic_id AND actor_uc.user_id=$2
-         WHERE p.doctor_user_id=$1 AND p.active=true
+         WHERE p.doctor_user_id=$1 AND p.active=true AND c.active=true
          ORDER BY p.name, p.id`,
         [userId, request.principal!.userId],
       );
@@ -273,64 +262,5 @@ export async function registerPatientRoutes(app: FastifyInstance, pool: Database
     },
   );
 
-  app.post<{ Body: Body }>("/v1/patients", { preHandler: requireSession }, async (request) => {
-    const clinicId = asId(request.body.clinicId, "院所");
-    await assertClinicAccess(pool, request, clinicId);
-    if (request.principal!.role === "Doctor") throw new Error("醫師不可新增病患資料");
-    const chartNumber = requiredText(request.body.chartNumber, "病歷號");
-    const name = requiredText(request.body.name, "病患姓名");
-    const doctorName = optionalText(request.body.doctor);
-    const doctorUserId = await resolveDoctor(pool, clinicId, doctorName);
-    const result = await pool.query<{ id: string }>(
-      `INSERT INTO patients (clinic_id,chart_number,name,birth_date,doctor_user_id,doctor_name,note)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-      [clinicId, chartNumber, name, birthDate(request.body.birthDate), doctorUserId, doctorName,
-        optionalText(request.body.note)],
-    );
-    const id = Number(result.rows[0]!.id);
-    await audit(pool, request, "patient_created", "patient", id, { clinicId, chartNumber });
-    const row = await pool.query(`${patientSelect} WHERE p.id=$1`, [id]);
-    return row.rows[0];
-  });
-
-  app.put<{ Params: { id: string }; Body: Body }>(
-    "/v1/patients/:id",
-    { preHandler: requireSession },
-    async (request) => {
-      const id = asId(request.params.id, "病患");
-      const clinicId = asId(request.body.clinicId, "院所");
-      await assertClinicAccess(pool, request, clinicId);
-      if (request.principal!.role === "Doctor") throw new Error("醫師不可編輯病患資料");
-      const doctorName = optionalText(request.body.doctor);
-      const result = await pool.query(
-        `UPDATE patients SET chart_number=$3,name=$4,birth_date=$5,doctor_user_id=$6,doctor_name=$7,note=$8
-         WHERE id=$1 AND clinic_id=$2 AND active=true`,
-        [id, clinicId, requiredText(request.body.chartNumber, "病歷號"),
-          requiredText(request.body.name, "病患姓名"), birthDate(request.body.birthDate),
-          await resolveDoctor(pool, clinicId, doctorName), doctorName, optionalText(request.body.note)],
-      );
-      if (result.rowCount !== 1) throw new Error("找不到目前院所的病患資料");
-      await audit(pool, request, "patient_updated", "patient", id, { clinicId });
-      const row = await pool.query(`${patientSelect} WHERE p.id=$1`, [id]);
-      return row.rows[0];
-    },
-  );
-
-  app.delete<{ Params: { id: string }; Querystring: { clinicId?: string } }>(
-    "/v1/patients/:id",
-    { preHandler: requireSession },
-    async (request) => {
-      const id = asId(request.params.id, "病患");
-      const clinicId = asId(request.query.clinicId, "院所");
-      await assertClinicAccess(pool, request, clinicId);
-      if (request.principal!.role === "Doctor") throw new Error("醫師不可刪除病患資料");
-      const result = await pool.query(
-        "UPDATE patients SET active=false WHERE id=$1 AND clinic_id=$2 AND active=true",
-        [id, clinicId],
-      );
-      if (result.rowCount !== 1) throw new Error("找不到目前院所的病患資料");
-      await audit(pool, request, "patient_archived", "patient", id, { clinicId });
-      return true;
-    },
-  );
+  await registerPatientWriteRoutes(app, pool);
 }
