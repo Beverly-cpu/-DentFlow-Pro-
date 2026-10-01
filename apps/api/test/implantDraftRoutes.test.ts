@@ -46,7 +46,7 @@ test("draft creation stores central IDs, specification plans and audit atomicall
   assert.deepEqual(insert.params.slice(0, 3), [10, 50, 20]); assert.match(insert.sql, /central_draft/);
   assert.ok(r.statements.some((s) => s.sql.includes("INSERT INTO implant_draft_plan_items")));
   assert.equal(r.statements.at(-1)!.sql, "COMMIT"); assert.equal(r.released, true);
-  assert.equal(r.statements.some((s) => /inventory|reservation/i.test(s.sql)), false);
+  assert.equal(r.statements.some((s) => /^(INSERT|UPDATE|DELETE)[\s\S]*(inventory|reservation)/i.test(s.sql)), false);
 });
 test("identical create retry returns existing case; changed request never inserts", async () => {
   const same = await run({ existing: "same" }); assert.equal(same.status, 200); assert.equal(same.body.unchanged, true);

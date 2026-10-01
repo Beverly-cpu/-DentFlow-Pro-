@@ -218,3 +218,22 @@ Admin／Assistant 可新增、修改及取消，必須有啟用院所的目前�
 期初紀錄由資料庫 trigger 禁止 UPDATE／DELETE。批次的來源對照、snapshot 與舊植體庫存連結保留，不將其他電腦的重複批次改指向新批次，也不自動把舊 staged 個案啟用。剩餘待核對批次仍不可供中央扣帳。
 
 驗證包括明確盤點值、成本精度、重送、舊版本、已啟用狀態、同 REF／LOT 別名、防重複索引、角色／院所、成本欄位隔離及稽核回滾。PGlite 執行十一份 migration 與真實 SQL：來源數量 5 與 99 不加總，期初只寫盤點值 3；確認期初不可修改／刪除、reserved 不超過 onHand、零數量啟用以及來源 snapshot 完全不變。尚需正式 PostgreSQL 並行驗證、實體盤點、中央叫貨／預留／取出／使用／歸回交易，以及兩台桌面切換驗收。
+
+
+## 中央叫貨與批次預留（0012）
+
+先執行 migration 0012 再部署 API。中央草稿完成叫貨時進入 `central_workflow`／「醫師已叫貨」，資料庫限制本階段中央流程僅有「醫師已叫貨」及「已取消」。`legacy_staged` 舊案不會自動啟用，一般中央個案查詢仍排除舊案。此前 0010 的草稿 API 及 0011 的餘額 API 現在可讀取已叫貨個案、預留及可用量。
+
+`POST /v1/implants/:id/order` 必填 `clinicId`、最近 `expectedVersion`、UUID v4 `requestId` 及 `allocations: [{ planItemId, inventoryBatchId, quantity }]`。ID 均為中央 ID；分配最多 500 筆，同一術前規格／批次配對不可重複，分配數量須為 1–1000 整數。每一術前規格須完整分配恰好等於預計數量，可分散至多個 LOT。同一批次供不同規格使用時，先加總需求再核對可用量，不能藉由重複行超額預留。
+
+叫貨僅允許目前院所的 Doctor／Assistant，Doctor 限自己被指定的個案，Admin 不代替醫師叫貨。保留本機助理協助叫貨規則：須至少一筆器械規格，植體／套件每筆均須有型號及規格。病患須有效、個案醫師須為具有院所關係的啟用 Doctor；所有批次須為同院所 active 庫存。名稱、類別、品牌、型號及規格經 NFKC、空白及大小寫正規化後必須符合計畫。以台北日期拒絕已過期批次。
+
+交易先鎖定目前院所關係及個案，依中央批次 ID 固定順序鎖定批次與餘額，核對 `onHand - reserved`。成功時只增加 reserved，不扣 onHand，同一交易新增逐規格／批次預留、變更個案狀態／版本、記錄不可變 request 結果、庫存預留事件與稽核。庫存 balance 的 version 由 trigger 遞增。庫存不足或效期錯誤回應 409 `stock_conflict`；規格或中央引用錯誤回應 400；個案舊版本回應 409 `version_conflict`；明細、事件或稽核寫入失敗全部回滾。
+
+`POST /v1/implants/:id/cancel-order` 必填 `clinicId`、`expectedVersion`、`requestId`、`reason`。僅允許尚未取出的「醫師已叫貨」個案，Admin／Assistant／個案 Doctor 可取消。交易按既有 reserved 紀錄釋放全部預留、保留 released 明細與 REF／LOT、記錄原因、個案標為已取消並遞增版本；不增加 onHand，不執行實體歸回，取消後不可再修改。即使批次已過期仍可釋放原預留，避免占用庫存。此入口不能取代已取出個案的逐項歸回確認。
+
+叫貨與取消以中央操作者＋requestId 辨識一次操作；第一次送出前保存 key，網路中斷重送沿用同 key、原版本及原內容。相同請求回傳第一次提交的結果與 `unchanged: true`，不再異動庫存；後續操作需另讀最新個案版本。改變 key 所對應的個案、內容或操作回應 409 `request_conflict`。庫存事件及 request 結果由資料庫 trigger 禁止修改／刪除，事件保存 reserved 正負異動與提交後餘額，無成本欄位。
+
+中央個案列表與詳情現涵蓋 `central_draft` 及 `central_workflow`；詳情包含 `reservations`（中央規格／批次 ID、quantity、reserved/released 狀態、REF、LOT 與時間），Doctor 仍只讀自己的個案。已叫貨個案不能透過術前草稿 PUT 或草稿 cancel 修改，防止刪除已有庫存預留的規格。桌面業務 IPC 仍未切換；尚無實際取出、術後使用、歸回、補貨及盤點調整 API。
+
+驗證：API 授權、完整分配、數量／格式、規格、效期、重送與稽核回滾；PGlite 執行十二份 migration 及真實 SQL，兩個個案依序爭用同一餘額，第二案不足時拒絕，取消後可重新供另一案預留。在手數量保持不變，庫存事件與 request 不可改寫；驗證事件寫入失敗回滾、Doctor 歸屬及助理完整規格／器械規則。尚需正式 PostgreSQL 的同時請求、死鎖／重試測試，以及兩台桌面驗收。
