@@ -51,6 +51,7 @@ import {
 
 import {
   addDoctorClinic,
+  getLegacyDoctorsForMigration,
   createDoctor,
   deleteDoctor,
   getActiveDoctorByUserId,
@@ -667,12 +668,21 @@ function registerRemoteAuthHandlers() {
     const session = await centralApi.login(input) as { role?: string };
     if (session.role === "Admin" || session.role === "Assistant") {
       try {
+        const doctors = getLegacyDoctorsForMigration();
+        for (let offset = 0; offset < doctors.length; offset += 500) {
+          const result = await centralApi.post<{ conflicts: unknown[] }>("/v1/migrations/doctors/import", {
+            sourceId: centralApi.getDeviceId(),
+            doctors: doctors.slice(offset, offset + 500),
+          });
+          if (result.conflicts.length) console.warn("中央醫師對照有待處理衝突", result.conflicts);
+        }
         const patients = getLegacyPatientsForMigration();
         for (let offset = 0; offset < patients.length; offset += 500) {
-          await centralApi.post("/v1/migrations/patients/import", {
+          const result = await centralApi.post<{ conflicts: unknown[] }>("/v1/migrations/patients/import", {
             sourceId: centralApi.getDeviceId(),
             patients: patients.slice(offset, offset + 500),
           });
+          if (result.conflicts.length) console.warn("中央病患匯入有待處理衝突，筆數：", result.conflicts.length);
         }
       } catch (error) {
         console.warn("中央病患資料匯入未完成，暫時保留本機資料來源", error);
