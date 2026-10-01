@@ -15,7 +15,7 @@ const select = `SELECT i.id::int,i.clinic_id::int AS "clinicId",i.patient_id::in
   LEFT JOIN users u ON u.id=i.doctor_user_id`;
 
 async function detail(client: Queryable, id: number, clinicId: number) {
-  const result = await client.query(`${select} WHERE i.id=$1 AND i.clinic_id=$2 AND i.migration_state='central_draft'`, [id, clinicId]);
+  const result = await client.query(`${select} WHERE i.id=$1 AND i.clinic_id=$2 AND i.migration_state IN ('central_draft','central_workflow')`, [id, clinicId]);
   if (!result.rows[0]) throw new DraftError(404, "not_found", "找不到中央植體草稿");
   const teeth = await client.query<{ id: number; toothPosition: string }>(
     `SELECT id::int,tooth_position AS "toothPosition" FROM implant_draft_teeth WHERE implant_case_id=$1 ORDER BY id`, [id],
@@ -24,7 +24,11 @@ async function detail(client: Queryable, id: number, clinicId: number) {
     `SELECT id::int,tooth_id::int AS "toothId",name,category,brand,model,specification,planned_quantity AS quantity
      FROM implant_draft_plan_items WHERE implant_case_id=$1 ORDER BY id`, [id],
   );
-  return { ...result.rows[0], teeth: teeth.rows.map((tooth) => ({ ...tooth, items: plans.rows.filter((plan) => plan.toothId === tooth.id) })) };
+  const reservations = await client.query(`SELECT r.id,r.plan_item_id::int AS "planItemId",r.inventory_batch_id::int AS "inventoryBatchId",
+    r.quantity,r.state,b.ref_number AS "refNumber",b.lot_number AS "lotNumber",r.created_at AS "createdAt",r.released_at AS "releasedAt"
+    FROM implant_stock_reservations r JOIN inventory_batches b ON b.id=r.inventory_batch_id
+    WHERE r.implant_case_id=$1 ORDER BY r.created_at,r.id`, [id]);
+  return { ...result.rows[0], reservations: reservations.rows, teeth: teeth.rows.map((tooth) => ({ ...tooth, items: plans.rows.filter((plan) => plan.toothId === tooth.id) })) };
 }
 async function clinicAccess(client: Queryable, request: FastifyRequest, clinicId: number, locked = false) {
   const principal = request.principal!;
@@ -151,7 +155,7 @@ export async function registerImplantDraftRoutes(app: FastifyInstance, pool: Dat
     const patientId = request.query.patientId === undefined ? null : draftId(Number(request.query.patientId), "中央病患");
     return read(pool, request, reply, clinicId, async (client) => {
       const result = await client.query<{ id: number }>(
-        `${select} WHERE i.clinic_id=$1 AND i.id>$2 AND i.migration_state='central_draft'
+        `${select} WHERE i.clinic_id=$1 AND i.id>$2 AND i.migration_state IN ('central_draft','central_workflow')
          AND ($3::bigint IS NULL OR i.patient_id=$3) AND ($4<>'Doctor' OR i.doctor_user_id=$5) ORDER BY i.id LIMIT 100`,
         [clinicId, afterId, patientId, request.principal!.role, request.principal!.userId],
       );
@@ -163,7 +167,7 @@ export async function registerImplantDraftRoutes(app: FastifyInstance, pool: Dat
     const clinicId = draftId(Number(request.query.clinicId), "院所"); const caseId = draftId(Number(request.params.id), "中央個案");
     return read(pool, request, reply, clinicId, async (client) => {
       const visible = await client.query(
-        `SELECT 1 FROM implant_cases WHERE id=$1 AND clinic_id=$2 AND migration_state='central_draft'
+        `SELECT 1 FROM implant_cases WHERE id=$1 AND clinic_id=$2 AND migration_state IN ('central_draft','central_workflow')
          AND ($3<>'Doctor' OR doctor_user_id=$4)`, [caseId, clinicId, request.principal!.role, request.principal!.userId],
       );
       if (!visible.rows.length) throw new DraftError(404, "not_found", "找不到可存取的中央植體草稿");
