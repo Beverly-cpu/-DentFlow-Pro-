@@ -1096,7 +1096,7 @@ function redactInventoryCosts<T extends Array<Record<string, unknown>>>(items: T
 }
 
 function registerCentralImplantHandlers() {
-  const implants = createRemoteImplantClient(centralApi, encryptedDraftJournal, () => getDeploymentConfig().serverUrl!);
+  const implants = createRemoteImplantClient(centralApi, encryptedDraftJournal, () => getDeploymentConfig().serverUrl!);\n  const orders = createRemoteImplantOrderClient(centralApi, () => getDeploymentConfig().serverUrl!);\n  const withdrawals = createRemoteWithdrawalClient(centralApi, () => getDeploymentConfig().serverUrl!);\n  const dispositions = createRemoteDispositionClient(centralApi, () => getDeploymentConfig().serverUrl!);\n  const clinical = createRemoteClinicalClient(centralApi, () => getDeploymentConfig().serverUrl!);
   const remote = (callback: Parameters<typeof ipcMain.handle>[1]) => (event: Electron.IpcMainInvokeEvent, ...args: unknown[]) => {
     if (getDeploymentConfig().mode !== "remote") throw Error("請先連線中央伺服器再操作中央個案");
     return callback(event, ...args);
@@ -1113,12 +1113,12 @@ function registerCentralImplantHandlers() {
   ipcMain.handle("central-implants:pending-withdrawal", remote((_e, clinicId: number) => withdrawals.pending(clinicId)));
   ipcMain.handle("central-implants:withdraw", remote((_e, clinicId: number, input: unknown) => withdrawals.withdraw(clinicId, input)));
   ipcMain.handle("central-implants:pending-disposition", remote((_e, clinicId: number) => dispositions.pending(clinicId)));
-  ipcMain.handle("central-implants:disposition", remote((_e, input: any) => dispositions.submit(input)));
+  ipcMain.handle("central-implants:disposition", remote((_e, input: unknown) => dispositions.submit(input)));
   ipcMain.handle("central-implants:pending-clinical", remote((_e, clinicId: number) => clinical.pending(clinicId)));
-  ipcMain.handle("central-implants:retry-clinical", remote((_e, input: any) => clinical.retry(input)));
+  ipcMain.handle("central-implants:retry-clinical", remote((_e, input: unknown) => clinical.retry(input)));
   ipcMain.handle("central-implants:clinical-asset-data", remote((_e, id: string) => clinical.assetDataUrl(id)));
-  ipcMain.handle("central-implants:clinical-asset", remote((_e, input: any) => clinical.asset(input)));
-  ipcMain.handle("central-implants:close-case", remote((_e, input: any) => clinical.close(input)));
+  ipcMain.handle("central-implants:clinical-asset", remote((_e, input: unknown) => clinical.asset(input)));
+  ipcMain.handle("central-implants:close-case", remote((_e, input: unknown) => clinical.close(input)));
 }
 
 function registerImplantHandlers() {
