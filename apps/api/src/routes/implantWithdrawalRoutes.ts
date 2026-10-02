@@ -6,6 +6,12 @@ import { DraftError, draftId } from "../implantDraft.js";
 import { validateWithdrawal, withdrawalHash } from "../implantWithdrawal.js";
 
 export async function registerImplantWithdrawalRoutes(app: FastifyInstance, pool: DatabasePool) {
+  app.get<{ Querystring: { clinicId?: string } }>("/v1/implants/withdraw-access", { preHandler: requireSession }, async (request, reply) => {
+    const principal=request.principal!;const clinicId=draftId(Number(request.query.clinicId),"院所");
+    const access=await pool.query("SELECT 1 FROM user_clinics uc JOIN clinics c ON c.id=uc.clinic_id WHERE uc.user_id=$1 AND uc.clinic_id=$2 AND c.active=true",[principal.userId,clinicId]);
+    if(!access.rows.length)return reply.code(403).send({error:"forbidden",message:"無權存取此院所"});
+    return {canWithdraw:["Admin","Assistant","Doctor"].includes(principal.role),actorUserId:principal.userId};
+  });
   app.post<{ Params: { id: string }; Body: Record<string, unknown> }>("/v1/implants/:id/withdraw", { preHandler: requireSession, bodyLimit: 64 * 1024 }, async (request, reply) => {
     const principal = request.principal!;
     if (!["Admin", "Assistant", "Doctor"].includes(principal.role)) return reply.code(403).send({ error: "forbidden", message: "無權確認臨床品項取出" });
