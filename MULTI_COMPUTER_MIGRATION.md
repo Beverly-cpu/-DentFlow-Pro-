@@ -335,3 +335,12 @@ Admin 額外可讀待核對批次及來源快照。新增 sources API 限 Admin�
 編輯、取消保留開啟時的版本，遇到衝突須重新檢視，不自動覆蓋。草稿只保存規格，不接受本機品項 ID、成本或批號，不扣庫存。取消保留原明細。新增 `/v1/implants/draft-access`，無新 migration；部署時先更新 API，再更新桌面。
 
 驗證：API 120 項測試、API／桌面 lint 與 build、Electron 主程序／preload 型別檢查。PGlite 執行全部 15 個 migrations，驗證提交成功後回覆遺失、同請求恢復不重複建案、兩個 client 的舊版本編輯／取消拒絕、醫師個案與寫入權限、院所隔離及取消不動庫存。測試中的加密替身只驗證 journal 介面與順序，尚未完成真實作業系統安全儲存、兩台 Electron 電腦及正式 PostgreSQL 併發驗收。桌面叫貨、取出、術後、簽署及結案操作仍待下一階段接入；前端 build 仍有既有 bundle 大小警告。
+
+
+## Desktop central implant ordering
+
+The remote desktop implant screen now submits stock reservations to the central API instead of mutating local SQLite. Assistant and doctor ordering uses explicit active central REF/LOT batches, the case version opened by the client, and a UUID request id. Before the request is sent, the exact order intent is encrypted with Electron safeStorage and persisted separately from draft creation intents. If the server commits but the response is lost, the desktop offers to retry the exact same request id; the server returns the recorded result without reserving stock twice.
+
+Before withdrawal, Assistant or Doctor can cancel an order. The central API releases only reservations still in the reserved state and records the cancellation transaction and audit event. Once withdrawal has begun, this pre-pick cancellation path is no longer offered.
+
+Physical acceptance on two real computers and validation of the OS safeStorage backend remain deployment gates.
