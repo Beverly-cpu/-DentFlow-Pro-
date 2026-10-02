@@ -49,9 +49,16 @@ function ClinicImplants({ session, clinicId }: { session: DentflowAuthSession; c
   const [usageTarget,setUsageTarget]=useState<ImplantDetail|null>(null);
   const [usageQty,setUsageQty]=useState<Record<string,string>>({});
   const [returnTarget,setReturnTarget]=useState<ImplantDetail|null>(null);
-  const [returnChecks,setReturnChecks]=useState<Record<string,boolean>>({});\n  const [returnQty,setReturnQty]=useState<Record<string,string>>({});
+  const [returnChecks,setReturnChecks]=useState<Record<string,boolean>>({});
+  const [returnQty,setReturnQty]=useState<Record<string,string>>({});
   const [returnReason,setReturnReason]=useState("");
-  const [signatureTarget,setSignatureTarget]=useState<ImplantDetail|null>(null);\n  const [pendingClinical,setPendingClinical]=useState<any>(null);\n  const [pendingDisposition,setPendingDisposition]=useState<any>(null);\n  const [cancelPickedTarget,setCancelPickedTarget]=useState<ImplantDetail|null>(null);\n  const [cancelPickedChecks,setCancelPickedChecks]=useState<Record<string,boolean>>({});\n  const [cancelPickedReason,setCancelPickedReason]=useState("");\n  const [assetData,setAssetData]=useState<Record<string,string>>({});
+  const [signatureTarget,setSignatureTarget]=useState<ImplantDetail|null>(null);
+  const [pendingClinical,setPendingClinical]=useState<any>(null);
+  const [pendingDisposition,setPendingDisposition]=useState<any>(null);
+  const [cancelPickedTarget,setCancelPickedTarget]=useState<ImplantDetail|null>(null);
+  const [cancelPickedChecks,setCancelPickedChecks]=useState<Record<string,boolean>>({});
+  const [cancelPickedReason,setCancelPickedReason]=useState("");
+  const [assetData,setAssetData]=useState<Record<string,string>>({});
   const signatureCanvas=useRef<HTMLCanvasElement|null>(null);
   const load = useCallback(async () => {
     setBusy(true); setError("");
@@ -64,7 +71,9 @@ function ClinicImplants({ session, clinicId }: { session: DentflowAuthSession; c
         catch (e) { if (alive.current) setJournalProblem(message(e)); }
       }
       if (orderer) { try { const request=await window.dentflow.centralImplants.pendingOrder(clinicId); if(alive.current)setPendingOrder(request); } catch(e){if(alive.current)setJournalProblem(message(e));} }
-      if (withdrawer) { try { const request=await window.dentflow.centralImplants.pendingWithdrawal(clinicId); if(alive.current)setPendingWithdrawal(request); } catch(e){if(alive.current)setJournalProblem(message(e));} }\n      try { const request=await window.dentflow.centralImplants.pendingClinical(clinicId); if(alive.current)setPendingClinical(request); } catch(e){if(alive.current)setJournalProblem(message(e));}\n      try { const request=await window.dentflow.centralImplants.pendingDisposition(clinicId); if(alive.current)setPendingDisposition(request); } catch(e){if(alive.current)setJournalProblem(message(e));}
+      if (withdrawer) { try { const request=await window.dentflow.centralImplants.pendingWithdrawal(clinicId); if(alive.current)setPendingWithdrawal(request); } catch(e){if(alive.current)setJournalProblem(message(e));} }
+      try { const request=await window.dentflow.centralImplants.pendingClinical(clinicId); if(alive.current)setPendingClinical(request); } catch(e){if(alive.current)setJournalProblem(message(e));}
+      try { const request=await window.dentflow.centralImplants.pendingDisposition(clinicId); if(alive.current)setPendingDisposition(request); } catch(e){if(alive.current)setJournalProblem(message(e));}
     } catch (e) { if (alive.current) setError(message(e)); }
     finally { if (alive.current) setBusy(false); }
   }, [clinicId, writer]);
