@@ -1234,6 +1234,8 @@ type DentflowApi = {
     pendingOrder: (clinicId: number) => Promise<import("../../shared/centralImplantOrders").OrderIntent | null>;
     order: (clinicId: number, input: import("../../shared/centralImplantOrders").OrderIntent) => Promise<{ok:true;record:import("../../shared/centralImplantOrders").OrderResult}|{ok:false;pending:boolean;error:{status:number|null;code:string;message:string}}>;
     cancelOrder: (clinicId: number, input: import("../../shared/centralImplantOrders").CancelOrderIntent) => Promise<import("../../shared/centralImplantOrders").OrderResult>;
+    pendingWithdrawal: (clinicId: number) => Promise<import("../../shared/centralImplantWithdrawal").WithdrawalIntent | null>;
+    withdraw: (clinicId: number, input: import("../../shared/centralImplantWithdrawal").WithdrawalIntent) => Promise<{ok:true;record:import("../../shared/centralImplantWithdrawal").WithdrawalResult}|{ok:false;pending:boolean;error:{status:number|null;code:string;message:string}}>;
   };
 
   centralInventory: {
