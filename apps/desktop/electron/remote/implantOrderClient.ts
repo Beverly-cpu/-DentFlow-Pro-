@@ -12,7 +12,7 @@ export function createRemoteImplantOrderClient(api:PatientTransport,serverUrl:()
    let c:OrderContext|undefined;let request:OrderIntent|undefined;let saved=false;let sent=false;
    try{request=orderIntent(value);if(request.clinicId!==positive(clinicId))throw Error("叫貨院所不符");c=await context(clinicId);encryptedOrderJournal.save(c,request);saved=true;sent=true;
     const {caseId,...body}=request;const record=await api.post<OrderResult>(`/v1/implants/${caseId}/order`,body);encryptedOrderJournal.clear(c,request);return{ok:true,record};
-   }catch(error){if(sent&&saved&&c&&request&&error instanceof CentralApiError&&[400,403,404].includes(error.status)){try{encryptedOrderJournal.clear(c,request);saved=false}catch{}}
+   }catch(error){if(sent&&saved&&c&&request&&error instanceof CentralApiError&&[400,403,404].includes(error.status)){try{encryptedOrderJournal.clear(c,request);saved=false}catch { /* preserve the original pending journal on cleanup failure */ }}
     return{ok:false,pending:saved,error:{status:error instanceof CentralApiError?error.status:null,code:error instanceof CentralApiError?error.code:"request_failed",message:error instanceof Error?error.message:String(error)}};}
   },
   async cancel(clinicId:number,value:unknown){const request=cancelOrderIntent(value);if(request.clinicId!==positive(clinicId))throw Error("取消叫貨院所不符");const {caseId,...body}=request;return api.post<OrderResult>(`/v1/implants/${caseId}/cancel-order`,body);}
