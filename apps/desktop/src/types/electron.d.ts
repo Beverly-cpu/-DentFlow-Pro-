@@ -1231,6 +1231,9 @@ type DentflowApi = {
     create: (clinicId: number, input: import("../../shared/centralImplants").DraftCreate) => Promise<import("../../shared/centralImplants").DraftCreationResult>;
     update: (id: number, clinicId: number, version: number, input: Omit<import("../../shared/centralImplants").CentralDraft, "clinicId">) => Promise<import("../../shared/centralImplants").ImplantDetail>;
     cancel: (id: number, clinicId: number, version: number, reason: string) => Promise<import("../../shared/centralImplants").ImplantDetail>;
+    pendingOrder: (clinicId: number) => Promise<import("../../shared/centralImplantOrders").OrderIntent | null>;
+    order: (clinicId: number, input: import("../../shared/centralImplantOrders").OrderIntent) => Promise<{ok:true;record:import("../../shared/centralImplantOrders").OrderResult}|{ok:false;pending:boolean;error:{status:number|null;code:string;message:string}}>;
+    cancelOrder: (clinicId: number, input: import("../../shared/centralImplantOrders").CancelOrderIntent) => Promise<import("../../shared/centralImplantOrders").OrderResult>;
   };
 
   centralInventory: {
