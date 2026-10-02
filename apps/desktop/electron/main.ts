@@ -33,6 +33,8 @@ import { prepareImplantMigrationBatches } from "./remote/implantMigrationBatches
 import { getLegacyInventoryForMigration, getLegacyUsersForMigration } from "./database/resourceMigrationRepository";
 import { prepareResourceMigrationBatches } from "./remote/resourceMigrationBatches";
 import { createRemotePatientClient } from "./remote/patientClient";
+import { createRemoteImplantClient } from "./remote/implantClient";
+import { encryptedDraftJournal } from "./remote/encryptedDraftJournal";
 import { createRemoteInventoryClient } from "./remote/inventoryClient";
 import type { OpeningInput } from "../shared/centralInventory";
 import { localOperation } from "./remote/localOperation";
@@ -1089,6 +1091,20 @@ function redactInventoryCosts<T extends Array<Record<string, unknown>>>(items: T
   }) as T;
 }
 
+function registerCentralImplantHandlers() {
+  const implants = createRemoteImplantClient(centralApi, encryptedDraftJournal, () => getDeploymentConfig().serverUrl!);
+  const remote = (callback: Parameters<typeof ipcMain.handle>[1]) => (event: Electron.IpcMainInvokeEvent, ...args: unknown[]) => {
+    if (getDeploymentConfig().mode !== "remote") throw Error("請先連線中央伺服器再操作中央個案");
+    return callback(event, ...args);
+  };
+  ipcMain.handle("central-implants:list", remote((_e, clinicId: number, afterId?: number) => implants.list(clinicId, afterId)));
+  ipcMain.handle("central-implants:detail", remote((_e, id: number, clinicId: number) => implants.detail(id, clinicId)));
+  ipcMain.handle("central-implants:pending", remote((_e, clinicId: number) => implants.pending(clinicId)));
+  ipcMain.handle("central-implants:create", remote((_e, clinicId: number, input: unknown) => implants.create(clinicId, input)));
+  ipcMain.handle("central-implants:update", remote((_e, id: number, clinicId: number, version: number, input: unknown) => implants.update(id, clinicId, version, input)));
+  ipcMain.handle("central-implants:cancel", remote((_e, id: number, clinicId: number, version: number, reason: string) => implants.cancel(id, clinicId, version, reason)));
+}
+
 function registerImplantHandlers() {
   registerLocalHandler(
     "implants:list",
@@ -1927,6 +1943,7 @@ function registerIpcHandlers() {
   registerDoctorHandlers();
 
   registerImplantHandlers();
+  registerCentralImplantHandlers();
   registerInventoryHandlers();
   registerCentralInventoryHandlers();
 
