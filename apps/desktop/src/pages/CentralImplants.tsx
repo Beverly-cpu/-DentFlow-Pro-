@@ -55,8 +55,8 @@ function ClinicImplants({ session, clinicId }: { session: DentflowAuthSession; c
   const [returnQty,setReturnQty]=useState<Record<string,string>>({});
   const [returnReason,setReturnReason]=useState("");
   const [signatureTarget,setSignatureTarget]=useState<ImplantDetail|null>(null);
-  const [pendingClinical,setPendingClinical]=useState<any>(null);
-  const [pendingDisposition,setPendingDisposition]=useState<any>(null);
+  const [pendingClinical,setPendingClinical]=useState<ClinicalPending|null>(null);
+  const [pendingDisposition,setPendingDisposition]=useState<DispositionIntent|null>(null);
   const [cancelPickedTarget,setCancelPickedTarget]=useState<ImplantDetail|null>(null);
   const [cancelPickedChecks,setCancelPickedChecks]=useState<Record<string,boolean>>({});
   const [cancelPickedReason,setCancelPickedReason]=useState("");
