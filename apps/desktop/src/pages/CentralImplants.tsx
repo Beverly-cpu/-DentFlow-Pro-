@@ -5,7 +5,7 @@ import { centralDraft, draftCreate } from "../../shared/centralImplants";
 import type { CentralDraft, DraftCreate, DraftPlan, ImplantDetail, ImplantSummary } from "../../shared/centralImplants";
 import type { CentralStock } from "../../shared/centralInventory";
 import type { OrderIntent } from "../../shared/centralImplantOrders";
-import type { WithdrawalIntent } from "../../shared/centralImplantWithdrawal";
+import type { WithdrawalIntent } from "../../shared/centralImplantWithdrawal";\nimport type { DispositionIntent } from "../../shared/centralImplantDisposition";\nimport type { ClinicalPending } from "../../electron/remote/encryptedClinicalJournal";
 import "../styles/CentralImplants.css";
 type FormPlan = Omit<DraftPlan, "quantity"> & { quantity: string };
 type Form = { patientId: string; doctorId: string; implantDate: string; note: string; teeth: { toothPosition: string; items: FormPlan[] }[] };
@@ -76,7 +76,7 @@ function ClinicImplants({ session, clinicId }: { session: DentflowAuthSession; c
       try { const request=await window.dentflow.centralImplants.pendingDisposition(clinicId); if(alive.current)setPendingDisposition(request); } catch(e){if(alive.current)setJournalProblem(message(e));}
     } catch (e) { if (alive.current) setError(message(e)); }
     finally { if (alive.current) setBusy(false); }
-  }, [clinicId, writer]);
+  }, [clinicId, writer, orderer, withdrawer]);
   useEffect(() => { alive.current = true; let active = true; queueMicrotask(() => { if (active) void load(); }); return () => { active = false; alive.current = false; }; }, [load]);
   async function more() {
     if (next === null || busy) return; setBusy(true); setError("");
