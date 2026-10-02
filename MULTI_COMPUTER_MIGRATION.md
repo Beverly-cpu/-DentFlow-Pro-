@@ -356,3 +356,10 @@ Two-computer physical acceptance remains required before production rollout.
 ## Desktop post-op usage and returns
 
 After central withdrawal, the desktop can mark surgery complete, classify every picked reservation by actual used quantity, and confirm every outstanding return. Implant and kit returns are submitted as sealed; instrument returns are submitted as reusable. The server remains authoritative for expected return calculations, historical picked cost, stock restoration, version checks, idempotency, and immutable usage/return events.
+
+
+## Desktop clinical photos, doctor signature and closure
+
+The central desktop case screen now uploads required REF/LOT photos for actually used implant/kit reservations and instrument photos for instrument plan items. Uploads go through the private clinical asset endpoint; the server verifies stored bytes and content hash before marking an asset uploaded. After records and required photos are complete, only the assigned doctor can sign. The PNG signature is bound to the current case version. Formal closure reloads and submits the signed version and the server rechecks records, assets and signature before writing the immutable closure snapshot.
+
+Private object storage configuration and real two-computer/signature-pad acceptance remain production deployment gates.
