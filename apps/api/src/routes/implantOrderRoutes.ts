@@ -9,6 +9,12 @@ import type { Allocation } from "../implantOrder.js";
 type Stock = Record<string, unknown> & { id: number; onHand: number; reserved: number; expired: boolean };
 type Plan = Record<string, unknown> & { id: number; quantity: number; category: string; model: string; specification: string };
 export async function registerImplantOrderRoutes(app: FastifyInstance, pool: DatabasePool) {
+  app.get<{ Querystring: { clinicId?: string } }>("/v1/implants/order-access", { preHandler: requireSession }, async (request, reply) => {
+    const principal=request.principal!; const clinicId=draftId(Number(request.query.clinicId),"院所");
+    const access=await pool.query("SELECT 1 FROM user_clinics uc JOIN clinics c ON c.id=uc.clinic_id WHERE uc.user_id=$1 AND uc.clinic_id=$2 AND c.active=true",[principal.userId,clinicId]);
+    if(!access.rows.length)return reply.code(403).send({error:"forbidden",message:"無權存取此院所"});
+    return {canOrder:["Assistant","Doctor"].includes(principal.role),actorUserId:principal.userId};
+  });
   for (const cancel of [false, true]) {
     app.post<{ Params: { id: string }; Body: Record<string, unknown> }>(`/v1/implants/:id/${cancel ? "cancel-order" : "order"}`, { preHandler: requireSession, bodyLimit: 64 * 1024 }, async (request, reply) => {
       const principal = request.principal!;
