@@ -560,7 +560,9 @@ function registerAuthHandlers() {
           "確定要啟動本機管理者密碼復原嗎？",
 
         detail:
-          "此功能只應在管理者忘記密碼、無法登入捷晞美學牙醫系統時使用。\\n\\n復原授權只有 5 分鐘有效，而且只能使用一次。",
+          "此功能只應在管理者忘記密碼、無法登入捷晞美學牙醫系統時使用。\
+\
+復原授權只有 5 分鐘有效，而且只能使用一次。",
       };
 
       const result =
@@ -1096,7 +1098,11 @@ function redactInventoryCosts<T extends Array<Record<string, unknown>>>(items: T
 }
 
 function registerCentralImplantHandlers() {
-  const implants = createRemoteImplantClient(centralApi, encryptedDraftJournal, () => getDeploymentConfig().serverUrl!);\n  const orders = createRemoteImplantOrderClient(centralApi, () => getDeploymentConfig().serverUrl!);\n  const withdrawals = createRemoteWithdrawalClient(centralApi, () => getDeploymentConfig().serverUrl!);\n  const dispositions = createRemoteDispositionClient(centralApi, () => getDeploymentConfig().serverUrl!);\n  const clinical = createRemoteClinicalClient(centralApi, () => getDeploymentConfig().serverUrl!);
+  const implants = createRemoteImplantClient(centralApi, encryptedDraftJournal, () => getDeploymentConfig().serverUrl!);
+  const orders = createRemoteImplantOrderClient(centralApi, () => getDeploymentConfig().serverUrl!);
+  const withdrawals = createRemoteWithdrawalClient(centralApi, () => getDeploymentConfig().serverUrl!);
+  const dispositions = createRemoteDispositionClient(centralApi, () => getDeploymentConfig().serverUrl!);
+  const clinical = createRemoteClinicalClient(centralApi, () => getDeploymentConfig().serverUrl!);
   const remote = (callback: Parameters<typeof ipcMain.handle>[1]) => (event: Electron.IpcMainInvokeEvent, ...args: unknown[]) => {
     if (getDeploymentConfig().mode !== "remote") throw Error("請先連線中央伺服器再操作中央個案");
     return callback(event, ...args);
