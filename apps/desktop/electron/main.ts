@@ -37,6 +37,7 @@ import { createRemoteImplantClient } from "./remote/implantClient";
 import { createRemoteImplantOrderClient } from "./remote/implantOrderClient";
 import { createRemoteWithdrawalClient } from "./remote/implantWithdrawalClient";
 import { createRemoteDispositionClient } from "./remote/implantDispositionClient";
+import { createRemoteClinicalClient } from "./remote/implantClinicalClient";
 import { encryptedDraftJournal } from "./remote/encryptedDraftJournal";
 import { createRemoteInventoryClient } from "./remote/inventoryClient";
 import type { OpeningInput } from "../shared/centralInventory";
@@ -1112,6 +1113,8 @@ function registerCentralImplantHandlers() {
   ipcMain.handle("central-implants:pending-withdrawal", remote((_e, clinicId: number) => withdrawals.pending(clinicId)));
   ipcMain.handle("central-implants:withdraw", remote((_e, clinicId: number, input: unknown) => withdrawals.withdraw(clinicId, input)));
   ipcMain.handle("central-implants:disposition", remote((_e, input: any) => dispositions.submit(input)));
+  ipcMain.handle("central-implants:clinical-asset", remote((_e, input: any) => clinical.asset(input)));
+  ipcMain.handle("central-implants:close-case", remote((_e, input: any) => clinical.close(input)));
 }
 
 function registerImplantHandlers() {
