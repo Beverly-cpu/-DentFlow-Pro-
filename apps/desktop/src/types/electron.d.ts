@@ -1236,7 +1236,8 @@ type DentflowApi = {
     cancelOrder: (clinicId: number, input: import("../../shared/centralImplantOrders").CancelOrderIntent) => Promise<import("../../shared/centralImplantOrders").OrderResult>;
     pendingWithdrawal: (clinicId: number) => Promise<import("../../shared/centralImplantWithdrawal").WithdrawalIntent | null>;
     withdraw: (clinicId: number, input: import("../../shared/centralImplantWithdrawal").WithdrawalIntent) => Promise<{ok:true;record:import("../../shared/centralImplantWithdrawal").WithdrawalResult}|{ok:false;pending:boolean;error:{status:number|null;code:string;message:string}}>;
-    pendingDisposition: (clinicId: number) => Promise<import("../../shared/centralImplantDisposition").DispositionIntent | null>;\n    disposition: (input: import("../../shared/centralImplantDisposition").DispositionIntent) => Promise<{ok:true;record:import("../../shared/centralImplantDisposition").DispositionResult}|{ok:false;pending:boolean;error:{status:number|null;code:string;message:string}}>;
+    pendingDisposition: (clinicId: number) => Promise<import("../../shared/centralImplantDisposition").DispositionIntent | null>;
+    disposition: (input: import("../../shared/centralImplantDisposition").DispositionIntent) => Promise<{ok:true;record:import("../../shared/centralImplantDisposition").DispositionResult}|{ok:false;pending:boolean;error:{status:number|null;code:string;message:string}}>;
     pendingClinical: (clinicId: number) => Promise<import("../../electron/remote/encryptedClinicalJournal").ClinicalPending | null>;
     retryClinical: (input: import("../../electron/remote/encryptedClinicalJournal").ClinicalPending) => Promise<{ok:true;record:unknown}|{ok:false;pending:boolean;error:{status:number|null;code:string;message:string}}>;
     clinicalAssetData: (id: string) => Promise<string>;
