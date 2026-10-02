@@ -1,0 +1,5 @@
+import { describe,expect,it } from "vitest";import { withdrawalIntent } from "../shared/centralImplantWithdrawal";
+const requestId="123e4567-e89b-42d3-a456-426614174000",reservationId="223e4567-e89b-42d3-a456-426614174000";
+describe("central withdrawal intent",()=>{it("accepts exact reservation confirmation",()=>{expect(withdrawalIntent({caseId:1,clinicId:2,expectedVersion:3,requestId,confirmations:[{reservationId,quantity:2}]}).confirmations[0].quantity).toBe(2)});
+it("rejects duplicate reservations",()=>{expect(()=>withdrawalIntent({caseId:1,clinicId:2,expectedVersion:3,requestId,confirmations:[{reservationId,quantity:2},{reservationId,quantity:2}]})).toThrow()});
+it("rejects client supplied cost or batch",()=>{expect(()=>withdrawalIntent({caseId:1,clinicId:2,expectedVersion:3,requestId,confirmations:[{reservationId,quantity:2,unitCost:1}]})).toThrow()});});
