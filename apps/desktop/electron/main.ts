@@ -1113,7 +1113,7 @@ function registerCentralImplantHandlers() {
   ipcMain.handle("central-implants:pending-withdrawal", remote((_e, clinicId: number) => withdrawals.pending(clinicId)));
   ipcMain.handle("central-implants:withdraw", remote((_e, clinicId: number, input: unknown) => withdrawals.withdraw(clinicId, input)));
   ipcMain.handle("central-implants:disposition", remote((_e, input: any) => dispositions.submit(input)));
-  ipcMain.handle("central-implants:clinical-asset", remote((_e, input: any) => clinical.asset(input)));
+  ipcMain.handle("central-implants:pending-clinical", remote((_e, clinicId: number) => clinical.pending(clinicId)));\n  ipcMain.handle("central-implants:retry-clinical", remote((_e, input: any) => clinical.retry(input)));\n  ipcMain.handle("central-implants:clinical-asset-data", remote((_e, id: string) => clinical.assetDataUrl(id)));\n  ipcMain.handle("central-implants:clinical-asset", remote((_e, input: any) => clinical.asset(input)));
   ipcMain.handle("central-implants:close-case", remote((_e, input: any) => clinical.close(input)));
 }
 
