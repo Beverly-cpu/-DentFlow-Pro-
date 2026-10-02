@@ -1237,6 +1237,8 @@ type DentflowApi = {
     pendingWithdrawal: (clinicId: number) => Promise<import("../../shared/centralImplantWithdrawal").WithdrawalIntent | null>;
     withdraw: (clinicId: number, input: import("../../shared/centralImplantWithdrawal").WithdrawalIntent) => Promise<{ok:true;record:import("../../shared/centralImplantWithdrawal").WithdrawalResult}|{ok:false;pending:boolean;error:{status:number|null;code:string;message:string}}>;
     disposition: (input: import("../../shared/centralImplantDisposition").DispositionIntent) => Promise<import("../../shared/centralImplantDisposition").DispositionResult>;
+    clinicalAsset: (input: import("../../shared/centralImplantClinical").ClinicalAssetIntent) => Promise<{id:number;assetId:string;kind:string;uploadState:string;version:number;unchanged:boolean}>;
+    closeCase: (input: import("../../shared/centralImplantClinical").CloseIntent) => Promise<{id:number;closureId:string;status:string;version:number;unchanged:boolean}>;
   };
 
   centralInventory: {
