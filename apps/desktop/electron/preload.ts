@@ -16,6 +16,9 @@ const dentflowApi = {
     create: (clinicId: number, input: unknown) => ipcRenderer.invoke("central-implants:create", clinicId, input),
     update: (id: number, clinicId: number, version: number, input: unknown) => ipcRenderer.invoke("central-implants:update", id, clinicId, version, input),
     cancel: (id: number, clinicId: number, version: number, reason: string) => ipcRenderer.invoke("central-implants:cancel", id, clinicId, version, reason),
+    pendingOrder: (clinicId: number) => ipcRenderer.invoke("central-implants:pending-order", clinicId),
+    order: (clinicId: number, input: unknown) => ipcRenderer.invoke("central-implants:order", clinicId, input),
+    cancelOrder: (clinicId: number, input: unknown) => ipcRenderer.invoke("central-implants:cancel-order", clinicId, input),
   },
   centralInventory: {
     list: (clinicId: number, afterId?: number) => ipcRenderer.invoke("central-inventory:list", clinicId, afterId),
