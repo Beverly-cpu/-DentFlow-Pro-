@@ -344,3 +344,10 @@ The remote desktop implant screen now submits stock reservations to the central 
 Before withdrawal, Assistant or Doctor can cancel an order. The central API releases only reservations still in the reserved state and records the cancellation transaction and audit event. Once withdrawal has begun, this pre-pick cancellation path is no longer offered.
 
 Physical acceptance on two real computers and validation of the OS safeStorage backend remain deployment gates.
+
+
+## Desktop central withdrawal
+
+The remote implant screen now requires item-by-item physical confirmation of every reserved REF/LOT before withdrawal. The renderer sends only reservation id and quantity; inventory batch identity and historical unit cost are resolved and locked by the central server transaction. The exact withdrawal intent is encrypted separately with Electron safeStorage before transmission. An interrupted response can be retried with the same request id so the server idempotency record prevents a second stock decrement.
+
+Two-computer physical acceptance remains required before production rollout.
