@@ -351,3 +351,8 @@ Physical acceptance on two real computers and validation of the OS safeStorage b
 The remote implant screen now requires item-by-item physical confirmation of every reserved REF/LOT before withdrawal. The renderer sends only reservation id and quantity; inventory batch identity and historical unit cost are resolved and locked by the central server transaction. The exact withdrawal intent is encrypted separately with Electron safeStorage before transmission. An interrupted response can be retried with the same request id so the server idempotency record prevents a second stock decrement.
 
 Two-computer physical acceptance remains required before production rollout.
+
+
+## Desktop post-op usage and returns
+
+After central withdrawal, the desktop can mark surgery complete, classify every picked reservation by actual used quantity, and confirm every outstanding return. Implant and kit returns are submitted as sealed; instrument returns are submitted as reusable. The server remains authoritative for expected return calculations, historical picked cost, stock restoration, version checks, idempotency, and immutable usage/return events.
