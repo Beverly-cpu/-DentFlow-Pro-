@@ -34,6 +34,7 @@ import { getLegacyInventoryForMigration, getLegacyUsersForMigration } from "./da
 import { prepareResourceMigrationBatches } from "./remote/resourceMigrationBatches";
 import { createRemotePatientClient } from "./remote/patientClient";
 import { createRemoteImplantClient } from "./remote/implantClient";
+import { createRemoteImplantOrderClient } from "./remote/implantOrderClient";
 import { encryptedDraftJournal } from "./remote/encryptedDraftJournal";
 import { createRemoteInventoryClient } from "./remote/inventoryClient";
 import type { OpeningInput } from "../shared/centralInventory";
@@ -1103,6 +1104,9 @@ function registerCentralImplantHandlers() {
   ipcMain.handle("central-implants:create", remote((_e, clinicId: number, input: unknown) => implants.create(clinicId, input)));
   ipcMain.handle("central-implants:update", remote((_e, id: number, clinicId: number, version: number, input: unknown) => implants.update(id, clinicId, version, input)));
   ipcMain.handle("central-implants:cancel", remote((_e, id: number, clinicId: number, version: number, reason: string) => implants.cancel(id, clinicId, version, reason)));
+  ipcMain.handle("central-implants:pending-order", remote((_e, clinicId: number) => orders.pending(clinicId)));
+  ipcMain.handle("central-implants:order", remote((_e, clinicId: number, input: unknown) => orders.order(clinicId, input)));
+  ipcMain.handle("central-implants:cancel-order", remote((_e, clinicId: number, input: unknown) => orders.cancel(clinicId, input)));
 }
 
 function registerImplantHandlers() {
