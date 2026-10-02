@@ -21,7 +21,7 @@ const dentflowApi = {
     cancelOrder: (clinicId: number, input: unknown) => ipcRenderer.invoke("central-implants:cancel-order", clinicId, input),
     pendingWithdrawal: (clinicId: number) => ipcRenderer.invoke("central-implants:pending-withdrawal", clinicId),
     withdraw: (clinicId: number, input: unknown) => ipcRenderer.invoke("central-implants:withdraw", clinicId, input),
-    disposition: (input: unknown) => ipcRenderer.invoke("central-implants:disposition", input),
+    pendingDisposition: (clinicId: number) => ipcRenderer.invoke("central-implants:pending-disposition", clinicId),\n    disposition: (input: unknown) => ipcRenderer.invoke("central-implants:disposition", input),
     pendingClinical: (clinicId: number) => ipcRenderer.invoke("central-implants:pending-clinical", clinicId),\n    retryClinical: (input: unknown) => ipcRenderer.invoke("central-implants:retry-clinical", input),\n    clinicalAssetData: (id: string) => ipcRenderer.invoke("central-implants:clinical-asset-data", id),\n    clinicalAsset: (input: unknown) => ipcRenderer.invoke("central-implants:clinical-asset", input),
     closeCase: (input: unknown) => ipcRenderer.invoke("central-implants:close-case", input),
   },
