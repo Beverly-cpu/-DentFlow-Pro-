@@ -1,0 +1,2 @@
+import type { PatientTransport } from "./patientClient";import { dispositionIntent } from "../../shared/centralImplantDisposition";import type { DispositionIntent,DispositionResult } from "../../shared/centralImplantDisposition";
+export function createRemoteDispositionClient(api:PatientTransport){return{async submit(value:DispositionIntent){const v=dispositionIntent(value);const path=v.operation==="surgery_complete"?"surgery-complete":v.operation;const{caseId,operation,...body}=v;void operation;return api.post<DispositionResult>(`/v1/implants/${caseId}/${path}`,body);}}}

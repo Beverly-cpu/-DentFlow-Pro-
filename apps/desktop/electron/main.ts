@@ -35,6 +35,8 @@ import { prepareResourceMigrationBatches } from "./remote/resourceMigrationBatch
 import { createRemotePatientClient } from "./remote/patientClient";
 import { createRemoteImplantClient } from "./remote/implantClient";
 import { createRemoteImplantOrderClient } from "./remote/implantOrderClient";
+import { createRemoteWithdrawalClient } from "./remote/implantWithdrawalClient";
+import { createRemoteDispositionClient } from "./remote/implantDispositionClient";
 import { encryptedDraftJournal } from "./remote/encryptedDraftJournal";
 import { createRemoteInventoryClient } from "./remote/inventoryClient";
 import type { OpeningInput } from "../shared/centralInventory";
@@ -1107,6 +1109,9 @@ function registerCentralImplantHandlers() {
   ipcMain.handle("central-implants:pending-order", remote((_e, clinicId: number) => orders.pending(clinicId)));
   ipcMain.handle("central-implants:order", remote((_e, clinicId: number, input: unknown) => orders.order(clinicId, input)));
   ipcMain.handle("central-implants:cancel-order", remote((_e, clinicId: number, input: unknown) => orders.cancel(clinicId, input)));
+  ipcMain.handle("central-implants:pending-withdrawal", remote((_e, clinicId: number) => withdrawals.pending(clinicId)));
+  ipcMain.handle("central-implants:withdraw", remote((_e, clinicId: number, input: unknown) => withdrawals.withdraw(clinicId, input)));
+  ipcMain.handle("central-implants:disposition", remote((_e, input: any) => dispositions.submit(input)));
 }
 
 function registerImplantHandlers() {
