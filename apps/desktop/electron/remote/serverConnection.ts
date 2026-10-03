@@ -2,7 +2,7 @@ const SERVER_URL_ENV =
   "DENTFLOW_SERVER_URL";
 
 const HEALTH_TIMEOUT_MS =
-  5_000;
+  5_000;\n\nconst REQUIRE_REMOTE_ENV =\n  "DENTFLOW_REQUIRE_REMOTE";
 
 export type DentflowDeploymentConfig = {
   mode: "local" | "remote";
@@ -45,10 +45,7 @@ function normalizeServerUrl(
 
 export function getDeploymentConfig():
   DentflowDeploymentConfig {
-  const serverUrl =
-    normalizeServerUrl(
-      process.env[SERVER_URL_ENV],
-    );
+  const serverUrl =\n    normalizeServerUrl(\n      process.env[SERVER_URL_ENV],\n    );\n\n  if (process.env[REQUIRE_REMOTE_ENV] === "1" && !serverUrl) {\n    throw new Error("正式版要求中央伺服器，DENTFLOW_SERVER_URL 不可為空");\n  }
 
   return {
     mode: serverUrl ? "remote" : "local",
