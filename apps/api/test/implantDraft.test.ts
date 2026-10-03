@@ -26,3 +26,10 @@ test("drafts reject impossible dates, invalid requests and bounded Unicode notes
     { ...implantDraftFixture(), note: "牙".repeat(6000) }, { ...implantDraftFixture(), teeth: [] }]) assert.throws(() => validateImplantDraft(body));
   for (const key of [null, "abc", "00000000-0000-0000-0000-000000000001"]) assert.throws(() => draftRequestId(key));
 });
+
+test("drafts explicitly allow healing medical consumables and reject unknown categories", () => {
+  const input = implantDraftFixture(); const tooth = input.teeth[0]!; const item = tooth.items[0]!;
+  const healing = validateImplantDraft({ ...input, teeth: [{ ...tooth, items: [{ ...item, category: "癒合醫療耗材", name: "Healing abutment" }] }] });
+  assert.equal(healing.teeth[0]!.items[0]!.category, "癒合醫療耗材");
+  assert.throws(() => validateImplantDraft({ ...input, teeth: [{ ...tooth, items: [{ ...item, category: "其他" }] }] }));
+});
