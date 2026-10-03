@@ -12,9 +12,9 @@ async function registered(mode: "local" | "remote") {
   const source = await readFile(new URL("../../desktop/electron/main.ts", import.meta.url), "utf8");
   const ast = ts.createSourceFile("main.ts", source, ts.ScriptTarget.ES2023, true);
   const names = new Set(["registerLocalHandler", "registerRemotePatientHandlers", "registerRemoteDoctorHandlers", "registerPatientHandlers", "registerDoctorHandlers", "registerImplantHandlers", "registerCentralImplantHandlers", "registerInventoryHandlers", "registerCentralInventoryHandlers", "registerInventoryTransactionHandlers", "registerConsumableHandlers", "registerIpcHandlers"]);
-  const functions = ast.statements.filter(n => ts.isFunctionDeclaration(n) && names.has(n.name?.text ?? "")).map(n => n.getText(ast)).join("\\n");
+  const functions = ast.statements.filter(n => ts.isFunctionDeclaration(n) && names.has(n.name?.text ?? "")).map(n => n.getText(ast)).join("\n");
   const handlers = new Map<string, (...args: unknown[]) => unknown>(); const calls: string[] = []; let localReads = 0;
-  const code = ts.transpileModule(functions + "\\nregisterIpcHandlers();", { compilerOptions: { target: ts.ScriptTarget.ES2023, module: ts.ModuleKind.CommonJS } }).outputText;
+  const code = ts.transpileModule(functions + "\nregisterIpcHandlers();", { compilerOptions: { target: ts.ScriptTarget.ES2023, module: ts.ModuleKind.CommonJS } }).outputText;
   const context = { ipcMain: { handle(channel: string, callback: (...args: unknown[]) => unknown) { assert.equal(handlers.has(channel), false, channel); handlers.set(channel, callback); } },
     getDeploymentConfig: () => ({ mode, serverUrl: "https://central" }), createRemotePatientClient, createRemoteInventoryClient, createRemoteImplantClient, createRemoteImplantOrderClient: () => ({}), createRemoteWithdrawalClient: () => ({}), createRemoteDispositionClient: () => ({}), createRemoteClinicalClient: () => ({}), encryptedDraftJournal: { read: () => null, save() {}, clear() {} }, localOperation, centralApi: { async get(path: string) { calls.push(path); return []; }, async put(path: string) { calls.push(path); return {}; }, async post(path: string) { calls.push(path); return {}; }, async delete(path: string) { calls.push(path); return true; } },
     registerAuthHandlers() {}, registerClinicHandlers() {}, getPatients() { localReads++; return ["local"]; } };
