@@ -28,6 +28,8 @@ jobs:
           cache: pnpm
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
+      - name: Shell syntax
+        run: for script in scripts/*.sh; do sh -n "$script"; done
       - name: Lint
         run: pnpm lint
       - name: Test

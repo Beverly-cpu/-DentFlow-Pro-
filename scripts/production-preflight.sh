@@ -11,8 +11,10 @@ node -e 'const m=Number(process.versions.node.split(".")[0]); if(m<22) process.e
 echo "== Database connection =="
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT current_database(), current_user;"
 echo "== Applied migrations =="
+expected="$(find apps/api/src/migrations -maxdepth 1 -type f -name '*.sql' -print | sed 's#^.*/##' | sort | tail -n 1)"
+[ -n "$expected" ] || { echo "No API migrations found" >&2; exit 1; }
 last="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -tAc "SELECT name FROM schema_migrations ORDER BY name DESC LIMIT 1")"
-[ "$last" = "0015_implant_clinical_assets_closure.sql" ] || { echo "Expected migration 0015, got: $last" >&2; exit 1; }
+[ "$last" = "$expected" ] || { echo "Expected latest migration $expected, got: $last" >&2; exit 1; }
 echo "== AWS identity =="
 aws sts get-caller-identity
 echo "== S3 owner/access =="
@@ -22,4 +24,4 @@ block="$(aws s3api get-public-access-block --bucket "$ASSET_BUCKET" --expected-b
 [ "$block" = "True	True	True	True" ] || { echo "All four S3 Block Public Access controls must be true: $block" >&2; exit 1; }
 public="$(aws s3api get-bucket-policy-status --bucket "$ASSET_BUCKET" --query 'PolicyStatus.IsPublic' --output text 2>/dev/null || printf 'False')"
 [ "$public" = "False" ] || { echo "S3 bucket policy is public" >&2; exit 1; }
-echo "Preflight passed: DB migration 0015 present and S3 privacy controls verified."
+echo "Preflight passed: latest repository DB migration is applied and S3 privacy controls verified."
