@@ -6,10 +6,7 @@ import ts from "typescript";
 import { createRemotePatientClient } from "../../desktop/electron/remote/patientClient.ts";
 import { createRemoteInventoryClient } from "../../desktop/electron/remote/inventoryClient.ts";
 import { createRemoteImplantClient } from "../../desktop/electron/remote/implantClient.ts";
-import { createRemoteImplantOrderClient } from "../../desktop/electron/remote/implantOrderClient.ts";
-import { createRemoteWithdrawalClient } from "../../desktop/electron/remote/implantWithdrawalClient.ts";
-import { createRemoteDispositionClient } from "../../desktop/electron/remote/implantDispositionClient.ts";
-import { createRemoteClinicalClient } from "../../desktop/electron/remote/implantClinicalClient.ts";
+
 import { localOperation } from "../../desktop/electron/remote/localOperation.ts";
 async function registered(mode: "local" | "remote") {
   const source = await readFile(new URL("../../desktop/electron/main.ts", import.meta.url), "utf8");
@@ -19,7 +16,7 @@ async function registered(mode: "local" | "remote") {
   const handlers = new Map<string, (...args: unknown[]) => unknown>(); const calls: string[] = []; let localReads = 0;
   const code = ts.transpileModule(functions + "\\nregisterIpcHandlers();", { compilerOptions: { target: ts.ScriptTarget.ES2023, module: ts.ModuleKind.CommonJS } }).outputText;
   const context = { ipcMain: { handle(channel: string, callback: (...args: unknown[]) => unknown) { assert.equal(handlers.has(channel), false, channel); handlers.set(channel, callback); } },
-    getDeploymentConfig: () => ({ mode, serverUrl: "https://central" }), createRemotePatientClient, createRemoteInventoryClient, createRemoteImplantClient, createRemoteImplantOrderClient, createRemoteWithdrawalClient, createRemoteDispositionClient, createRemoteClinicalClient, encryptedDraftJournal: { read: () => null, save() {}, clear() {} }, localOperation, centralApi: { async get(path: string) { calls.push(path); return []; }, async put(path: string) { calls.push(path); return {}; }, async post(path: string) { calls.push(path); return {}; }, async delete(path: string) { calls.push(path); return true; } },
+    getDeploymentConfig: () => ({ mode, serverUrl: "https://central" }), createRemotePatientClient, createRemoteInventoryClient, createRemoteImplantClient, createRemoteImplantOrderClient: () => ({}), createRemoteWithdrawalClient: () => ({}), createRemoteDispositionClient: () => ({}), createRemoteClinicalClient: () => ({}), encryptedDraftJournal: { read: () => null, save() {}, clear() {} }, localOperation, centralApi: { async get(path: string) { calls.push(path); return []; }, async put(path: string) { calls.push(path); return {}; }, async post(path: string) { calls.push(path); return {}; }, async delete(path: string) { calls.push(path); return true; } },
     registerAuthHandlers() {}, registerClinicHandlers() {}, getPatients() { localReads++; return ["local"]; } };
   vm.runInNewContext(code, context); return { handlers, calls, localReads: () => localReads };
 }
