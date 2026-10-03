@@ -19,7 +19,7 @@ const select = `SELECT i.id::int,i.clinic_id::int AS "clinicId",i.patient_id::in
   FROM implant_cases i JOIN patients p ON p.id=i.patient_id AND p.clinic_id=i.clinic_id
   LEFT JOIN users u ON u.id=i.doctor_user_id`;
 
-async function detail(client: Queryable, id: number, clinicId: number, role?: string) {
+async function detail(client: Queryable, id: number, clinicId: number, role: string) {
   const result = await client.query(`${select} WHERE i.id=$1 AND i.clinic_id=$2 AND i.migration_state IN ('central_draft','central_workflow')`, [id, clinicId]);
   if (!result.rows[0]) throw new DraftError(404, "not_found", "找不到中央植體草稿");
   const teeth = await client.query<{ id: number; toothPosition: string }>(
@@ -36,7 +36,7 @@ async function detail(client: Queryable, id: number, clinicId: number, role?: st
     b.ref_number AS "refNumber",b.lot_number AS "lotNumber",r.created_at AS "createdAt",r.released_at AS "releasedAt"
     FROM implant_stock_reservations r JOIN inventory_batches b ON b.id=r.inventory_batch_id
     JOIN implant_draft_plan_items p ON p.id=r.plan_item_id
-    WHERE r.implant_case_id=$1 ORDER BY r.created_at,r.id`, [id, clinicId, role ?? "Admin"]);
+    WHERE r.implant_case_id=$1 ORDER BY r.created_at,r.id`, [id, clinicId, role]);
   const assets = await client.query(`SELECT id,kind,plan_item_id::int AS "planItemId",reservation_id AS "reservationId",
     content_sha256 AS "contentSha256",content_type AS "contentType",byte_size AS "byteSize",actor_user_id::int AS "actorUserId",uploaded_at AS "uploadedAt"
     FROM implant_clinical_assets WHERE implant_case_id=$1 AND upload_state='uploaded' ORDER BY id`, [id]);
@@ -128,7 +128,7 @@ export async function registerImplantDraftRoutes(app: FastifyInstance, pool: Dat
       if (existing.rows[0]) {
         const row = existing.rows[0];
         if (Number(row.clinicId) !== input.clinicId || row.hash !== hash) throw new DraftError(409, "request_conflict", "同一新增請求不可改為其他內容");
-        return { ...(await detail(client, Number(row.id), input.clinicId)), unchanged: true };
+        return { ...(await detail(client, Number(row.id), input.clinicId, request.principal!.role)), unchanged: true };
       }
       await references(client, input);
       const inserted = await client.query<{ id: string }>(
@@ -138,7 +138,7 @@ export async function registerImplantDraftRoutes(app: FastifyInstance, pool: Dat
       );
       const caseId = Number(inserted.rows[0]!.id); await replacePlans(client, caseId, input);
       await audit(client, request, "implant_draft_created", "implant_case", caseId, { clinicId: input.clinicId, patientId: input.patientId, version: 1 });
-      return { ...(await detail(client, caseId, input.clinicId)), unchanged: false };
+      return { ...(await detail(client, caseId, input.clinicId, request.principal!.role)), unchanged: false };
     });
   });
   app.put<{ Params: { id: string }; Body: Body }>("/v1/implants/:id", { preHandler: requireSession, bodyLimit: 64 * 1024 }, async (request, reply) => {
@@ -151,7 +151,7 @@ export async function registerImplantDraftRoutes(app: FastifyInstance, pool: Dat
         [caseId, input.clinicId, input.patientId, input.doctorUserId, input.implantDate, input.note],
       );
       await replacePlans(client, caseId, input);
-      const result = await detail(client, caseId, input.clinicId);
+      const result = await detail(client, caseId, input.clinicId, request.principal!.role);
       await audit(client, request, "implant_draft_updated", "implant_case", caseId, { clinicId: input.clinicId, previousVersion: version, version: version + 1 });
       return result;
     });
@@ -164,7 +164,7 @@ export async function registerImplantDraftRoutes(app: FastifyInstance, pool: Dat
       await editable(client, caseId, clinicId, version);
       await client.query("UPDATE implant_cases SET status='已取消',cancellation_reason=$2 WHERE id=$1", [caseId, reason]);
       await audit(client, request, "implant_draft_cancelled", "implant_case", caseId, { clinicId, previousVersion: version, version: version + 1 });
-      return detail(client, caseId, clinicId);
+      return detail(client, caseId, clinicId, request.principal!.role);
     });
   });
   app.get<{ Querystring: { clinicId?: string; afterId?: string; patientId?: string } }>("/v1/implants", { preHandler: requireSession }, async (request, reply) => {
@@ -190,7 +190,7 @@ export async function registerImplantDraftRoutes(app: FastifyInstance, pool: Dat
          AND ($3<>'Doctor' OR doctor_user_id=$4)`, [caseId, clinicId, request.principal!.role, request.principal!.userId],
       );
       if (!visible.rows.length) throw new DraftError(404, "not_found", "找不到可存取的中央植體草稿");
-      const result = await detail(client, caseId, clinicId);
+      const result = await detail(client, caseId, clinicId, request.principal!.role);
       await audit(client, request, "implant_draft_read", "implant_case", caseId, { clinicId }); return result;
     });
   });
