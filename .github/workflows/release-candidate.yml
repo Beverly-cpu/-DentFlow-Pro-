@@ -14,7 +14,7 @@ permissions:
 jobs:
   windows-installer:
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build-rc]')
-    runs-on: windows-latest
+    runs-on: windows-2022
     timeout-minutes: 30
     env:
       DENTFLOW_REQUIRE_REMOTE: "1"
