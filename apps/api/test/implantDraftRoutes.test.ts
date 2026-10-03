@@ -80,3 +80,13 @@ test("reads keep authorization, case and child queries in one consistent snapsho
   const list = await run({ operation: "list", role: "Doctor" }); assert.equal(list.status, 200);
   const query = list.statements.find((s) => s.sql.includes("LIMIT 100"))!; assert.deepEqual(query.params.slice(-2), ["Doctor", 1]);
 });
+
+test("picked historical cost is filtered by role and plan category in the API query", async () => {
+  const doctor = await run({ operation: "read", role: "Doctor" });
+  const doctorReservation = doctor.statements.find((statement) => statement.sql.includes("FROM implant_stock_reservations"))!;
+  assert.match(doctorReservation.sql, /Doctor.*category<>.*器械/s);
+  assert.equal(doctorReservation.params[2], "Doctor");
+  const assistant = await run({ operation: "read", role: "Assistant" });
+  const assistantReservation = assistant.statements.find((statement) => statement.sql.includes("FROM implant_stock_reservations"))!;
+  assert.equal(assistantReservation.params[2], "Assistant");
+});
