@@ -32,7 +32,7 @@ async function detail(client: Queryable, id: number, clinicId: number, role: str
   const reservations = await client.query(`SELECT r.id,r.plan_item_id::int AS "planItemId",r.inventory_batch_id::int AS "inventoryBatchId",
     r.quantity,r.state,r.picked_quantity AS "pickedQuantity",r.picked_at AS "pickedAt",r.picked_by_user_id::int AS "pickedByUserId",
     r.used_quantity AS "usedQuantity",r.expected_return_quantity AS "expectedReturnQuantity",r.returned_quantity AS "returnedQuantity",
-    r.usage_recorded_at AS "usageRecordedAt",r.last_returned_at AS "lastReturnedAt",r.returned_by_user_id::int AS "returnedByUserId",\n    CASE WHEN $3='Admin' OR ($3='Doctor' AND p.category<>'器械') THEN r.picked_unit_cost::text ELSE NULL END AS "pickedUnitCost",
+    r.usage_recorded_at AS "usageRecordedAt",r.last_returned_at AS "lastReturnedAt",r.returned_by_user_id::int AS "returnedByUserId",\n    CASE WHEN $3='Admin' OR ($3='Doctor' AND p.category IN ('植體','植體套件','癒合醫療耗材')) THEN r.picked_unit_cost::text ELSE NULL END AS "pickedUnitCost",
     b.ref_number AS "refNumber",b.lot_number AS "lotNumber",r.created_at AS "createdAt",r.released_at AS "releasedAt"
     FROM implant_stock_reservations r JOIN inventory_batches b ON b.id=r.inventory_batch_id
     JOIN implant_draft_plan_items p ON p.id=r.plan_item_id

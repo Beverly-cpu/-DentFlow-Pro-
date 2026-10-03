@@ -45,7 +45,7 @@ export function validateImplantDraft(value: unknown) {
     const items = tooth.items.map((value) => {
       const item = row(value, ["name", "category", "brand", "model", "specification", "quantity"]);
       const category = draftText(item.category, "類別", 50, true);
-      if (!["植體", "植體套件", "器械"].includes(category)) throw new DraftError(400, "invalid_input", "術前規格類別不正確");
+      if (!["植體", "植體套件", "癒合醫療耗材", "器械"].includes(category)) throw new DraftError(400, "invalid_input", "術前規格類別不正確");
       const quantity = draftId(item.quantity, "預計數量");
       if (quantity > 1000) throw new DraftError(400, "invalid_input", "單品項預計數量上限 1000");
       itemCount++;
