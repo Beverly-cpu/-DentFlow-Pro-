@@ -560,7 +560,9 @@ function registerAuthHandlers() {
           "確定要啟動本機管理者密碼復原嗎？",
 
         detail:
-          "此功能只應在管理者忘記密碼、無法登入捷晞美學牙醫系統時使用。\n\n復原授權只有 5 分鐘有效，而且只能使用一次。",
+          "此功能只應在管理者忘記密碼、無法登入捷晞美學牙醫系統時使用。\
+\
+復原授權只有 5 分鐘有效，而且只能使用一次。",
       };
 
       const result =
@@ -1097,6 +1099,10 @@ function redactInventoryCosts<T extends Array<Record<string, unknown>>>(items: T
 
 function registerCentralImplantHandlers() {
   const implants = createRemoteImplantClient(centralApi, encryptedDraftJournal, () => getDeploymentConfig().serverUrl!);
+  const orders = createRemoteImplantOrderClient(centralApi, () => getDeploymentConfig().serverUrl!);
+  const withdrawals = createRemoteWithdrawalClient(centralApi, () => getDeploymentConfig().serverUrl!);
+  const dispositions = createRemoteDispositionClient(centralApi, () => getDeploymentConfig().serverUrl!);
+  const clinical = createRemoteClinicalClient(centralApi, () => getDeploymentConfig().serverUrl!);
   const remote = (callback: Parameters<typeof ipcMain.handle>[1]) => (event: Electron.IpcMainInvokeEvent, ...args: unknown[]) => {
     if (getDeploymentConfig().mode !== "remote") throw Error("請先連線中央伺服器再操作中央個案");
     return callback(event, ...args);
@@ -1112,9 +1118,13 @@ function registerCentralImplantHandlers() {
   ipcMain.handle("central-implants:cancel-order", remote((_e, clinicId: number, input: unknown) => orders.cancel(clinicId, input)));
   ipcMain.handle("central-implants:pending-withdrawal", remote((_e, clinicId: number) => withdrawals.pending(clinicId)));
   ipcMain.handle("central-implants:withdraw", remote((_e, clinicId: number, input: unknown) => withdrawals.withdraw(clinicId, input)));
-  ipcMain.handle("central-implants:pending-disposition", remote((_e, clinicId: number) => dispositions.pending(clinicId)));\n  ipcMain.handle("central-implants:disposition", remote((_e, input: any) => dispositions.submit(input)));
-  ipcMain.handle("central-implants:pending-clinical", remote((_e, clinicId: number) => clinical.pending(clinicId)));\n  ipcMain.handle("central-implants:retry-clinical", remote((_e, input: any) => clinical.retry(input)));\n  ipcMain.handle("central-implants:clinical-asset-data", remote((_e, id: string) => clinical.assetDataUrl(id)));\n  ipcMain.handle("central-implants:clinical-asset", remote((_e, input: any) => clinical.asset(input)));
-  ipcMain.handle("central-implants:close-case", remote((_e, input: any) => clinical.close(input)));
+  ipcMain.handle("central-implants:pending-disposition", remote((_e, clinicId: number) => dispositions.pending(clinicId)));
+  ipcMain.handle("central-implants:disposition", remote((_e, input: unknown) => dispositions.submit(input)));
+  ipcMain.handle("central-implants:pending-clinical", remote((_e, clinicId: number) => clinical.pending(clinicId)));
+  ipcMain.handle("central-implants:retry-clinical", remote((_e, input: unknown) => clinical.retry(input)));
+  ipcMain.handle("central-implants:clinical-asset-data", remote((_e, id: string) => clinical.assetDataUrl(id)));
+  ipcMain.handle("central-implants:clinical-asset", remote((_e, input: unknown) => clinical.asset(input)));
+  ipcMain.handle("central-implants:close-case", remote((_e, input: unknown) => clinical.close(input)));
 }
 
 function registerImplantHandlers() {
