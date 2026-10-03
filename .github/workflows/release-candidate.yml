@@ -1,0 +1,39 @@
+name: Release Candidate
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  windows-installer:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      DENTFLOW_REQUIRE_REMOTE: "1"
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable Corepack
+        run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify source
+        run: pnpm lint && pnpm test && pnpm build:all
+      - name: Build Windows installer
+        run: pnpm --filter desktop dist
+      - name: Upload unsigned RC installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: DentFlow-Pro-Windows-RC
+          path: apps/desktop/release/*
+          if-no-files-found: error
+          retention-days: 14

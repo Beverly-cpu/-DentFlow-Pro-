@@ -1,7 +1,7 @@
 {
   "name": "desktop",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0-rc.1",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -9,7 +9,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "node --import tsx --test test/**/*.test.ts"
+    "test": "node --import tsx --test test/**/*.test.ts",
+    "dist": "pnpm build && electron-builder --win nsis --x64"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -42,5 +43,31 @@
     "vite-plugin-electron": "^1.1.0",
     "wait-on": "^9.1.0",
     "tsx": "^4.20.6"
+  },
+  "build": {
+    "appId": "tw.dentflow.pro",
+    "productName": "DentFlow Pro",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**/*",
+      "node_modules/bcrypt/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }
