@@ -1,0 +1,39 @@
+{
+  "family": "dentflow-prod-api",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "__EXECUTION_ROLE_ARN__",
+  "taskRoleArn": "__TASK_ROLE_ARN__",
+  "containerDefinitions": [{
+    "name": "api",
+    "image": "__ECR_IMAGE__",
+    "essential": true,
+    "portMappings": [{"containerPort": 8787, "protocol": "tcp"}],
+    "environment": [
+      {"name":"NODE_ENV","value":"production"},
+      {"name":"HOST","value":"0.0.0.0"},
+      {"name":"PORT","value":"8787"},
+      {"name":"DATABASE_SSL","value":"true"},
+      {"name":"TRUST_PROXY","value":"true"},
+      {"name":"ASSET_BUCKET","value":"__ASSET_BUCKET__"},
+      {"name":"ASSET_REGION","value":"ap-east-2"},
+      {"name":"ASSET_BUCKET_OWNER","value":"__AWS_ACCOUNT_ID__"},
+      {"name":"ASSET_KMS_KEY_ID","value":"__ASSET_KMS_KEY_ARN__"}
+    ],
+    "secrets": [{"name":"DATABASE_URL","valueFrom":"__DATABASE_URL_SECRET_ARN__"}],
+    "logConfiguration": {
+      "logDriver":"awslogs",
+      "options":{
+        "awslogs-group":"/dentflow/production/api",
+        "awslogs-region":"ap-east-2",
+        "awslogs-stream-prefix":"api"
+      }
+    },
+    "healthCheck":{
+      "command":["CMD-SHELL","node -e \"fetch('http://127.0.0.1:8787/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""],
+      "interval":30,"timeout":5,"retries":3,"startPeriod":30
+    }
+  }]
+}
