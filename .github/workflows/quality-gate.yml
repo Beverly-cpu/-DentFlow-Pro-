@@ -36,3 +36,5 @@ jobs:
         run: pnpm test
       - name: Build all
         run: pnpm build:all
+      - name: Verify API container
+        run: docker build --file apps/api/Dockerfile --tag dentflow-api:ci .
