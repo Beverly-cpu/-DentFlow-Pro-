@@ -1,0 +1,147 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: DentFlow Pro production API runtime
+Parameters:
+  VpcId: {Type: AWS::EC2::VPC::Id}
+  PublicSubnetIds: {Type: 'List<AWS::EC2::Subnet::Id>'}
+  PrivateSubnetIds: {Type: 'List<AWS::EC2::Subnet::Id>'}
+  CertificateArn: {Type: String}
+  DatabaseUrlSecretArn: {Type: String, NoEcho: true}
+  AssetBucketName: {Type: String}
+  AssetKmsKeyArn: {Type: String}
+  ImageTag: {Type: String, Default: latest}
+  DesiredCount: {Type: Number, Default: 2, MinValue: 1}
+Resources:
+  Repository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: dentflow-prod-api
+      ImageScanningConfiguration: {ScanOnPush: true}
+      EncryptionConfiguration: {EncryptionType: AES256}
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: dentflow-prod
+      ClusterSettings: [{Name: containerInsights, Value: enhanced}]
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: {LogGroupName: /dentflow/production/api, RetentionInDays: 90}
+  AlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: DentFlow HTTPS ingress
+      VpcId: !Ref VpcId
+      SecurityGroupIngress: [{IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0}]
+  ApiSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: DentFlow API from ALB only
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 8787, ToPort: 8787, SourceSecurityGroupId: !Ref AlbSecurityGroup}
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: internet-facing
+      Type: application
+      SecurityGroups: [!Ref AlbSecurityGroup]
+      Subnets: !Ref PublicSubnetIds
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref VpcId
+      Port: 8787
+      Protocol: HTTP
+      TargetType: ip
+      HealthCheckPath: /health
+      Matcher: {HttpCode: '200'}
+  HttpsListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      Certificates: [{CertificateArn: !Ref CertificateArn}]
+      DefaultActions: [{Type: forward, TargetGroupArn: !Ref TargetGroup}]
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement: [{Effect: Allow, Principal: {Service: ecs-tasks.amazonaws.com}, Action: 'sts:AssumeRole'}]
+      ManagedPolicyArns: ['arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy']
+      Policies:
+        - PolicyName: ReadDatabaseUrlSecret
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement: [{Effect: Allow, Action: 'secretsmanager:GetSecretValue', Resource: !Ref DatabaseUrlSecretArn}]
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement: [{Effect: Allow, Principal: {Service: ecs-tasks.amazonaws.com}, Action: 'sts:AssumeRole'}]
+      Policies:
+        - PolicyName: ClinicalAssets
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - {Effect: Allow, Action: ['s3:GetObject','s3:PutObject'], Resource: !Sub 'arn:aws:s3:::${AssetBucketName}/*'}
+              - {Effect: Allow, Action: ['s3:GetBucketPublicAccessBlock','s3:GetBucketPolicyStatus','s3:GetBucketLocation'], Resource: !Sub 'arn:aws:s3:::${AssetBucketName}'}
+              - {Effect: Allow, Action: ['kms:Encrypt','kms:Decrypt','kms:GenerateDataKey'], Resource: !Ref AssetKmsKeyArn}
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: dentflow-prod-api
+      Cpu: '512'
+      Memory: '1024'
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      ExecutionRoleArn: !GetAtt ExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      ContainerDefinitions:
+        - Name: api
+          Image: !Sub '${Repository.RepositoryUri}:${ImageTag}'
+          Essential: true
+          PortMappings: [{ContainerPort: 8787, Protocol: tcp}]
+          Environment:
+            - {Name: NODE_ENV, Value: production}
+            - {Name: HOST, Value: 0.0.0.0}
+            - {Name: PORT, Value: '8787'}
+            - {Name: DATABASE_SSL, Value: 'true'}
+            - {Name: TRUST_PROXY, Value: 'true'}
+            - {Name: ASSET_BUCKET, Value: !Ref AssetBucketName}
+            - {Name: ASSET_REGION, Value: !Ref 'AWS::Region'}
+            - {Name: ASSET_BUCKET_OWNER, Value: !Ref 'AWS::AccountId'}
+            - {Name: ASSET_KMS_KEY_ID, Value: !Ref AssetKmsKeyArn}
+          Secrets: [{Name: DATABASE_URL, ValueFrom: !Ref DatabaseUrlSecretArn}]
+          LogConfiguration:
+            LogDriver: awslogs
+            Options: {awslogs-group: !Ref LogGroup, awslogs-region: !Ref 'AWS::Region', awslogs-stream-prefix: api}
+          HealthCheck:
+            Command: ['CMD-SHELL',"node -e \"fetch('http://127.0.0.1:8787/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 30
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: HttpsListener
+    Properties:
+      ServiceName: dentflow-api
+      Cluster: !Ref Cluster
+      TaskDefinition: !Ref TaskDefinition
+      DesiredCount: !Ref DesiredCount
+      LaunchType: FARGATE
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 100
+        MaximumPercent: 200
+        DeploymentCircuitBreaker: {Enable: true, Rollback: true}
+      HealthCheckGracePeriodSeconds: 60
+      NetworkConfiguration:
+        AwsvpcConfiguration: {AssignPublicIp: DISABLED, SecurityGroups: [!Ref ApiSecurityGroup], Subnets: !Ref PrivateSubnetIds}
+      LoadBalancers: [{ContainerName: api, ContainerPort: 8787, TargetGroupArn: !Ref TargetGroup}]
+Outputs:
+  RepositoryUri: {Value: !GetAtt Repository.RepositoryUri}
+  LoadBalancerDnsName: {Value: !GetAtt LoadBalancer.DNSName}
+  ClusterName: {Value: !Ref Cluster}
+  ServiceName: {Value: !GetAtt Service.Name}
