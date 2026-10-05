@@ -1,0 +1,13 @@
+.git
+.github
+**/node_modules
+**/dist
+**/dist-electron
+**/release
+**/*.log
+**/*.db
+**/*.sqlite*
+.env
+.env.*
+!apps/api/.env.example
+coverage
