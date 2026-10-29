@@ -22,8 +22,10 @@ import {
 
 import {
   checkServerConnection,
-  getDeploymentConfig,
+  getDeploymentConfig as resolveDeploymentConfig,
 } from "./remote/serverConnection";
+
+const getDeploymentConfig = () => resolveDeploymentConfig(app.isPackaged);
 
 import {
   centralApi,

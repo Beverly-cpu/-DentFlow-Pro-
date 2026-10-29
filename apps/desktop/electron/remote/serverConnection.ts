@@ -46,14 +46,15 @@ function normalizeServerUrl(
   return url.toString().replace(/\/$/, "");
 }
 
-export function getDeploymentConfig():
-  DentflowDeploymentConfig {
+export function getDeploymentConfig(
+  isPackaged = false,
+): DentflowDeploymentConfig {
   const serverUrl =
     normalizeServerUrl(
       process.env[SERVER_URL_ENV],
     );
 
-  if (process.env[REQUIRE_REMOTE_ENV] === "1" && !serverUrl) {
+  if ((isPackaged || process.env[REQUIRE_REMOTE_ENV] === "1") && !serverUrl) {
     throw new Error("正式版要求中央伺服器，DENTFLOW_SERVER_URL 不可為空");
   }
 
