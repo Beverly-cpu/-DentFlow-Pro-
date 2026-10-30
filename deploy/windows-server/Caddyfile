@@ -1,0 +1,6 @@
+# Local CA; install and trust the generated root certificate on EACH clinic PC.
+# The hostname must resolve to the central host's VPN IP.
+https://dentflow.internal:8443 {
+  tls internal
+  reverse_proxy api:8787
+}
