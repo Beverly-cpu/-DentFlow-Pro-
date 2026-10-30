@@ -1,0 +1,66 @@
+# Windows Docker Desktop (Linux containers). Private VPN access only.
+# Do not forward TCP 8443 from the public internet.
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dentflow
+      POSTGRES_USER: dentflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dentflow -d dentflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [private]
+
+  migrate:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+    image: dentflow-local-api:latest
+    command: ["node", "dist/migrate.js"]
+    restart: "no"
+    environment: &api_env
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "8787"
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      DATABASE_SSL: "false"
+      TRUST_PROXY: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [private]
+
+  api:
+    image: dentflow-local-api:latest
+    restart: unless-stopped
+    environment: *api_env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks: [private]
+
+  https:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [api]
+    networks: [private]
+
+networks:
+  private:
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
